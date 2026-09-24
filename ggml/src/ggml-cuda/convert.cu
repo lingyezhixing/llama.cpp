@@ -314,6 +314,61 @@ static void dequantize_row_q6_K_cuda(const void * vx, dst_t * y, const int64_t k
     dequantize_block_q6_K<<<nb, 64, 0, stream>>>(vx, y);
 }
 
+// vectorized fp16 variants: one warp per QK_K block, one lane per 8 consecutive elements
+static __global__ void dequantize_row_q6_K_f16_vec_kernel(const void * __restrict__ vx, half * __restrict__ yy, const int64_t nb) {
+    const int lane  = threadIdx.x & 31;
+    const int warp  = threadIdx.x >> 5;
+    const int nwarp = blockDim.x >> 5;
+    for (int64_t ib = (int64_t)blockIdx.x*nwarp + warp; ib < nb; ib += (int64_t)gridDim.x*nwarp) {
+        dequantize_q6_K_f16_vec(vx, ib, yy, lane);
+    }
+}
+
+static __global__ void dequantize_row_q5_K_f16_vec_kernel(const void * __restrict__ vx, half * __restrict__ yy, const int64_t nb) {
+    const int lane  = threadIdx.x & 31;
+    const int warp  = threadIdx.x >> 5;
+    const int nwarp = blockDim.x >> 5;
+    for (int64_t ib = (int64_t)blockIdx.x*nwarp + warp; ib < nb; ib += (int64_t)gridDim.x*nwarp) {
+        dequantize_q5_K_f16_vec(vx, ib, yy, lane);
+    }
+}
+
+static int dequantize_vec_grid(const int64_t nb, const int nwarp) {
+    const int64_t needed = (nb + nwarp - 1)/nwarp;
+    const int64_t capped = std::min<int64_t>(4096, needed);
+    return (int) std::max<int64_t>(capped, 1);
+}
+
+static void dequantize_row_q6_K_f16_vec_cuda(const void * __restrict__ vx, half * __restrict__ y, const int64_t k, cudaStream_t stream) {
+    const int64_t nb = k / QK_K;
+    if (nb <= 0) {
+        return;
+    }
+    // the vec kernel stores 16 bytes per lane, so fall back for misaligned output
+    if (((uintptr_t) y) % 16 != 0) {
+        dequantize_row_q6_K_cuda<half>(vx, y, k, stream);
+        return;
+    }
+    const int nthreads = 256;
+    const int grid     = dequantize_vec_grid(nb, nthreads/32);
+    dequantize_row_q6_K_f16_vec_kernel<<<grid, nthreads, 0, stream>>>(vx, y, nb);
+}
+
+static void dequantize_row_q5_K_f16_vec_cuda(const void * __restrict__ vx, half * __restrict__ y, const int64_t k, cudaStream_t stream) {
+    const int64_t nb = k / QK_K;
+    if (nb <= 0) {
+        return;
+    }
+    // the vec kernel stores 16 bytes per lane, so fall back for misaligned output
+    if (((uintptr_t) y) % 16 != 0) {
+        dequantize_row_q5_K_cuda<half>(vx, y, k, stream);
+        return;
+    }
+    const int nthreads = 256;
+    const int grid     = dequantize_vec_grid(nb, nthreads/32);
+    dequantize_row_q5_K_f16_vec_kernel<<<grid, nthreads, 0, stream>>>(vx, y, nb);
+}
+
 template<typename dst_t>
 static void dequantize_row_iq2_xxs_cuda(const void * vx, dst_t * y, const int64_t k, cudaStream_t stream) {
     const int nb = k / QK_K;
@@ -570,9 +625,9 @@ to_fp16_cuda_t ggml_get_to_fp16_cuda(ggml_type type) {
         case GGML_TYPE_Q4_K:
             return dequantize_row_q4_K_cuda;
         case GGML_TYPE_Q5_K:
-            return dequantize_row_q5_K_cuda;
+            return dequantize_row_q5_K_f16_vec_cuda;
         case GGML_TYPE_Q6_K:
-            return dequantize_row_q6_K_cuda;
+            return dequantize_row_q6_K_f16_vec_cuda;
         case GGML_TYPE_IQ2_XXS:
             return dequantize_row_iq2_xxs_cuda;
         case GGML_TYPE_IQ2_XS:
