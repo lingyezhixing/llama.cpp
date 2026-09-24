@@ -1143,10 +1143,19 @@ void launch_fattn(
 
     dim3 blocks_num;
     if (stream_k) {
-        // Stream-K splits the work before the mask scan is applied, so skipped KV tiles make the blocks uneven.
-        const bool prefer_whole_tiles = GGML_CUDA_CC_IS_NVIDIA(cc) && cc == GGML_CUDA_CC_DGX_SPARK && async_kv_preload && scan_mask;
+    // Stream-K splits the work before the mask scan is applied, so skipped KV tiles make the blocks uneven.
+    const bool prefer_whole_tiles = GGML_CUDA_CC_IS_NVIDIA(cc) && cc == GGML_CUDA_CC_DGX_SPARK && async_kv_preload && scan_mask;
 
-        auto should_use_stream_k = [prefer_whole_tiles](const int cc, const int ntiles_dst, const int max_blocks, const int DKQ) {
+    auto should_use_stream_k = [prefer_whole_tiles](const int cc, const int ntiles_dst, const int max_blocks, const int DKQ) {
+            // GGML_CUDA_FATTN_STREAM_K=0/1 overrides the heuristic (1 = always, 0 = never).
+            static const int stream_k_env = []() {
+                const char * env = getenv("GGML_CUDA_FATTN_STREAM_K");
+                return env ? atoi(env) : -1;
+            }();
+            if (stream_k_env >= 0) {
+                return stream_k_env != 0;
+            }
+
             const int tiles_nwaves             = (ntiles_dst + max_blocks - 1) / max_blocks;
             const int tiles_efficiency_percent = 100 * ntiles_dst / (max_blocks*tiles_nwaves);
 
@@ -1158,6 +1167,10 @@ void launch_fattn(
             }
             if (amd_wmma_available(cc) && DKQ == 64) {
                 return true; // TODO better configuration
+            }
+            // A partial last wave leaves SMs idle, so spread the work over all blocks with stream-K.
+            if (GGML_CUDA_CC_IS_NVIDIA(cc) && ntiles_dst > max_blocks && tiles_efficiency_percent < 96) {
+                return true;
             }
             return tiles_efficiency_percent < 75;
         };
@@ -1182,7 +1195,24 @@ void launch_fattn(
                 ? nblocks_stream_k_rounded
                 : nblocks_stream_k_raw;
 
-            blocks_num.x = nblocks_stream_k;
+            // Split each output tile over 2 blocks when that gives more parallelism (long KV) than the occupancy limit.
+            const int nblocks_split = std::min(ntiles_KV*ntiles_dst, 2*ntiles_dst);
+            blocks_num.x = std::max(nblocks_stream_k, nblocks_split);
+
+            // GGML_CUDA_FATTN_BLOCKS sets the block count, GGML_CUDA_FATTN_PB sets the KV split per output
+            // tile (PB blocks per tile); BLOCKS wins when both are set. Only consulted when stream-K is used.
+            static const int blocks_env = []() {
+                const char * env = getenv("GGML_CUDA_FATTN_BLOCKS");
+                return env ? atoi(env) : -1;
+            }();
+            static const int pb_env = []() {
+                const char * env = getenv("GGML_CUDA_FATTN_PB");
+                return env ? atoi(env) : -1;
+            }();
+            if (blocks_env > 0 || pb_env > 0) {
+                const int64_t nblocks_override = blocks_env > 0 ? (int64_t) blocks_env : (int64_t) ntiles_dst*pb_env;
+                blocks_num.x = (int) std::min<int64_t>((int64_t) ntiles_KV*ntiles_dst, nblocks_override);
+            }
         }
 
         if (ntiles_dst % blocks_num.x != 0) { // Fixup is only needed if the SMs work on fractional tiles.
