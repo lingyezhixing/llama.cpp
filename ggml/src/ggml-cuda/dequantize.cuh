@@ -265,6 +265,82 @@ static __device__ __forceinline__ void dequantize_q6_K(const void * vx, const in
     y[96] = ggml_cuda_cast<dst_t>(d * sc[6] * ((int8_t)((ql[32]  >> 4) | (((qh >> 6) & 3) << 4)) - 32));
 }
 
+// One warp dequantizes one QK_K block; each lane produces 8 consecutive
+// elements and writes them with a single 16-byte store. Loads are 16-bit
+// because the K-quant block stride (210 bytes for Q6_K) is not 4-byte aligned.
+static __device__ __forceinline__ void dequantize_q6_K_f16_vec(const void * vx, const int64_t ib, half * __restrict__ yy, const int lane) {
+    const block_q6_K * x = (const block_q6_K *) vx + ib;
+
+    const int64_t e0 = 8*lane;
+    const float d = __half2float(x->d) * (float)x->scales[e0 >> 4];
+
+    const uint8_t * ql = x->ql + (e0 & 63) + ((e0 >> 7) << 6);
+    const uint8_t * qh = x->qh + (e0 & 31) + ((e0 >> 7) << 5);
+    const int  shift = 2*((e0 >> 5) & 3);
+    const bool hi    = ((e0 >> 6) & 1) != 0;
+
+    const uint16_t qw[4] = {
+        *(const uint16_t *)(ql + 0), *(const uint16_t *)(ql + 2),
+        *(const uint16_t *)(ql + 4), *(const uint16_t *)(ql + 6),
+    };
+    const uint16_t hw[4] = {
+        *(const uint16_t *)(qh + 0), *(const uint16_t *)(qh + 2),
+        *(const uint16_t *)(qh + 4), *(const uint16_t *)(qh + 6),
+    };
+
+    uint32_t v[8];
+#pragma unroll
+    for (int i = 0; i < 8; ++i) {
+        const uint32_t qb = (i & 1) ? (qw[i/2] >> 8) : (qw[i/2] & 0xFF);
+        const uint32_t hb = (i & 1) ? (hw[i/2] >> 8) : (hw[i/2] & 0xFF);
+        const uint32_t nib = hi ? ((qb >> 4) & 0xF) : (qb & 0xF);
+        const int32_t  q6  = (int32_t)(nib | (((hb >> shift) & 3) << 4)) - 32;
+        v[i] = __half_as_ushort(__float2half(d * (float)q6));
+    }
+
+    uint4 out;
+    out.x = v[0] | (v[1] << 16);
+    out.y = v[2] | (v[3] << 16);
+    out.z = v[4] | (v[5] << 16);
+    out.w = v[6] | (v[7] << 16);
+    *(uint4 *)(yy + ib*QK_K + e0) = out;
+}
+
+static __device__ __forceinline__ void dequantize_q5_K_f16_vec(const void * vx, const int64_t ib, half * __restrict__ yy, const int lane) {
+    const block_q5_K * x = (const block_q5_K *) vx + ib;
+
+    const int64_t e0 = 8*lane;
+    const int h = (int)(e0 >> 5);
+
+    uint8_t sc, m;
+    get_scale_min_k4(h, x->scales, sc, m);
+    const float dall = __low2half(x->dm);
+    const float dmin = __high2half(x->dm);
+    const float d1 = dall * sc;
+    const float m1 = dmin * m;
+
+    // group h packs its 32 elements as one byte each: element (e0 + i) uses qs[32*(h>>1) + (e0 & 31) + i], low nibble when h is even, high when odd
+    const uint8_t * ql = x->qs + 32*(h >> 1) + (e0 & 31);
+    const uint8_t * qh = x->qh + (e0 & 31);
+    const bool hi = (h & 1) != 0;
+
+    uint32_t v[8];
+#pragma unroll
+    for (int i = 0; i < 8; ++i) {
+        const uint32_t qb   = ql[i];
+        const uint32_t hbit = (qh[i] >> h) & 1;
+        const uint32_t nib  = hi ? ((qb >> 4) & 0xF) : (qb & 0xF);
+        v[i] = __half_as_ushort(__float2half(d1 * (float)(nib | (hbit << 4)) - m1));
+    }
+
+    uint4 out;
+    out.x = v[0] | (v[1] << 16);
+    out.y = v[2] | (v[3] << 16);
+    out.z = v[4] | (v[5] << 16);
+    out.w = v[6] | (v[7] << 16);
+    *(uint4 *)(yy + ib*QK_K + e0) = out;
+}
+
 //================================== i-quants
 
 // Each call dequantizes one super-block of QK_K values into y with 32
