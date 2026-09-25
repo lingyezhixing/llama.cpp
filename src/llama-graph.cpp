@@ -326,10 +326,72 @@ void llm_graph_input_cls::set_input(const llama_ubatch * ubatch) {
     }
 }
 
-void llm_graph_input_rs::set_input(const llama_ubatch * ubatch) {
-    GGML_UNUSED(ubatch);
+void llm_graph_input_rs::set_fold_input(const llama_memory_recurrent_context * mctx_cur, const llama_ubatch * ubatch) const {
+    ggml_tensor * fold_t = mctx_cur->get_rec_fold_t();
+    if (fold_t == nullptr) {
+        return;
+    }
 
+    const bool will_record = ubatch->n_seq_tokens <= mctx_cur->rec_t_cap();
+
+    // side effects must run once per ubatch: the same memory appears in several graph inputs
+    if (mctx_cur->rec_fold_take()) {
+        // fold block: [_, p_i ..., read half_i ..., write half_i ..., bank_i ..., self-check, skip check]
+        std::vector<int32_t> data(mctx_cur->rec_fold_size(), 0);
+
+        // first token position of each sequence in this ubatch
+        std::vector<int32_t> pos0(ubatch->n_seqs, -1);
+        for (uint32_t i = 0; i < ubatch->n_seqs; ++i) {
+            if (ubatch->n_tokens > 0) {
+                pos0[i] = ubatch->pos[i * ubatch->n_seq_tokens];
+            }
+        }
+
+        // replay counts (the accepted prefix of the sequence's previous batch), record halves and
+        // banks, and whether this batch must skip the fold self-check (a restored state)
+        mctx_cur->rec_fold_fill(data, ubatch->n_seqs, pos0.data());
+
+        // the op counted elements where the previous fold did not reproduce the committed state
+        if (mctx_cur->rec_check_enabled()) {
+            int32_t chk = 0;
+            ggml_backend_tensor_get(fold_t, &chk, mctx_cur->rec_fold_check_off() * (int) sizeof(int32_t), sizeof(chk));
+            if (chk != 0) {
+                LLAMA_LOG_ERROR("%s: fold did not reproduce the committed state (%d elements)\n", __func__, chk);
+            }
+        }
+
+        // the parameters go straight into the persistent device tensor; the scheduler input-copy
+        // mechanism does not deliver graph inputs consumed only by the fused gated_delta_net op
+        ggml_backend_tensor_set(fold_t, data.data(), 0, data.size() * sizeof(int32_t));
+
+        for (uint32_t i = 0; i < ubatch->n_seqs; ++i) {
+            if (will_record) {
+                mctx_cur->rec_commit(i, ubatch->n_seq_tokens, pos0[i]);
+            } else {
+                // a batch without records commits the state itself, nothing left to replay
+                mctx_cur->rec_forget(i);
+            }
+        }
+    }
+
+    // the conv cache keeps its own snapshot rows: its gather needs the rollback-aware indices,
+    // which the state gather in set_input below consumes and resets, so capture them here first
+    if (mctx_cur->rec_enabled()) {
+        GGML_ASSERT(s_copy_conv != nullptr);
+        GGML_ASSERT(ggml_backend_buffer_is_host(s_copy_conv->buffer));
+
+        const int64_t n_rs = mctx_cur->get_n_rs();
+        int32_t * data_conv = (int32_t *) s_copy_conv->data;
+        for (int64_t i = 0; i < n_rs; ++i) {
+            data_conv[i] = mctx_cur->s_copy(i);
+        }
+    }
+}
+
+void llm_graph_input_rs::set_input(const llama_ubatch * ubatch) {
     const int64_t n_rs = mctx->get_n_rs();
+
+    set_fold_input(mctx, ubatch);
 
     if (s_copy) {
         GGML_ASSERT(ggml_backend_buffer_is_host(s_copy->buffer));
@@ -353,6 +415,10 @@ bool llm_graph_input_rs::can_reuse(const llm_graph_params & params) {
 
     res &= s_copy_main->ne[0]  == params.ubatch.n_seqs;
     res &= s_copy_extra->ne[0] == mctx->get_n_rs() - params.ubatch.n_seqs;
+
+    res &= s_copy_conv->ne[0] == mctx->get_n_rs();
+    res &= s_copy_conv_main->ne[0]  == params.ubatch.n_seqs;
+    res &= s_copy_conv_extra->ne[0] == mctx->get_n_rs() - params.ubatch.n_seqs;
 
     res &= head == mctx->get_head();
     res &= rs_z == mctx->get_rs_z();
@@ -1087,6 +1153,7 @@ void llm_graph_input_attn_cross::set_input(const llama_ubatch * ubatch) {
 }
 
 void llm_graph_input_mem_hybrid::set_input(const llama_ubatch * ubatch) {
+    inp_rs->set_fold_input(mctx->get_recr(), ubatch);
     mctx->get_attn()->set_input_k_idxs(inp_attn->self_k_idxs, ubatch);
     mctx->get_attn()->set_input_v_idxs(inp_attn->self_v_idxs, ubatch);
 
@@ -1140,6 +1207,7 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
 // Instead of creating a hybrid input, the graph can simply create 2 separate inputs.
 // Refactoring is required in the future.
 void llm_graph_input_mem_hybrid_k::set_input(const llama_ubatch * ubatch) {
+    inp_rs->set_fold_input(mctx->get_recr(), ubatch);
     mctx->get_attn()->set_input_k_idxs(inp_attn->self_k_idxs, ubatch);
 
     mctx->get_attn()->set_input_kq_mask(inp_attn->self_kq_mask, ubatch, cparams.causal_attn);
@@ -1180,6 +1248,7 @@ bool llm_graph_input_mem_hybrid_k::can_reuse(const llm_graph_params & params) {
 }
 
 void llm_graph_input_mem_hybrid_iswa::set_input(const llama_ubatch * ubatch) {
+    inp_rs->set_fold_input(mctx->get_recr(), ubatch);
     const auto * attn_ctx = mctx->get_attn();
 
     // base tensors may not be allocated if there are no non-SWA attention layers
@@ -3537,6 +3606,13 @@ static std::unique_ptr<llm_graph_input_rs> build_rs_inp_impl(
     inp->s_copy_main  = ggml_view_1d(ctx0, inp->s_copy, n_seqs, 0);
     inp->s_copy_extra = ggml_view_1d(ctx0, inp->s_copy, n_rs - n_seqs, n_seqs * inp->s_copy->nb[0]);
 
+    inp->s_copy_conv = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_rs);
+    ggml_set_input(inp->s_copy_conv);
+    ggml_set_name(inp->s_copy_conv, "rs_s_copy_conv");
+
+    inp->s_copy_conv_main  = ggml_view_1d(ctx0, inp->s_copy_conv, n_seqs, 0);
+    inp->s_copy_conv_extra = ggml_view_1d(ctx0, inp->s_copy_conv, n_rs - n_seqs, n_seqs * inp->s_copy_conv->nb[0]);
+
     inp->head = mctx_cur->get_head();
     inp->rs_z = mctx_cur->get_rs_z();
 
@@ -3556,10 +3632,14 @@ ggml_tensor * llm_graph_context::build_rs(
         ggml_tensor * s,
             int32_t   state_size,
             int32_t   n_seqs,
-        const llm_graph_get_rows_fn & get_state_rows) const {
+        const llm_graph_get_rows_fn & get_state_rows,
+            bool      conv) const {
     const auto * kv_state = inp->mctx;
 
-    return build_rs(s, inp->s_copy_main, inp->s_copy_extra, state_size, n_seqs,
+    ggml_tensor * copy_main  = conv ? inp->s_copy_conv_main  : inp->s_copy_main;
+    ggml_tensor * copy_extra = conv ? inp->s_copy_conv_extra : inp->s_copy_extra;
+
+    return build_rs(s, copy_main, copy_extra, state_size, n_seqs,
                     kv_state->get_n_rs(), kv_state->get_head(), kv_state->get_size(), kv_state->get_rs_z(),
                     get_state_rows);
 }

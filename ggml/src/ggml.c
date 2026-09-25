@@ -6371,7 +6371,10 @@ struct ggml_tensor * ggml_gated_delta_net(
         struct ggml_tensor  * g,
         struct ggml_tensor  * beta,
         struct ggml_tensor  * state,
-        int64_t               K) {
+        int64_t               K,
+        struct ggml_tensor  * rec,
+        struct ggml_tensor  * fold,
+        struct ggml_tensor  * diag) {
     GGML_ASSERT(ggml_is_contiguous_rows(q));
     GGML_ASSERT(ggml_is_contiguous_rows(k));
     GGML_ASSERT(ggml_is_contiguous_rows(v));
@@ -6401,6 +6404,16 @@ struct ggml_tensor * ggml_gated_delta_net(
     GGML_ASSERT(state->ne[2] == H);
     GGML_ASSERT(state->ne[3] == n_seqs);
     GGML_ASSERT(K >= 1);
+    GGML_ASSERT((rec == NULL) == (fold == NULL));
+    GGML_ASSERT(diag == NULL || rec != NULL);
+    if (rec != NULL) {
+        GGML_ASSERT(rec->type == GGML_TYPE_F32);
+        // records are grouped in banks, one per sequence of the memory, which can outnumber the
+        // sequences of a single ubatch
+        GGML_ASSERT(rec->ne[2] >= n_seqs);
+        GGML_ASSERT(fold->type == GGML_TYPE_I32);
+        GGML_ASSERT(fold->ne[0] >= 8 && fold->ne[0] >= 4*rec->ne[2] + 3);
+    }
     const int64_t state_rows = K * S_v * n_seqs;
     const int64_t ne[4] = { S_v * H, n_tokens * n_seqs + state_rows, 1, 1 };
     struct ggml_tensor * result = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne);
@@ -6414,7 +6427,9 @@ struct ggml_tensor * ggml_gated_delta_net(
     result->src[3] = g;
     result->src[4] = beta;
     result->src[5] = state;
-
+    result->src[6] = rec;
+    result->src[7] = fold;
+    result->src[8] = diag;
     return result;
 }
 

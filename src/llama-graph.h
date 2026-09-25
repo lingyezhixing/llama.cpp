@@ -267,6 +267,10 @@ public:
 
     void set_input(const llama_ubatch * ubatch) override;
 
+    // ReplaySSM: set the fold parameters in the recurrent memory before the s_copy loop consumes the
+    // rollback indices. The context is passed in because the hybrid input keeps a stale mctx.
+    void set_fold_input(const llama_memory_recurrent_context * mctx_cur, const llama_ubatch * ubatch) const;
+
     bool can_reuse(const llm_graph_params & params) override;
 
     ggml_tensor * s_copy;  // I32 [n_rs]
@@ -275,6 +279,11 @@ public:
     // and shared across layers which use build_rs
     ggml_tensor * s_copy_main;   // I32 [n_seqs]
     ggml_tensor * s_copy_extra;  // I32 [n_rs - n_seqs]
+
+    // ReplaySSM: rollback indices for the conv cache, which still uses snapshot rows
+    ggml_tensor * s_copy_conv;
+    ggml_tensor * s_copy_conv_main;
+    ggml_tensor * s_copy_conv_extra;
 
     const llama_memory_recurrent_context * mctx;
 
@@ -1344,7 +1353,8 @@ struct llm_graph_context {
             ggml_tensor * s,
                 int32_t   state_size,
                 int32_t   n_seqs,
-            const llm_graph_get_rows_fn & get_state_rows = ggml_get_rows) const;
+            const llm_graph_get_rows_fn & get_state_rows = ggml_get_rows,
+            bool      conv = false) const;
 
     ggml_tensor * build_rwkv_token_shift_load(
         llm_graph_input_rs * inp,
