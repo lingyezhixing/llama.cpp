@@ -2361,7 +2361,17 @@ private:
         cur.update_pos(slot.prompt.n_tokens() - n_tokens_cur, pos_min, pos_max);
 
         cur.update_tgt(ctx_tgt, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
-        cur.update_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+
+        if (ctx_dft != nullptr) {
+            // a pure-attention draft KV is a pure function of the prefix and is reconstructed by
+            // trimming on restore, so snapshot it only when the partial state is a strict subset
+            const size_t size_dft_partial = llama_state_seq_get_size_ext(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+            const size_t size_dft_full    = llama_state_seq_get_size_ext(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_NONE);
+
+            if (size_dft_partial < size_dft_full) {
+                cur.update_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+            }
+        }
         // stash the draft's speculative state with the checkpoint
         common_speculative_get_state(spec.get(), slot.id, cur.data_spec);
 
@@ -3366,13 +3376,26 @@ private:
 
                                     if (!do_reset) {
                                         // restore the context checkpoint
+                                        pos_next = std::min(pos_next, std::max(it->pos_min + 1, it->pos_max));
+                                        n_past   = std::min(slot.prompt.tokens.size_up_to_pos(pos_next), (size_t) it->n_tokens);
+
                                         it->load_tgt(ctx_tgt, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
-                                        it->load_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+
+                                        if (ctx_dft != nullptr) {
+                                            if (it->data_dft.empty()) {
+                                                // draft state is a pure function of the prefix - trim instead of restoring a snapshot
+                                                if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), slot.id, n_past, -1)) {
+                                                    SLT_WRN(slot, "failed to trim draft sequence to %d - clearing it\n", n_past);
+                                                    llama_memory_seq_rm(llama_get_memory(ctx_dft), slot.id, -1, -1);
+                                                }
+                                            } else {
+                                                it->load_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+                                            }
+                                        }
+
                                         // restore the draft's speculative state
                                         common_speculative_set_state(spec.get(), slot.id, it->data_spec);
 
-                                        pos_next = std::min(pos_next, std::max(it->pos_min + 1, it->pos_max));
-                                        n_past   = std::min(slot.prompt.tokens.size_up_to_pos(pos_next), (size_t) it->n_tokens);
                                         SLT_TRC(slot, "restored context checkpoint (pos_min = %d, pos_max = %d, n_tokens = %" PRId64 ", n_past = %d, size = %.3f MiB)\n", it->pos_min, it->pos_max, it->n_tokens, n_past, (float) it->size() / 1024 / 1024);
                                     }
 

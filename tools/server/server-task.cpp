@@ -1719,9 +1719,23 @@ server_prompt_cache_state * server_prompt_cache::alloc(const server_prompt & pro
         }
     }
 
+    // keep only the checkpoints useful for resuming: the oldest one and the 2 most recent ones
+    std::list<common_prompt_checkpoint> checkpoints_keep;
+    {
+        const int64_t n_ckpt = (int64_t) prompt.checkpoints.size();
+
+        int64_t i = 0;
+        for (const auto & ckpt : prompt.checkpoints) {
+            if (i == 0 || i >= n_ckpt - 2) {
+                checkpoints_keep.push_back(ckpt);
+            }
+            ++i;
+        }
+    }
+
     // calculate checkpoints size to see if it will fit with the prompt
     size_t checkpoints_size = 0;
-    for (const auto & ckpt : prompt.checkpoints) {
+    for (const auto & ckpt : checkpoints_keep) {
         checkpoints_size += ckpt.size();
     }
 
@@ -1779,7 +1793,7 @@ server_prompt_cache_state * server_prompt_cache::alloc(const server_prompt & pro
     states.push_back({
         /*.prompt =*/ {
             /*.tokens      =*/ prompt.tokens.clone(),
-            /*.checkpoints =*/ prompt.checkpoints,
+            /*.checkpoints =*/ checkpoints_keep,
         },
         /*.data   =*/ {
             /*.main =*/ std::move(state_data_tgt),
