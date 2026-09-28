@@ -29,7 +29,7 @@ enum kv_tree_anchor_kind {
 
 // anchor candidate captured by the caller (e.g. a server prompt checkpoint)
 struct kv_tree_anchor_in {
-    llama_pos pos = 0;
+    int64_t tok = 0;
     std::vector<uint8_t> data_tgt;
     std::vector<uint8_t> data_dft;
 };
@@ -91,11 +91,21 @@ struct kv_tree_io_llama : public kv_tree_io {
     llama_seq_id    seq_id;
 };
 
+// media chunk inside the token stream; for M-RoPE n_pos < n_tok, so token index != position
+struct kv_tree_media {
+    int64_t  idx   = 0;   // start token index of the chunk
+    uint64_t id    = 0;   // opaque identity hash (server: over mtmd_input_chunk_get_id)
+    int32_t  n_tok = 0;   // tokens occupied by the chunk
+    int32_t  n_pos = 0;   // positions advanced by the chunk
+};
+
 // one chunk of attention KV, content-addressed
 struct kv_tree_block {
     uint64_t    hash     = 0;   // chained content hash
+    int64_t     tok0     = 0;   // start token index
     llama_pos   pos0     = 0;   // [pos0, pos1) covered by this block
     llama_pos   pos1     = 0;
+    std::vector<kv_tree_media> media;   // entries with idx in [tok0, tok0 + tokens.size())
     int64_t     refcount = 0;   // stored sequences referencing this block
     int64_t     heat     = 0;
     int64_t     last_used = 0;
@@ -111,6 +121,7 @@ struct kv_tree_block {
 // recurrent state (PARTIAL_ONLY) captured at pos
 struct kv_tree_anchor {
     uint64_t    blk_hash = 0;   // hash of the block containing pos
+    int64_t     tok      = 0;   // token index of the captured state
     llama_pos   pos      = 0;
     int         kind     = KV_TREE_ANCHOR_MESSAGE;
     int64_t     refcount = 0;
@@ -123,7 +134,6 @@ struct kv_tree_anchor {
     size_t      bytes    = 0;   // payload size, valid in both tiers
     std::vector<uint8_t> data_tgt;
     std::vector<uint8_t> data_dft;
-    std::vector<uint8_t> data_spec;
 };
 
 struct kv_tree_seq {
@@ -136,21 +146,21 @@ struct kv_tree_seq {
 // verified prefix of a request against the stored blocks
 struct kv_tree_match {
     std::vector<uint64_t> path;    // hashes of fully matched blocks
-    size_t      n_full    = 0;     // number of fully matched blocks
     size_t      n_part    = 0;     // tokens verified inside the last partial block
     uint64_t    part_hash = 0;     // hash of the partially matched block
-    llama_pos   deep      = 0;     // deepest verified position
+    llama_pos   deep      = 0;     // deepest verified token index
 };
 
 struct kv_tree_restore_anchor {
-    llama_pos pos = 0;
+    int64_t     tok = 0;
+    llama_pos   pos = 0;
     std::vector<uint8_t> data_tgt;
     std::vector<uint8_t> data_dft;
 };
 
 struct kv_tree_restore {
-    llama_pos C = -1;              // restore point, -1 = caller must do a full prefill
-    llama_pos heal = -1;           // capture an anchor when the prefill crosses this pos
+    llama_pos C = -1;              // restore point in tokens, -1 = caller must do a full prefill
+    llama_pos heal = -1;           // capture an anchor when the prefill crosses this token index
     std::vector<kv_tree_restore_anchor> anchors; // path anchors up to C, ascending
 };
 
@@ -158,19 +168,25 @@ class kv_tree {
 public:
     explicit kv_tree(const kv_tree_config & cfg);
 
-    // store the sequence tokens[0, L); the io state must end exactly at L
+    // store the sequence tokens[0, L); the io state must end exactly at the last KV cell
     bool park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+              const std::vector<kv_tree_media> & media,
               const std::vector<kv_tree_anchor_in> & checkpoints);
 
     // load the deepest anchor-covered prefix of tokens into the (cleared) sequence
-    kv_tree_restore restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens);
+    kv_tree_restore restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+                            const std::vector<kv_tree_media> & media, bool leave_one = false);
 
-    // capture the state at pos (the io state must be exactly at pos) as a fork anchor;
+    // capture the state after tok tokens (the io state must be exactly there) as a fork anchor;
     // tokens is the sequence content, used to attach the anchor to the right chain block
-    bool capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens, llama_pos pos);
+    bool capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+                        const std::vector<kv_tree_media> & media, int64_t tok);
 
     // release the stored sequence that matches a prefix of tokens; no-op when nothing matches
-    bool drop_seq(const std::vector<llama_token> & tokens);
+    bool drop_seq(const std::vector<llama_token> & tokens, const std::vector<kv_tree_media> & media);
+
+    // verified prefix of a request against the stored blocks
+    kv_tree_match match(const std::vector<llama_token> & tokens, const std::vector<kv_tree_media> & media) const;
 
     const kv_tree_stats & stats() const { return st; }
 
@@ -179,12 +195,10 @@ public:
     void dump() const;
 
 private:
-    kv_tree_match match(const std::vector<llama_token> & tokens) const;
-
-    bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+    bool store_anchor(uint64_t blk_hash, int64_t tok, llama_pos pos, int kind,
                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
 
-    uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+    uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> & chain) const;
 
     void remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it);
 
@@ -223,7 +237,8 @@ private:
     kv_tree_stats  st;
 
     std::unordered_map<uint64_t, kv_tree_block> blocks;
-    std::map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
+    std::map<int64_t, std::vector<uint64_t>> blocks_at;            // tok0 -> hashes
+    std::map<llama_pos, std::vector<uint64_t>> blocks_by_pos0;    // pos0 -> hashes
     std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor> anchors;
     std::unordered_map<uint64_t, kv_tree_seq> seqs;                  // tip hash -> sequence
 
