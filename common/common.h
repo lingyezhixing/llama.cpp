@@ -632,6 +632,16 @@ struct common_params {
     int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
     int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
 
+    // kv tree params
+    bool        kv_tree         = false;    // use the kv tree for cross-session KV storage
+    int32_t     tree_chunk      = 512;      // KV tree block size in tokens
+    int32_t     tree_checkpoint_anchor_step = 32768;   // min spacing between kv tree checkpoint anchors
+    int32_t     tree_checkpoint_fork_step   = 8192;    // min spacing between kv tree fork anchors
+    int32_t     tree_ram_mib    = 8192;     // kv tree RAM tier limit in MiB
+    int32_t     tree_disk_mib   = 65536;    // kv tree SSD tier limit in MiB
+    std::string tree_disk_dir   = "";       // kv tree SSD tier directory (empty = no SSD tier)
+    bool        tree_debug      = false;    // dump the kv tree after each park/restore
+
     std::string public_path   = "";                                                                         // NOLINT
     std::string api_prefix    = "";                                                                         // NOLINT
     std::string chat_template = "";                                                                         // NOLINT

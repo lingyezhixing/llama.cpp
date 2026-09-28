@@ -1734,6 +1734,79 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_env("LLAMA_ARG_CACHE_IDLE_SLOTS").set_examples({LLAMA_EXAMPLE_SERVER}));
     add_opt(common_arg(
+        {"--kv-tree"},
+        {"--no-kv-tree"},
+        "store stable KV prefixes in a RAM+SSD tree and reuse them across tasks (default: disabled)",
+        [](common_params & params, bool value) {
+            params.kv_tree = value;
+        }
+    ).set_env("LLAMA_ARG_KV_TREE").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-chunk"}, "N",
+        string_format("kv tree block size in tokens (default: %d)", params.tree_chunk),
+        [](common_params & params, int value) {
+            if (value <= 0) {
+                throw std::invalid_argument("tree-chunk must be positive");
+            }
+            params.tree_chunk = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_CHUNK").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-checkpoint-anchor-step"}, "N",
+        string_format("minimum spacing between kv tree checkpoint anchors in tokens (default: %d)", params.tree_checkpoint_anchor_step),
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("tree-checkpoint-anchor-step must be non-negative");
+            }
+            params.tree_checkpoint_anchor_step = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_CHECKPOINT_ANCHOR_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-checkpoint-fork-step"}, "N",
+        string_format("minimum spacing between kv tree fork anchors in tokens (default: %d)", params.tree_checkpoint_fork_step),
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("tree-checkpoint-fork-step must be non-negative");
+            }
+            params.tree_checkpoint_fork_step = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_CHECKPOINT_FORK_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-ram"}, "N",
+        string_format("kv tree RAM tier limit in MiB (default: %d)", params.tree_ram_mib),
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("tree-ram must be non-negative");
+            }
+            params.tree_ram_mib = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_RAM").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-disk"}, "PATH",
+        "kv tree SSD tier directory (default: empty = no SSD tier)",
+        [](common_params & params, const std::string & value) {
+            params.tree_disk_dir = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_DISK").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-disk-limit"}, "N",
+        string_format("kv tree SSD tier limit in MiB (default: %d)", params.tree_disk_mib),
+        [](common_params & params, int value) {
+            if (value < 0) {
+                throw std::invalid_argument("tree-disk-limit must be non-negative");
+            }
+            params.tree_disk_mib = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_DISK_LIMIT").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
+        {"--tree-debug"},
+        {"--no-tree-debug"},
+        "dump the kv tree state after each park/restore (default: disabled)",
+        [](common_params & params, bool value) {
+            params.tree_debug = value;
+        }
+    ).set_env("LLAMA_ARG_TREE_DEBUG").set_examples({LLAMA_EXAMPLE_SERVER}));
+    add_opt(common_arg(
         {"--context-shift"},
         {"--no-context-shift"},
         string_format("whether to use context shift on infinite text generation (default: %s)", params.ctx_shift ? "enabled" : "disabled"),
