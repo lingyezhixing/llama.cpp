@@ -473,6 +473,25 @@ llama_pos server_tokens::pos_next(int64_t n_tokens) const {
     return pos;
 }
 
+llama_pos server_tokens::pos_last() const {
+    if (tokens.empty()) {
+        return -1;
+    }
+
+    if (has_mtmd && tokens.back() == LLAMA_TOKEN_NULL) {
+        // the last cells belong to a media chunk; for M-RoPE they share the chunk start position
+        for (auto it = map_idx_to_media.rbegin(); it != map_idx_to_media.rend(); ++it) {
+            const auto & chunk = it->second;
+            const size_t n_tok = mtmd_input_chunk_get_n_tokens(chunk.get());
+            if (it->first + n_tok == tokens.size()) {
+                return pos_next((int64_t) it->first);
+            }
+        }
+    }
+
+    return pos_next() - 1;
+}
+
 size_t server_tokens::size_up_to_pos(llama_pos max_pos) const {
     if (!has_mtmd) {
         return std::min((size_t)max_pos, tokens.size());
@@ -529,6 +548,10 @@ const mtmd::input_chunk_ptr & server_tokens::find_chunk(size_t idx) const {
         return it->second;
     }
     throw std::runtime_error("Chunk not found");
+}
+
+const std::map<size_t, mtmd::input_chunk_ptr> & server_tokens::media_map() const {
+    return map_idx_to_media;
 }
 
 std::pair<const mtmd::input_chunk_ptr *, size_t> server_tokens::find_next_media_chunk(size_t idx) const {
@@ -708,7 +731,7 @@ void server_tokens::keep_first(size_t n) {
         // disallowed to resize          ^      ^             ^
         if (n > 0) {
             // make sure we never remove tokens in the middle of an image
-            // note that the case where we keep a full image at the end is allowed:
+            // note that keeping a full image at the end is allowed:
             //   tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] != LLAMA_TOKEN_NULL
             if (tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] == LLAMA_TOKEN_NULL) {
                 find_chunk(n); // will throw an error if the cut is not at a chunk boundary
