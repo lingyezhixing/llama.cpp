@@ -320,6 +320,10 @@ llama_build_and_test(test-model-load-cancel.cpp LABEL "model")
 llama_build_and_test(test-autorelease.cpp       LABEL "model")
 llama_build_and_test(test-backend-sampler.cpp   LABEL "model")
 
+llama_build(test-t32-range.cpp)
+
+llama_build(test-t32-tree.cpp ${PROJECT_SOURCE_DIR}/tools/server/server-kv-tree.cpp)
+target_include_directories(test-t32-tree PRIVATE ${PROJECT_SOURCE_DIR}/tools/server ${PROJECT_SOURCE_DIR}/tools/mtmd ${PROJECT_SOURCE_DIR}/vendor)
 if (APPLE)
     llama_build(test-rset-release.cpp)
 endif()
