@@ -1,0 +1,6 @@
+$ErrorActionPreference = "Continue"
+$env:CUDA_VISIBLE_DEVICES = "1"
+$ncu   = "C:\Program Files\NVIDIA Corporation\Nsight Compute 2025.2.1\ncu.bat"
+$dir   = "$env:TEMP\v100"
+& $ncu --clock-control none --cache-control none --kernel-name regex:fused_q6k --launch-count 2 --section SpeedOfLight --section SchedulerStats --section WarpStateStats --section Occupancy --section LaunchStats --print-details all --log-file "$dir\ncu_t02.log" "$dir\t02_fused.exe" 3 *> "$dir\ncu_t02_out.txt"
+"done $(Get-Date -Format o)" | Out-File "$dir\ncu_t02_done.txt"

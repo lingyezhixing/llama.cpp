@@ -1,0 +1,40 @@
+T32 stage 3 acceptance summary (t32-stage3-ab.ps1)
+generated: 2026-09-27 15:50:11
+build: 3416ea622 (fix wave: F1 heal fallback + F2 store-honest capture + D12 docs); script: fix-wave (heal anchor-step 512 + stored-anchor assert, b3 $sys=$sys3)
+note: all 8 modes re-run at the fix-wave head (heal/b3 in the fix wave; calib/ab/overlap/b/neg/ref in the archive refresh pass, ref twice); ab run with T32_RAM_MIB=133 to match the previous archive
+
+### calib (t32-stage3-calib.txt)
+CALIB LAST PARK: 0.10.368.302 I slot  prompt_park: id  0 | task -1 | kv tree: parked 17016 tokens, 3 checkpoint candidates, ram = 417408732 B, disk = 0 B
+CALIB TOTAL BYTES AFTER 2 ROUNDS: 417408732
+RESULT calib: 0 failure(s)
+
+### ab (t32-stage3-ab.txt)
+AB METRICS ram_mib=133 parked=23 restored=12 miss=0 rammax=138760464 diskmax=497257704
+RESULT ab: 0 failure(s)
+
+### overlap (t32-stage3-overlap.txt)
+OVL METRICS parked=0 restored=0 miss=0
+RESULT overlap: 0 failure(s)
+
+### b (t32-stage3-b.txt)
+B METRICS restored=12 ref4_lines=2
+RESULT b: 0 failure(s)
+
+### b3 (t32-stage3-b3.txt)
+B3 METRICS parked=11 restored=0 miss=6 failed_captures=0
+RESULT b3: 0 failure(s)
+
+### neg (t32-stage3-neg.txt)
+NEG removing 65 block files
+NEG METRICS strict=2 wide=2
+RESULT neg: 0 failure(s)
+
+### heal (t32-stage3-heal.txt)
+HEAL ANCHOR pos=1024 stored_in_dump=True
+HEAL METRICS captured=1 stored=True notstored=0 failed=0 missed=0 parked=7 restored=2
+RESULT heal: 0 failure(s)
+
+### ref (t32-stage3-ref.txt)
+RESULT ref: 0 failure(s)
+
+### ref determinism (t32-stage3-ref.txt vs t32-stage3-ab-ref2.txt): IDENTICAL (30/30 hash lines)

@@ -1,0 +1,338 @@
+﻿[
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  true
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  true
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  true
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  true
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  true
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  false
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  false
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  false
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  false
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  false
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  true
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  true
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  true
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  true
+    },
+    {
+        "tag":  "ngram",
+        "spec_type":  "ngram-map-k4v",
+        "n_max":  0,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "copy",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_code_0.txt",
+        "label":  "code",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3ng",
+        "spec_type":  "draft-mtp,ngram-map-k4v",
+        "n_max":  3,
+        "prompt":  "spec_prose_0.txt",
+        "label":  "prose",
+        "cache":  true
+    },
+    {
+        "tag":  "none#2",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "copy32k",
+        "cache":  false
+    },
+    {
+        "tag":  "none#2",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "copy128k",
+        "cache":  false
+    }
+]

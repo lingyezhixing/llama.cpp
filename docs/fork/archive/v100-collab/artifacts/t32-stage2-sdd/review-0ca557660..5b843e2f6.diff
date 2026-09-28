@@ -1,0 +1,135 @@
+# Review package: 0ca557660..5b843e2f6
+
+## Commits
+5b843e2f6 server : filter adopted anchors by parked chain and count skips
+
+## Files changed
+ tools/server/server-kv-tree.cpp | 15 +++++++++++----
+ tools/server/server-kv-tree.h   |  2 +-
+ 2 files changed, 12 insertions(+), 5 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 888adf515..d4172ea1b 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -157,36 +157,40 @@ bool kv_tree::store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+     a.data_tgt  = std::move(data_tgt);
+     a.data_dft  = std::move(data_dft);
+ 
+     st.anchors_ram++;
+     st.anchors_added++;
+     st.bytes_ram += (int64_t) size;
+ 
+     return true;
+ }
+ 
+-uint64_t kv_tree::containing_block(llama_pos pos) const {
++uint64_t kv_tree::containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const {
+     if (pos <= 0) {
+         return 0;
+     }
+ 
+     auto it = blocks_at.lower_bound(pos);
+     if (it == blocks_at.begin()) {
+         return 0;
+     }
+     --it;
+ 
+     for (const uint64_t hash : it->second) {
+         const auto b = blocks.find(hash);
+-        if (b != blocks.end() && b->second.pos0 < pos && pos <= b->second.pos1) {
+-            return hash;
++        if (b == blocks.end() || b->second.pos0 >= pos || pos > b->second.pos1) {
++            continue;
++        }
++        if (chain != nullptr && std::find(chain->begin(), chain->end(), hash) == chain->end()) {
++            continue;
+         }
++        return hash;
+     }
+ 
+     return 0;
+ }
+ 
+ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+                    const std::vector<kv_tree_anchor_in> & checkpoints) {
+     st.park_calls++;
+ 
+     const llama_pos L = (llama_pos) tokens.size();
+@@ -304,44 +308,47 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+         return a.pos < b.pos;
+     });
+ 
+     std::vector<std::pair<uint64_t, llama_pos>> touched;
+     touched.emplace_back(tip, L);
+ 
+     llama_pos last_kept = -1;
+ 
+     for (const kv_tree_anchor_in & c : cand) {
+         if (c.pos <= 0 || c.pos > L || c.data_tgt.empty()) {
++            st.anchors_skipped++;
+             continue;
+         }
+ 
+-        const uint64_t blk = containing_block(c.pos);
++        const uint64_t blk = containing_block(c.pos, &h);
+         if (blk == 0) {
++            fprintf(stderr, "[kv-tree] candidate at %d skipped: no containing block on the parked chain\n", c.pos);
+             st.anchors_skipped++;
+             continue;
+         }
+ 
+         llama_pos prev = -1;
+         for (const auto & kv : anchors) {
+             if (kv.second.pos < c.pos && kv.second.pos > prev) {
+                 prev = kv.second.pos;
+             }
+         }
+ 
+         const llama_pos prev_kept = prev > last_kept ? prev : last_kept;
+ 
+         if (prev_kept >= 0 && c.pos - prev_kept < cfg.anchor_step) {
+             st.anchors_skipped++;
+             continue;
+         }
+ 
+         if (!store_anchor(blk, c.pos, KV_TREE_ANCHOR_MESSAGE, std::vector<uint8_t>(c.data_tgt), std::vector<uint8_t>(c.data_dft))) {
++            fprintf(stderr, "[kv-tree] candidate at %d skipped: anchor store failed\n", c.pos);
+             st.anchors_skipped++;
+             continue;
+         }
+ 
+         touched.emplace_back(blk, c.pos);
+         last_kept = c.pos;
+     }
+ 
+     // anchors that already cover this sequence keep their refcount in sync
+     for (auto & kv : anchors) {
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index 7f9a179d7..a6e4981d3 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -158,21 +158,21 @@ public:
+     const kv_tree_stats & stats() const { return st; }
+ 
+     void dump() const;
+ 
+ private:
+     kv_tree_match match(const std::vector<llama_token> & tokens) const;
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+-    uint64_t containing_block(llama_pos pos) const;
++    uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 
+     bool make_room(size_t need_ram);
+ 
+     kv_tree_config cfg;
+     kv_tree_stats  st;
+ 
+     std::unordered_map<uint64_t, kv_tree_block> blocks;
+     std::map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
+     std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor> anchors;
+     std::unordered_map<uint64_t, kv_tree_seq> seqs;                  // tip hash -> sequence

@@ -1,0 +1,340 @@
+# Review package: ad81d0efc..9e7784270
+
+## Commits
+9e7784270 server : add fork anchor spacing and miss heal to the kv tree
+
+## Files changed
+ tests/test-t32-tree.cpp         | 71 +++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.cpp | 43 ++++++-------------------
+ tools/server/server-kv-tree.h   |  3 +-
+ 3 files changed, 81 insertions(+), 36 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index c4442787d..b9006258e 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -386,20 +386,90 @@ static void run_logic_fixes() {
+         io.max_pos = 1023;
+         check(tree.park(io, nullptr, make_tokens(1024, 0), {}), "fixes: park for the stats line");
+ 
+         const std::string s = tree.stats_line();
+         check(s.find("parks=1") != std::string::npos, "fixes: stats line has parks");
+         check(s.find("anchors=1") != std::string::npos, "fixes: stats line has anchors");
+         check(s.find("disk_err=0") != std::string::npos, "fixes: stats line has disk_err");
+     }
+ }
+ 
++static void run_logic_fork() {
++    fprintf(stderr, "[t32-tree] logic: fork spacing and miss heal\n");
++
++    // fork anchors use fork_step, guesses keep anchor_step
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 32768;
++        cfg.fork_step   = 8192;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++        const auto tok = make_tokens(10240, 0);
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 10239;
++            check(tree.park(io, nullptr, tok, {}), "fork: park the chain");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 1023;
++            check(tree.capture_anchor(io, nullptr, tok, 1024), "fork: the first capture is free");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 5119;
++            check(!tree.capture_anchor(io, nullptr, tok, 5120), "fork: within fork_step is refused");
++        }
++        check_eq(tree.stats().anchors_skipped_step, 1, "fork: the spacing skip is counted");
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 9215;
++            check(tree.capture_anchor(io, nullptr, tok, 9216), "fork: at fork_step it is stored");
++        }
++        check_eq(tree.stats().anchors_added, 3, "fork: tip + two fork anchors");
++        check(tree.stats_line().find("step_skips=1") != std::string::npos, "fork: stats line has step_skips");
++    }
++
++    // a restore miss reports the divergence point
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 32768;
++        cfg.fork_step   = 8192;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++
++        const auto tok_a = make_tokens(4096, 0);
++        auto tok_b = make_tokens(4096, 1);
++        for (int i = 0; i < 2048; ++i) {
++            tok_b[i] = tok_a[i];
++        }
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 4095;
++            check(tree.park(io, nullptr, tok_a, {}), "fork: park A");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 4095;
++            const kv_tree_restore r = tree.restore(io, nullptr, tok_b);
++            check_eq(r.C, -1, "fork: B misses (no anchor on the shared path)");
++            check_eq(r.heal, 2048, "fork: the miss reports the divergence point");
++        }
++    }
++}
++
+ static void run_logic_wipe() {
+     fprintf(stderr, "[t32-tree] logic: startup wipe\n");
+ 
+     const auto dir = std::filesystem::temp_directory_path() / "t32-tree-wipe";
+ 
+     std::error_code ec;
+     std::filesystem::remove_all(dir, ec);
+     std::filesystem::create_directories(dir / "blocks", ec);
+     std::filesystem::create_directories(dir / "anchors", ec);
+ 
+@@ -438,20 +508,21 @@ static void run_logic_wipe() {
+ 
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
+     run_logic_evict();
+     run_logic_drop();
+     run_logic_stream();
+     run_logic_capture();
+     run_logic_fixes();
+     run_logic_wipe();
++    run_logic_fork();
+ 
+     kv_tree_config cfg;
+     cfg.chunk = 512;
+     cfg.ram_limit = 64ull << 20;
+ 
+     kv_tree tree(cfg);
+ 
+     const auto tok_a = make_tokens(1536, 0);   // 3 full chunks
+     const auto tok_b = make_tokens(1024, 0);   // shares the first 2 chunks with tok_a, then diverges
+     auto tok_b2 = tok_b;
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index bdd03266d..ae9534a68 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -373,23 +373,24 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+     llama_pos prev = -1;
+     for (const auto & kv : anchors) {
+         if (kv.second.pos >= pos || kv.second.pos <= prev) {
+             continue;
+         }
+         if (std::find(chain.begin(), chain.end(), kv.first.first) != chain.end()) {
+             prev = kv.second.pos;
+         }
+     }
+ 
+-    if (prev >= 0 && pos - prev < cfg.anchor_step) {
+-        fprintf(stderr, "[kv-tree] capture skipped at %d: within anchor_step\n", pos);
++    if (prev >= 0 && pos - prev < cfg.fork_step) {
++        fprintf(stderr, "[kv-tree] capture skipped at %d: within fork_step\n", pos);
+         st.anchors_skipped++;
++        st.anchors_skipped_step++;
+         return false;
+     }
+ 
+     std::vector<uint8_t> tgt;
+     std::vector<uint8_t> dft;
+ 
+     if (!io_tgt.get_partial(tgt)) {
+         fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the state\n", pos);
+         st.anchors_skipped++;
+         return false;
+@@ -402,54 +403,26 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+ 
+     if (!store_anchor(blk, pos, KV_TREE_ANCHOR_ONDEMAND, std::move(tgt), std::move(dft))) {
+         return false;
+     }
+ 
+     if (!enforce_budget() || anchors.count(key) == 0) {
+         st.anchors_skipped++;
+         return false;
+     }
+ 
+-    promote_prune(chain, pos);
++    // no pruning needed here: the spacing rule keeps prev <= pos - fork_step,
++    // so no anchor can sit between prev and the new one
+ 
+     return true;
+ }
+ 
+-void kv_tree::promote_prune(const std::vector<uint64_t> & chain, llama_pos pos) {
+-    // previous anchor on this chain
+-    llama_pos prev = -1;
+-    for (const auto & kv : anchors) {
+-        const kv_tree_anchor & a = kv.second;
+-        if (a.pos >= pos || a.pos <= prev) {
+-            continue;
+-        }
+-        if (std::find(chain.begin(), chain.end(), a.blk_hash) != chain.end()) {
+-            prev = a.pos;
+-        }
+-    }
+-
+-    if (prev < 0) {
+-        return;
+-    }
+-
+-    for (auto it = anchors.begin(); it != anchors.end(); ) {
+-        kv_tree_anchor & a = it->second;
+-
+-        if (a.pos > prev && a.pos < pos && a.kind != KV_TREE_ANCHOR_TIP && a.refcount < 2 && !a.pinned &&
+-            std::find(chain.begin(), chain.end(), a.blk_hash) != chain.end()) {
+-            remove_anchor(it++);
+-        } else {
+-            ++it;
+-        }
+-    }
+-}
+-
+ uint64_t kv_tree::containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const {
+     if (pos <= 0) {
+         return 0;
+     }
+ 
+     auto it = blocks_at.lower_bound(pos);
+     if (it == blocks_at.begin()) {
+         return 0;
+     }
+     --it;
+@@ -1180,20 +1153,21 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+             }
+             if (std::find(h.begin(), h.end(), kv.first.first) != h.end()) {
+                 prev = kv.second.pos;
+             }
+         }
+ 
+         const llama_pos prev_kept = prev > last_kept ? prev : last_kept;
+ 
+         if (prev_kept >= 0 && c.pos - prev_kept < cfg.anchor_step) {
+             st.anchors_skipped++;
++            st.anchors_skipped_step++;
+             continue;
+         }
+ 
+         if (!store_anchor(blk, c.pos, KV_TREE_ANCHOR_MESSAGE, std::vector<uint8_t>(c.data_tgt), std::vector<uint8_t>(c.data_dft))) {
+             fprintf(stderr, "[kv-tree] candidate at %d skipped: anchor store failed\n", c.pos);
+             st.anchors_skipped++;
+             continue;
+         }
+ 
+         touched.emplace_back(blk, c.pos);
+@@ -1319,20 +1293,21 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+                 if (it->second.pos > C) {
+                     C = it->second.pos;
+                     c_hash = hash;
+                 }
+             }
+         }
+     }
+ 
+     if (C < 0) {
+         st.restore_miss++;
++        res.heal = m.deep;   // seed a fork anchor while the caller re-prefills
+         return res;
+     }
+ 
+     for (const uint64_t hash : cand) {
+         auto it = blocks.find(hash);
+         if (it != blocks.end()) {
+             it->second.pinned = true;
+         }
+     }
+     for (auto & kv : anchors) {
+@@ -1439,27 +1414,27 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+ 
+     return res;
+ }
+ 
+ std::string kv_tree::stats_line() const {
+     char buf[512];
+ 
+     snprintf(buf, sizeof(buf),
+              "parks=%" PRId64 " ok=%" PRId64 " refused=%" PRId64
+              " restore=%" PRId64 " hits=%" PRId64 " miss=%" PRId64
+-             " anchors=%" PRId64 " skipped=%" PRId64 " reuse_tok=%" PRId64
++             " anchors=%" PRId64 " skipped=%" PRId64 " step_skips=%" PRId64 " reuse_tok=%" PRId64
+              " store=%" PRId64 " load=%" PRId64
+              " evicted=%" PRId64 "/%" PRId64 "/%" PRId64 " evict_refused=%" PRId64
+              " disk_err=%" PRId64 " ram=%" PRId64 " disk=%" PRId64,
+              st.park_calls, st.park_ok, st.park_refused,
+              st.restore_calls, st.restore_hits, st.restore_miss,
+-             st.anchors_added, st.anchors_skipped, st.tokens_reused,
++             st.anchors_added, st.anchors_skipped, st.anchors_skipped_step, st.tokens_reused,
+              st.bytes_store, st.bytes_load,
+              st.evicted_anchors, st.evicted_blocks, st.evicted_seqs, st.evict_refused,
+              st.disk_errors, st.bytes_ram, st.bytes_disk);
+ 
+     return buf;
+ }
+ 
+ void kv_tree::dump() const {
+     fprintf(stderr, "[kv-tree] blocks: %" PRId64 " ram, %" PRId64 " disk, %" PRId64 " bytes ram, %" PRId64 " bytes disk\n",
+             st.blocks_ram, st.blocks_disk, st.bytes_ram, st.bytes_disk);
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index d375ff350..9ee0856ba 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -42,20 +42,21 @@ struct kv_tree_stats {
+     int64_t bytes_ram       = 0;
+     int64_t bytes_disk      = 0;
+     int64_t park_calls      = 0;
+     int64_t park_ok         = 0;
+     int64_t park_refused    = 0;
+     int64_t restore_calls   = 0;
+     int64_t restore_hits    = 0;
+     int64_t restore_miss    = 0;
+     int64_t anchors_added   = 0;
+     int64_t anchors_skipped = 0;
++    int64_t anchors_skipped_step = 0;
+     int64_t tokens_reused   = 0;
+     int64_t bytes_store     = 0;
+     int64_t bytes_load      = 0;
+     int64_t evicted_anchors = 0;
+     int64_t evicted_blocks  = 0;
+     int64_t evicted_seqs    = 0;
+     int64_t evict_refused   = 0;
+     int64_t disk_errors     = 0;
+ };
+ 
+@@ -178,22 +179,20 @@ public:
+     void dump() const;
+ 
+ private:
+     kv_tree_match match(const std::vector<llama_token> & tokens) const;
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+     uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 
+-    void promote_prune(const std::vector<uint64_t> & chain, llama_pos pos);
+-
+     void remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it);
+ 
+     bool enforce_budget();
+ 
+     bool has_successor(const kv_tree_block & b) const;
+ 
+     bool demote_one();
+ 
+     bool evict_anchor_one();
+     bool evict_block_one();

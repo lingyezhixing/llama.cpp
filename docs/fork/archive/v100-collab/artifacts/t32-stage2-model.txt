@@ -1,0 +1,108 @@
+0.01.428.334 I cmn          init: llama threadpool init, n_threads = 8
+[t32-tree] scenario: tip
+[t32-tree] tip: park                                                                PASS
+[t32-tree] tip: one tip anchor                                                      PASS (got 1, want 1)
+[t32-tree] tip: baseline generation                                                 PASS
+[t32-tree] tip: restore point is the tip                                            PASS (got 1536, want 1536)
+[t32-tree] tip: no heal needed                                                      PASS (got -1, want -1)
+[t32-tree] tip: tokens match the baseline                                           PASS
+[kv-tree] park refused: sequence end 1543, expected 1535
+[t32-tree] tip: park refused when the sequence ends past L                          PASS
+[t32-tree] tip: refusal counted                                                     PASS (got 1, want 1)
+[kv-tree] blocks: 3 ram, 0 disk, 39113796 bytes ram, 0 bytes disk
+[kv-tree] anchors: 1 ram, 0 disk, 1 added, 0 skipped
+[kv-tree] park: 2 calls, 1 ok, 1 refused
+[kv-tree] restore: 1 calls, 1 hits, 0 miss, 1536 tokens reused
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 9dd1e1b0716b6cb0 [1024, 1536) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   anchor 9dd1e1b0716b6cb0@1536 kind=0 ref=1 heat=1 ram
+[kv-tree]   seq tip=9dd1e1b0716b6cb0 len=1536 blocks=3
+[t32-tree] scenario: fork
+[t32-tree] fork: park A                                                             PASS
+[t32-tree] fork: park B                                                             PASS
+[t32-tree] fork: A restores at the tip                                              PASS (got 2048, want 2048)
+[t32-tree] fork: A tokens match the baseline                                        PASS
+[t32-tree] fork: B restores at the tip                                              PASS (got 2048, want 2048)
+[t32-tree] fork: B tokens match the baseline                                        PASS
+[t32-tree] fork: A' restores at the deepest usable anchor                           PASS (got 512, want 512)
+[t32-tree] fork: A' asks for a heal at the fork point                               PASS (got 1024, want 1024)
+[t32-tree] fork: heal capture at the fork point                                     PASS
+[t32-tree] fork: A' tokens match the baseline                                       PASS
+[t32-tree] heal: A' restores at the self-healed anchor                              PASS (got 1024, want 1024)
+[t32-tree] heal: no second heal needed                                              PASS (got -1, want -1)
+[t32-tree] heal: tokens still match the baseline                                    PASS
+[kv-tree] blocks: 6 ram, 0 disk, 118631712 bytes ram, 0 bytes disk
+[kv-tree] anchors: 4 ram, 0 disk, 4 added, 0 skipped
+[kv-tree] park: 2 calls, 2 ok, 0 refused
+[kv-tree] restore: 4 calls, 4 hits, 0 miss, 5632 tokens reused
+[kv-tree]   block f992cff488d1cd14 [1536, 2048) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block 769743a5bf295dd6 [1536, 2048) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block ed4dc17cf5979df1 [1024, 1536) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 4a8d7aaedd2e886f [1024, 1536) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   anchor 0fe844ccd2ec2fee@1024 kind=2 ref=1 heat=1 ram
+[kv-tree]   anchor 769743a5bf295dd6@2048 kind=0 ref=1 heat=1 ram
+[kv-tree]   anchor cffc5f188e0b1ff2@512 kind=1 ref=2 heat=1 ram
+[kv-tree]   anchor f992cff488d1cd14@2048 kind=0 ref=1 heat=1 ram
+[kv-tree]   seq tip=f992cff488d1cd14 len=2048 blocks=4
+[kv-tree]   seq tip=769743a5bf295dd6 len=2048 blocks=4
+[t32-tree] scenario: sparsify
+[t32-tree] sparsify: park                                                           PASS
+[t32-tree] sparsify: [0, 1024) restores at 512                                      PASS (got 512, want 512)
+[t32-tree] sparsify: [0, 1024) tokens match                                         PASS
+[t32-tree] sparsify: [0, 1536) restores at 1536                                     PASS (got 1536, want 1536)
+[t32-tree] sparsify: [0, 1536) tokens match                                         PASS
+[t32-tree] sparsify: full length restores at the tip                                PASS (got 2048, want 2048)
+[t32-tree] sparsify: full length tokens match                                       PASS
+[kv-tree] blocks: 4 ram, 0 disk, 85821828 bytes ram, 0 bytes disk
+[kv-tree] anchors: 3 ram, 0 disk, 3 added, 1 skipped
+[kv-tree] park: 1 calls, 1 ok, 0 refused
+[kv-tree] restore: 3 calls, 3 hits, 0 miss, 4096 tokens reused
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 9dd1e1b0716b6cb0 [1024, 1536) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block b288690e4930688f [1536, 2048) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   anchor 9dd1e1b0716b6cb0@1536 kind=1 ref=1 heat=1 ram
+[kv-tree]   anchor b288690e4930688f@2048 kind=0 ref=1 heat=1 ram
+[kv-tree]   anchor cffc5f188e0b1ff2@512 kind=1 ref=1 heat=1 ram
+[kv-tree]   seq tip=b288690e4930688f len=2048 blocks=4
+[t32-tree] scenario: ssd
+[t32-tree] ssd: park                                                                PASS
+[t32-tree] ssd: blocks demoted to disk                                              PASS
+[t32-tree] ssd: tip anchor demoted to disk                                          PASS
+[t32-tree] ssd: no blocks left in ram                                               PASS (got 0, want 0)
+[t32-tree] ssd: restore point is the tip                                            PASS (got 1536, want 1536)
+[t32-tree] ssd: tokens match the baseline                                           PASS
+[kv-tree] failed to read block cffc5f188e0b1ff2 from disk
+[kv-tree] restore failed: cannot load block [0, 512)
+[t32-tree] ssd: restore misses when block files are gone                            PASS (got -1, want -1)
+[t32-tree] ssd: disk error counted                                                  PASS
+[kv-tree] blocks: 0 ram, 3 disk, 0 bytes ram, 39113796 bytes disk
+[kv-tree] anchors: 0 ram, 1 disk, 1 added, 0 skipped
+[kv-tree] park: 1 calls, 1 ok, 0 refused
+[kv-tree] restore: 2 calls, 1 hits, 1 miss, 1536 tokens reused
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=1 heat=0 disk 6303912 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=1 heat=0 disk 6303912 bytes
+[kv-tree]   block 9dd1e1b0716b6cb0 [1024, 1536) ref=1 heat=0 disk 6303912 bytes
+[kv-tree]   anchor 9dd1e1b0716b6cb0@1536 kind=0 ref=1 heat=1 disk
+[kv-tree]   seq tip=9dd1e1b0716b6cb0 len=1536 blocks=3
+[t32-tree] scenario: unaligned
+[t32-tree] unaligned: park (1300 tokens, anchor at 1150)                            PASS
+[t32-tree] unaligned: restore uses the non-aligned anchor                           PASS (got 1150, want 1150)
+[t32-tree] unaligned: heal points at the request end                                PASS (got 1200, want 1200)
+[t32-tree] unaligned: tokens match the matched baseline                             PASS
+[t32-tree] unaligned: full length restores at the non-aligned tip                   PASS (got 1300, want 1300)
+[t32-tree] unaligned: no heal for the full length                                   PASS (got -1, want -1)
+[t32-tree] unaligned: full length tokens match the matched baseline                 PASS
+[kv-tree] blocks: 3 ram, 0 disk, 56410224 bytes ram, 0 bytes disk
+[kv-tree] anchors: 2 ram, 0 disk, 2 added, 0 skipped
+[kv-tree] park: 1 calls, 1 ok, 0 refused
+[kv-tree] restore: 2 calls, 2 hits, 0 miss, 2450 tokens reused
+[kv-tree]   block 81331bbde66776e8 [512, 1024) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 744ce836c3b67806 [0, 512) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 67b55dc748ad7441 [1024, 1300) ref=1 heat=0 ram 3398280 bytes
+[kv-tree]   anchor 67b55dc748ad7441@1150 kind=1 ref=1 heat=1 ram
+[kv-tree]   anchor 67b55dc748ad7441@1300 kind=0 ref=1 heat=1 ram
+[kv-tree]   seq tip=67b55dc748ad7441 len=1300 blocks=3

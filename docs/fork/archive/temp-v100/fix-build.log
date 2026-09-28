@@ -1,0 +1,192 @@
+[0/1] Re-running CMake...
+-- llama.cpp version: 0.5.0-dev
+CMAKE_BUILD_TYPE=
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: AMD64
+-- CMAKE_GENERATOR_PLATFORM: 
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: /arch:AVX512 GGML_AVX512;__AVX512VBMI__;__AVX512VNNI__;GGML_AVX512_VNNI;__BMI2__;GGML_BMI2
+-- CUDA Toolkit found
+-- Using CMAKE_CUDA_ARCHITECTURES=70-real;89-real CMAKE_CUDA_ARCHITECTURES_NATIVE=89-real;70-real
+-- FlashAttention K-V type combinations: f16-f16;bf16-bf16;bf16-q8_0;bf16-q4_0;f16-q8_0;f16-q4_0;q8_0-bf16;q8_0-f16;q8_0-q8_0;q8_0-q4_0;q4_0-bf16;q4_0-f16;q4_0-q8_0;q4_0-q4_0
+-- Could NOT find NCCL (missing: NCCL_LIBRARY NCCL_INCLUDE_DIR) 
+-- Warning: NCCL not found, performance for multiple CUDA GPUs will be suboptimal
+-- Including CUDA backend
+-- ggml version: 0.25.3
+-- ggml commit:  6e328c0a2
+-- Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR (missing: OPENSSL_CRYPTO_LIBRARY OPENSSL_INCLUDE_DIR) 
+CMake Warning at vendor/cpp-httplib/CMakeLists.txt:154 (message):
+  OpenSSL not found, HTTPS support disabled
+
+
+-- Generating embedded license file for target: llama-app
+-- Configuring done (3.6s)
+-- Generating done (0.5s)
+-- Build files have been written to: D:/LLM/Backend/src/llama.cpp-my/build
+[1/158] Building C object ggml\src\CMakeFiles\ggml-base.dir\Release\ggml.c.obj
+[2/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_6_cxx.cxx.obj
+[3/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_9_cxx.cxx.obj
+[4/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama.cpp.obj
+D:\LLM\Backend\src\llama.cpp-my\src\llama.cpp(75): warning C4297: “llama_load_mode_from_str”: 假定函数不引发异常，但确实发生了
+D:\LLM\Backend\src\llama.cpp-my\src\llama.cpp(75): note: 在函数上指定了 __declspec(nothrow)、throw()、noexcept(true)或 noexcept
+[5/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_2_cxx.cxx.obj
+[6/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_7_cxx.cxx.obj
+[7/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-cparams.cpp.obj
+[8/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_0_cxx.cxx.obj
+[9/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_4_cxx.cxx.obj
+[10/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-hparams.cpp.obj
+[11/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-chat.cpp.obj
+[12/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_3_cxx.cxx.obj
+[13/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_1_cxx.cxx.obj
+[14/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_8_cxx.cxx.obj
+[15/158] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_5_cxx.cxx.obj
+[16/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-adapter.cpp.obj
+[17/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-context.cpp.obj
+[18/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-batch.cpp.obj
+[19/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-impl.cpp.obj
+[20/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-recurrent.cpp.obj
+FAILED: [code=2] src/CMakeFiles/llama.dir/Release/llama-memory-recurrent.cpp.obj 
+"E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe"  /nologo /TP -DGGML_BACKEND_SHARED -DGGML_SHARED -DGGML_USE_CPU -DGGML_USE_CUDA -DLLAMA_BUILD -DLLAMA_SHARED -D_CRT_SECURE_NO_WARNINGS -Dllama_EXPORTS -DCMAKE_INTDIR=\"Release\" -ID:\LLM\Backend\src\llama.cpp-my\src\. -ID:\LLM\Backend\src\llama.cpp-my\build\src -ID:\LLM\Backend\src\llama.cpp-my\src\..\include -ID:\LLM\Backend\src\llama.cpp-my\ggml\src\..\include /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++17 -MD /utf-8 /bigobj /showIncludes /Fosrc\CMakeFiles\llama.dir\Release\llama-memory-recurrent.cpp.obj /Fdsrc\CMakeFiles\llama.dir\Release\ /FS -c D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1017): error C2660: “llama_memory_recurrent::state_write_data”: 函数不接受 4 个参数
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.h(165): note: 参见“llama_memory_recurrent::state_write_data”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1017): note: 尝试匹配参数列表“(llama_io_write_i, std::vector<std::pair<uint32_t,uint32_t>,std::allocator<std::pair<uint32_t,uint32_t>>>, const std::vector<std::pair<uint32_t,uint32_t>,std::allocator<std::pair<uint32_t,uint32_t>>>, std::vector<std::pair<uint32_t,uint32_t>,std::allocator<std::pair<uint32_t,uint32_t>>>)”时
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1082): error C2511: “void llama_memory_recurrent::state_write_data(llama_io_write_i &,const std::vector<std::pair<uint32_t,uint32_t>,std::allocator<std::pair<uint32_t,uint32_t>>> &,const std::vector<std::pair<uint32_t,uint32_t>,std::allocator<std::pair<uint32_t,uint32_t>>> &,const std::vector<std::pair<uint32_t,uint32_t>,std::allocator<std::pair<uint32_t,uint32_t>>> &) const”:“llama_memory_recurrent”中没有找到重载的成员函数
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.h(17): note: 参见“llama_memory_recurrent”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1085): error C2737: “n_layer”: 必须初始化 const 对象
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1094): error C2597: 对非静态成员“llama_memory_recurrent::r_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1094): note: 参见“llama_memory_recurrent::r_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1094): error C3867: “llama_memory_recurrent::r_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1094): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1097): error C2597: 对非静态成员“llama_memory_recurrent::r_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1097): note: 参见“llama_memory_recurrent::r_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1097): error C3867: “llama_memory_recurrent::r_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1097): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1097): error C2737: “r_type_i”: 必须初始化 const 对象
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1101): error C2597: 对非静态成员“llama_memory_recurrent::r_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1101): note: 参见“llama_memory_recurrent::r_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1101): error C3867: “llama_memory_recurrent::r_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1101): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1101): error C2660: “ggml_row_size”: 函数不接受 1 个参数
+D:\LLM\Backend\src\llama.cpp-my\ggml\src\..\include\ggml.h(761): note: 参见“ggml_row_size”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1101): note: 尝试匹配参数列表“()”时
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1106): error C2597: 对非静态成员“llama_memory_recurrent::rec_replay”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.h(139): note: 参见“llama_memory_recurrent::rec_replay”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1106): error C2451: 类型为“unknown”的条件表达式无效
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1106): note: 对非静态成员的格式错误的引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1109): error C2597: 对非静态成员“llama_memory_recurrent::n_rs_seq”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1109): note: 参见“llama_memory_recurrent::n_rs_seq”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1109): error C3867: “llama_memory_recurrent::n_rs_seq”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1109): error C2568: “<=”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C2597: 对非静态成员“llama_memory_recurrent::r_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): note: 参见“llama_memory_recurrent::r_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C3867: “llama_memory_recurrent::r_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C2597: 对非静态成员“llama_memory_recurrent::size”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): note: 参见“llama_memory_recurrent::size”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C3867: “llama_memory_recurrent::size”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C2568: “*”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): error C2660: “llama_io_write_i::write_tensor”: 函数不接受 2 个参数
+D:\LLM\Backend\src\llama.cpp-my\src\llama-io.h(15): note: 参见“llama_io_write_i::write_tensor”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1113): note: 尝试匹配参数列表“()”时
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1120): error C2597: 对非静态成员“llama_memory_recurrent::r_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1120): note: 参见“llama_memory_recurrent::r_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1120): error C3867: “llama_memory_recurrent::r_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1120): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1125): error C2597: 对非静态成员“llama_memory_recurrent::p_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1125): note: 参见“llama_memory_recurrent::p_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1125): error C3867: “llama_memory_recurrent::p_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1125): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1126): error C2597: 对非静态成员“llama_memory_recurrent::p_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1126): note: 参见“llama_memory_recurrent::p_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1126): error C3867: “llama_memory_recurrent::p_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1126): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1126): error C2660: “ggml_row_size”: 函数不接受 1 个参数
+D:\LLM\Backend\src\llama.cpp-my\ggml\src\..\include\ggml.h(761): note: 参见“ggml_row_size”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1126): note: 尝试匹配参数列表“()”时
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1129): error C2597: 对非静态成员“llama_memory_recurrent::rec_replay”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.h(139): note: 参见“llama_memory_recurrent::rec_replay”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1129): error C2451: 类型为“unknown”的条件表达式无效
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1129): note: 对非静态成员的格式错误的引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1130): error C2597: 对非静态成员“llama_memory_recurrent::n_rs_seq”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1130): note: 参见“llama_memory_recurrent::n_rs_seq”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1130): error C3867: “llama_memory_recurrent::n_rs_seq”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1130): error C2568: “<=”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C2597: 对非静态成员“llama_memory_recurrent::p_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): note: 参见“llama_memory_recurrent::p_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C3867: “llama_memory_recurrent::p_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C2597: 对非静态成员“llama_memory_recurrent::size”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): note: 参见“llama_memory_recurrent::size”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C3867: “llama_memory_recurrent::size”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C2568: “*”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): error C2660: “llama_io_write_i::write_tensor”: 函数不接受 2 个参数
+D:\LLM\Backend\src\llama.cpp-my\src\llama-io.h(15): note: 参见“llama_io_write_i::write_tensor”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1133): note: 尝试匹配参数列表“()”时
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1139): error C2597: 对非静态成员“llama_memory_recurrent::p_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1139): note: 参见“llama_memory_recurrent::p_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1139): error C3867: “llama_memory_recurrent::p_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1139): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1148): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1148): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1148): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1148): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1151): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1151): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1151): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1151): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1151): error C2737: “s_type_i”: 必须初始化 const 对象
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1155): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1155): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1155): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1155): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1155): error C2660: “ggml_row_size”: 函数不接受 1 个参数
+D:\LLM\Backend\src\llama.cpp-my\ggml\src\..\include\ggml.h(761): note: 参见“ggml_row_size”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1155): note: 尝试匹配参数列表“()”时
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1163): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1163): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1163): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1163): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1168): error C2597: 对非静态成员“llama_memory_recurrent::size”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.h(70): note: 参见“llama_memory_recurrent::size”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1168): error C2440: “初始化”: 无法从“unknown”转换为“uint32_t”
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1168): note: 对非静态成员的格式错误的引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1171): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1171): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1171): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1171): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1173): error C2737: “n_embd_s”: 必须初始化 const 对象
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1176): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1176): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1176): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1176): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1176): error C2737: “s_type_i”: 必须初始化 const 对象
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1180): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1180): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1180): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1180): error C2568: “[”: 无法解析函数重载
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1180): error C2737: “s_size_el”: 必须初始化 const 对象
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1192): error C2597: 对非静态成员“llama_memory_recurrent::s_l”的非法引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1192): note: 参见“llama_memory_recurrent::s_l”的声明
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1192): error C3867: “llama_memory_recurrent::s_l”: 非标准语法；请使用 "&" 来创建指向成员的指针
+D:\LLM\Backend\src\llama.cpp-my\src\llama-memory-recurrent.cpp(1192): error C2568: “[”: 无法解析函数重载
+[21/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-kv-cache-iswa.cpp.obj
+[22/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory.cpp.obj
+[23/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-grammar.cpp.obj
+[24/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-kv-cache-dsa-iswa.cpp.obj
+[25/158] Building CXX object src\CMakeFiles\llama.dir\Release\llama-kv-cache-msa.cpp.obj
+[26/158] Linking CXX shared library bin\Release\ggml-base.dll
+[27/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-hybrid.cpp.obj
+[28/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-kv-cache-dsa.cpp.obj
+[29/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-hybrid-iswa.cpp.obj
+[30/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-graph.cpp.obj
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\memory(3630): warning C4244: “参数”: 从“const int64_t”转换到“uint32_t”，可能丢失数据
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\memory(3630): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\src\llama-graph.cpp(2567): note: 查看对正在编译的函数 模板 实例化“std::unique_ptr<llm_graph_input_out_ids,std::default_delete<llm_graph_input_out_ids>> std::make_unique<llm_graph_input_out_ids,const llama_hparams&,const llama_cparams&,const int64_t&,0>(const llama_hparams &,const llama_cparams &,const int64_t &)”的引用
+[31/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-model-saver.cpp.obj
+[32/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-hybrid-idx.cpp.obj
+[33/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-kv-cache.cpp.obj
+[34/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-kv-cache-dsv4.cpp.obj
+[35/155] Building CXX object src\CMakeFiles\llama.dir\Release\llama-model-loader.cpp.obj
+ninja: build stopped: subcommand failed.

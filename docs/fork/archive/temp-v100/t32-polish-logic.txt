@@ -1,0 +1,112 @@
+[t32-tree] mode logic
+[t32-tree] logic: eviction
+[t32-tree] evict: park A                                                            PASS
+[t32-tree] evict: A has 3 blocks                                                    PASS (got 3, want 3)
+[t32-tree] evict: park B forces eviction                                            PASS
+[t32-tree] evict: blocks were evicted                                               PASS
+[t32-tree] evict: park still succeeded                                              PASS (got 0, want 0)
+[t32-tree] evict: A degrades to a full prefill (visible)                            PASS (got -1, want -1)
+[kv-tree] eviction could not free enough ram (12352 > 4096)
+[kv-tree] park refused: the budget cannot hold the sequence
+[t32-tree] evict: park refused with a tiny budget                                   PASS
+[t32-tree] evict: refusal counted                                                   PASS (got 1, want 1)
+[t32-tree] evict: refusal is visible                                                PASS (got 1, want 1)
+[t32-tree] evict: nothing was left behind                                           PASS (got 0, want 0)
+[t32-tree] logic: drop_seq
+[t32-tree] drop: park A                                                             PASS
+[t32-tree] drop: unrelated tokens are a no-op                                       PASS
+[t32-tree] drop: mid-tail tokens drop the sequence                                  PASS
+[t32-tree] drop: sequence was dropped                                               PASS (got 1, want 1)
+[t32-tree] drop: its blocks were released                                           PASS (got 0, want 0)
+[t32-tree] drop: second drop is a no-op                                             PASS
+[t32-tree] drop: re-park A                                                          PASS
+[t32-tree] drop: superstring drops the sequence                                     PASS
+[t32-tree] drop: sequence was dropped again                                         PASS (got 2, want 2)
+[t32-tree] logic: streaming restore
+[kv-tree] cleared 0 stale files from <user>\AppData\Local\Temp\t32-tree-logic-stream
+[t32-tree] stream: park with spill                                                  PASS
+[t32-tree] stream: all blocks spilled to disk                                       PASS (got 3, want 3)
+[t32-tree] stream: park respects the ram budget                                     PASS
+[t32-tree] stream: restore hits the tip                                             PASS (got 1536, want 1536)
+[t32-tree] stream: no heal needed for an exact tip                                  PASS (got -1, want -1)
+[t32-tree] stream: all blocks were written to the io                                PASS (got 12288, want 12288)
+[t32-tree] stream: the anchor was written                                           PASS (got 1, want 1)
+[t32-tree] stream: restore respects the ram budget                                  PASS
+[t32-tree] stream: bytes_load counts payloads moved from disk                       PASS (got 12288, want 12288)
+[t32-tree] stream: streamed blocks stay on disk                                     PASS (got 3, want 3)
+[t32-tree] logic: capture inside a stored chunk
+[t32-tree] capture: park                                                            PASS
+[t32-tree] capture: tip anchor only                                                 PASS (got 1, want 1)
+[t32-tree] capture: heal inside the tail block                                      PASS
+[t32-tree] capture: the anchor was stored                                           PASS (got 2, want 2)
+[t32-tree] capture: fork restores at the stored anchor                              PASS (got 1400, want 1400)
+[t32-tree] capture: no heal needed after the restore                                PASS (got -1, want -1)
+[t32-tree] capture: the anchor state was written back                               PASS (got 1, want 1)
+[kv-tree] capture refused at 1700: no chain block contains this position
+[t32-tree] capture: refused with no stored block                                    PASS
+[t32-tree] capture: nothing stored on refusal                                       PASS (got 2, want 2)
+[t32-tree] logic: fixes
+[kv-tree] cleared 0 stale files from <user>\AppData\Local\Temp\t32-tree-diskerr
+[kv-tree] failed to create the directory for <user>\AppData\Local\Temp\t32-tree-diskerr/blocks/0fe844ccd2ec2fee.bin.tmp: Cannot create a file when that file already exists.
+[kv-tree] failed to write block 0fe844ccd2ec2fee to disk
+[kv-tree] failed to create the directory for <user>\AppData\Local\Temp\t32-tree-diskerr/anchors/0fe844ccd2ec2fee_1024.bin.tmp: Cannot create a file when that file already exists.
+[kv-tree] failed to write anchor 0fe844ccd2ec2fee@1024 to disk
+[kv-tree] eviction could not free enough ram (8256 > 0)
+[kv-tree] park refused: the budget cannot hold the sequence
+[t32-tree] fixes: park refused when the disk tier fails                             PASS
+[t32-tree] fixes: one disk error per failed write (block + anchor)                  PASS (got 2, want 2)
+[t32-tree] fixes: park chain A (tip anchor at 512)                                  PASS
+[t32-tree] fixes: park chain B with a candidate at 1024                             PASS
+[t32-tree] fixes: the cross-chain anchor does not suppress the candidate            PASS (got 3, want 3)
+[t32-tree] fixes: park chain A                                                      PASS
+[t32-tree] fixes: park chain B                                                      PASS
+[t32-tree] fixes: cross-chain anchor does not block the capture                     PASS
+[kv-tree] capture refused at 2560: no chain block contains this position
+[t32-tree] fixes: same-chain spacing still refuses                                  PASS
+[t32-tree] fixes: park for the stats line                                           PASS
+[t32-tree] fixes: stats line has parks                                              PASS
+[t32-tree] fixes: stats line has anchors                                            PASS
+[t32-tree] fixes: stats line has disk_err                                           PASS
+[t32-tree] logic: startup wipe
+[kv-tree] cleared 5 stale files from <user>\AppData\Local\Temp\t32-tree-wipe
+[t32-tree] wipe: constructor with a stale disk dir                                  PASS
+[t32-tree] wipe: block file removed                                                 PASS
+[t32-tree] wipe: tmp file removed                                                   PASS
+[t32-tree] wipe: anchor file removed                                                PASS
+[t32-tree] wipe: constructor without a disk dir                                     PASS
+[t32-tree] logic: fork spacing and miss heal
+[t32-tree] fork: park the chain                                                     PASS
+[t32-tree] fork: the first capture is free                                          PASS
+[kv-tree] capture skipped at 5120: within fork_step
+[t32-tree] fork: within fork_step is refused                                        PASS
+[t32-tree] fork: the spacing skip is counted                                        PASS (got 1, want 1)
+[t32-tree] fork: at fork_step it is stored                                          PASS
+[t32-tree] fork: tip + two fork anchors                                             PASS (got 3, want 3)
+[t32-tree] fork: stats line has step_skips                                          PASS
+[t32-tree] fork: the park candidate skip is counted                                 PASS (got 1, want 1)
+[t32-tree] fork: park A                                                             PASS
+[t32-tree] fork: B misses (no anchor on the shared path)                            PASS (got -1, want -1)
+[t32-tree] fork: the miss reports the divergence point                              PASS (got 2048, want 2048)
+[t32-tree] park A (3 chunks)                                                        PASS
+[t32-tree] blocks after A                                                           PASS (got 3, want 3)
+[t32-tree] park B2 (shares 2 chunks)                                                PASS
+[t32-tree] blocks after B2 (dedup)                                                  PASS (got 4, want 4)
+[t32-tree] park A again (identical)                                                 PASS
+[t32-tree] blocks after A re-park (no duplicate)                                    PASS (got 4, want 4)
+[t32-tree] park C (partial tail block)                                              PASS
+[t32-tree] blocks after C (tail is a new block)                                     PASS (got 5, want 5)
+[kv-tree] blocks: 5 ram, 0 disk, 17376 bytes ram, 0 bytes disk
+[kv-tree] anchors: 3 ram, 0 disk, 3 added, 0 skipped
+[kv-tree] park: 4 calls, 4 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=3 heat=2 ram 4096 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=3 heat=2 ram 4096 bytes
+[kv-tree]   block 9dd1e1b0716b6cb0 [1024, 1536) ref=1 heat=0 ram 4096 bytes
+[kv-tree]   block 0e97159f8b213b7d [1024, 1536) ref=1 heat=0 ram 4096 bytes
+[kv-tree]   block 79c27b0d350e3a05 [1024, 1124) ref=1 heat=0 ram 800 bytes
+[kv-tree]   anchor 0e97159f8b213b7d@1536 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 79c27b0d350e3a05@1124 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9dd1e1b0716b6cb0@1536 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=9dd1e1b0716b6cb0 len=1536 blocks=3
+[kv-tree]   seq tip=0e97159f8b213b7d len=1536 blocks=3
+[kv-tree]   seq tip=79c27b0d350e3a05 len=1124 blocks=3

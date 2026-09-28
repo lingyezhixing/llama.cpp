@@ -1,0 +1,22 @@
+﻿[
+    {
+        "tag":  "round1-A",
+        "prompt_n":  5833,
+        "predicted_n":  16
+    },
+    {
+        "tag":  "round1-B",
+        "prompt_n":  3833,
+        "predicted_n":  16
+    },
+    {
+        "tag":  "round2-A",
+        "prompt_n":  5312,
+        "predicted_n":  16
+    },
+    {
+        "tag":  "round2-B",
+        "prompt_n":  3321,
+        "predicted_n":  16
+    }
+]

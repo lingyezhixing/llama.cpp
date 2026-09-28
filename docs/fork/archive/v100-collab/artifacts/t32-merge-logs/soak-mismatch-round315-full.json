@@ -1,0 +1,2039 @@
+{
+    "index":  0,
+    "content":  "\nUser turn 316: continue\nAssistant:\nUser turn 317:\nUser turn 318:\nUser turn ",
+    "tokens":  [
+
+               ],
+    "id_slot":  1,
+    "stop":  true,
+    "model":  "E:\\models\\LLM\\GGUF\\Qwen3.5-2B-UD-Q4_K_XL.gguf",
+    "tokens_predicted":  32,
+    "tokens_evaluated":  3626,
+    "generation_settings":  {
+                                "seed":  42,
+                                "temperature":  0.0,
+                                "dynatemp_range":  0.0,
+                                "dynatemp_exponent":  1.0,
+                                "top_k":  1,
+                                "top_p":  0.949999988079071,
+                                "min_p":  0.05000000074505806,
+                                "top_n_sigma":  -1.0,
+                                "xtc_probability":  0.0,
+                                "xtc_threshold":  0.10000000149011612,
+                                "typical_p":  1.0,
+                                "repeat_last_n":  64,
+                                "repeat_penalty":  1.0,
+                                "presence_penalty":  0.0,
+                                "frequency_penalty":  0.0,
+                                "dry_multiplier":  0.0,
+                                "dry_base":  1.75,
+                                "dry_allowed_length":  2,
+                                "dry_penalty_last_n":  64,
+                                "dry_sequence_breakers":  [
+                                                              "\n",
+                                                              ":",
+                                                              "\"",
+                                                              "*"
+                                                          ],
+                                "mirostat":  0,
+                                "mirostat_tau":  5.0,
+                                "mirostat_eta":  0.10000000149011612,
+                                "adaptive_target":  -1.0,
+                                "adaptive_decay":  0.8999999761581421,
+                                "stop":  [
+
+                                         ],
+                                "max_tokens":  32,
+                                "n_predict":  32,
+                                "n_keep":  0,
+                                "n_discard":  0,
+                                "ignore_eos":  false,
+                                "stream":  false,
+                                "logit_bias":  [
+
+                                               ],
+                                "n_probs":  5,
+                                "min_keep":  0,
+                                "grammar":  "",
+                                "grammar_lazy":  false,
+                                "grammar_triggers":  [
+
+                                                     ],
+                                "preserved_tokens":  [
+
+                                                     ],
+                                "chat_format":  "Content-only",
+                                "reasoning_format":  "deepseek",
+                                "reasoning_in_content":  false,
+                                "generation_prompt":  "",
+                                "samplers":  [
+                                                 "penalties",
+                                                 "dry",
+                                                 "top_n_sigma",
+                                                 "top_k",
+                                                 "typ_p",
+                                                 "top_p",
+                                                 "min_p",
+                                                 "xtc",
+                                                 "temperature"
+                                             ],
+                                "speculative.types":  "none",
+                                "timings_per_token":  false,
+                                "post_sampling_probs":  false,
+                                "backend_sampling":  false,
+                                "lora":  [
+
+                                         ]
+                            },
+    "prompt":  "system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number system filler sentence for the kv tree acceptance test number \nUser: delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number delta filler sentence for the kv tree acceptance test number  turn 119: continue\nAssistant:\nUser turn 120:\nUser turn 124: continue\nAssistant:\nUser turn 125: continue\nAssistant:\nUser turn 126:\nUser turn 130: continue\nAssistant:\nUser turn 131:\nUser turn 135: continue\nAssistant:\nUser turn 136: continue\nAssistant:\nUser turn 137: continue\nAssistant:\nUser turn 138:\nUser turn 142: continue\nAssistant:\nUser turn 143: continue\nAssistant:\nUser turn 144:\nUser turn 148: continue\nAssistant:\nUser turn 149:\nUser turn 153: continue\nAssistant:\nUser turn 154: continue\nAssistant:\nUser turn 155: continue\nAssistant:\nUser turn 156:\nUser turn 160: continue\nAssistant:\nUser turn 161:\nUser turn 165: continue\nAssistant:\nUser turn 166: continue\nAssistant:\nUser turn 167: continue\nAssistant:\nUser turn 168:\nUser turn 172: continue\nAssistant:\nUser turn 173: continue\nAssistant:\nUser turn 174:\nUser turn 178: continue\nAssistant:\nUser turn 179:\nUser turn 183: continue\nAssistant:\nUser turn 184: continue\nAssistant:\nUser turn 185: continue\nAssistant:\nUser turn 186:\nUser turn 190: continue\nAssistant:\nUser turn 191:\nUser turn 195: continue\nAssistant:\nUser turn 196: continue\nAssistant:\nUser turn 197: continue\nAssistant:\nUser turn 198:\nUser turn 202: continue\nAssistant:\nUser turn 203: continue\nAssistant:\nUser turn 204:\nUser turn 208: continue\nAssistant:\nUser turn 209: continue\nAssistant:\nUser turn 210:\nUser turn 214: continue\nAssistant:\nUser turn 215:\nUser turn 219: continue\nAssistant:\nUser turn 220:\nUser turn 224: continue\nAssistant:\nUser turn 225: continue\nAssistant:\nUser turn 226: continue\nAssistant:\nUser turn 227: continue\nAssistant:\nUser turn 228:\nUser turn 232: continue\nAssistant:\nUser turn 233: continue\nAssistant:\nUser turn 234:\nUser turn 238: continue\nAssistant:\nUser turn 239:\nUser turn 243: continue\nAssistant:\nUser turn 244: continue\nAssistant:\nUser turn 245: continue\nAssistant:\nUser turn 246:\nUser turn 250: continue\nAssistant:\nUser turn 251: continue\nAssistant:\nUser turn 252:\nUser turn 256: continue\nAssistant:\nUser turn 257: continue\nAssistant:\nUser turn 258:\nUser turn 262: continue\nAssistant:\nUser turn 263: continue\nAssistant:\nUser turn 264:\nUser turn 268: continue\nAssistant:\nUser turn 269:\nUser turn 270:\nUser turn \nUser turn 274:\nUser turn 275: continue\nAssistant:\nUser turn 276:\nUser turn \nUser turn 280:\nUser turn 281:\nUser turn 282:\nUser turn 283:\nUser turn 286:\nUser turn 287:\nUser turn 288:\nUser turn 289:\nUser turn 292:\nUser turn 293:\nUser turn 294:\nUser turn 295:\nUser turn 298:\nUser turn 299:\nUser turn 300:\nUser turn 301:\nUser turn 304: continue\nAssistant:\nUser turn 305: continue\nAssistant:\nUser turn 306:\nUser turn 310:\nUser turn 311:\nUser turn 312:\nUser turn 313:\nUser turn 315: continue\nAssistant:",
+    "has_new_line":  true,
+    "truncated":  false,
+    "stop_type":  "limit",
+    "stopping_word":  "",
+    "tokens_cached":  3657,
+    "timings":  {
+                    "cache_n":  0,
+                    "prompt_n":  3626,
+                    "prompt_ms":  505.265,
+                    "prompt_per_token_ms":  0.1393450082735797,
+                    "prompt_per_second":  7176.432169257716,
+                    "predicted_n":  32,
+                    "predicted_ms":  288.033,
+                    "predicted_per_token_ms":  9.291387096774194,
+                    "predicted_per_second":  107.62655667926938
+                },
+    "completion_probabilities":  [
+                                     {
+                                         "id":  198,
+                                         "token":  "\n",
+                                         "bytes":  [
+                                                       10
+                                                   ],
+                                         "logprob":  -0.0038978029042482376,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -0.0038978029042482376
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.361260414123535
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.891236305236816
+                                                              },
+                                                              {
+                                                                  "id":  2570,
+                                                                  "token":  " User",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -7.652520179748535
+                                                              },
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -8.496959686279297
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  1421,
+                                         "token":  "User",
+                                         "bytes":  [
+                                                       85,
+                                                       115,
+                                                       101,
+                                                       114
+                                                   ],
+                                         "logprob":  -0.015948254615068436,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  1421,
+                                                                  "token":  "User",
+                                                                  "bytes":  [
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -0.015948254615068436
+                                                              },
+                                                              {
+                                                                  "id":  69267,
+                                                                  "token":  "Assistant",
+                                                                  "bytes":  [
+                                                                                65,
+                                                                                115,
+                                                                                115,
+                                                                                105,
+                                                                                115,
+                                                                                116,
+                                                                                97,
+                                                                                110,
+                                                                                116
+                                                                            ],
+                                                                  "logprob":  -4.267973899841309
+                                                              },
+                                                              {
+                                                                  "id":  2244,
+                                                                  "token":  "System",
+                                                                  "bytes":  [
+                                                                                83,
+                                                                                121,
+                                                                                115,
+                                                                                116,
+                                                                                101,
+                                                                                109
+                                                                            ],
+                                                                  "logprob":  -8.002854347229004
+                                                              },
+                                                              {
+                                                                  "id":  18801,
+                                                                  "token":  "Turn",
+                                                                  "bytes":  [
+                                                                                84,
+                                                                                117,
+                                                                                114,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -8.799166679382324
+                                                              },
+                                                              {
+                                                                  "id":  846,
+                                                                  "token":  "user",
+                                                                  "bytes":  [
+                                                                                117,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -9.138921737670898
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  2404,
+                                         "token":  " turn",
+                                         "bytes":  [
+                                                       32,
+                                                       116,
+                                                       117,
+                                                       114,
+                                                       110
+                                                   ],
+                                         "logprob":  -0.0007453954312950373,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  2404,
+                                                                  "token":  " turn",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -0.0007453954312950373
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.232223510742188
+                                                              },
+                                                              {
+                                                                  "id":  10263,
+                                                                  "token":  " turns",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                115
+                                                                            ],
+                                                                  "logprob":  -8.630111694335938
+                                                              },
+                                                              {
+                                                                  "id":  4990,
+                                                                  "token":  " fill",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                102,
+                                                                                105,
+                                                                                108,
+                                                                                108
+                                                                            ],
+                                                                  "logprob":  -9.9224853515625
+                                                              },
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -10.103248596191406
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  220,
+                                         "token":  " ",
+                                         "bytes":  [
+                                                       32
+                                                   ],
+                                         "logprob":  -0.00229263654910028,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -0.00229263654910028
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.269613265991211
+                                                              },
+                                                              {
+                                                                  "id":  4558,
+                                                                  "token":  " \n\n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.508171081542969
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.48082160949707
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -10.218936920166016
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  18,
+                                         "token":  "3",
+                                         "bytes":  [
+                                                       51
+                                                   ],
+                                         "logprob":  -0.000396389834349975,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  18,
+                                                                  "token":  "3",
+                                                                  "bytes":  [
+                                                                                51
+                                                                            ],
+                                                                  "logprob":  -0.000396389834349975
+                                                              },
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -8.517982482910156
+                                                              },
+                                                              {
+                                                                  "id":  17,
+                                                                  "token":  "2",
+                                                                  "bytes":  [
+                                                                                50
+                                                                            ],
+                                                                  "logprob":  -9.158916473388672
+                                                              },
+                                                              {
+                                                                  "id":  19,
+                                                                  "token":  "4",
+                                                                  "bytes":  [
+                                                                                52
+                                                                            ],
+                                                                  "logprob":  -10.103532791137695
+                                                              },
+                                                              {
+                                                                  "id":  20,
+                                                                  "token":  "5",
+                                                                  "bytes":  [
+                                                                                53
+                                                                            ],
+                                                                  "logprob":  -10.741083145141602
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  16,
+                                         "token":  "1",
+                                         "bytes":  [
+                                                       49
+                                                   ],
+                                         "logprob":  -0.003335010726004839,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -0.003335010726004839
+                                                              },
+                                                              {
+                                                                  "id":  17,
+                                                                  "token":  "2",
+                                                                  "bytes":  [
+                                                                                50
+                                                                            ],
+                                                                  "logprob":  -5.8016157150268555
+                                                              },
+                                                              {
+                                                                  "id":  15,
+                                                                  "token":  "0",
+                                                                  "bytes":  [
+                                                                                48
+                                                                            ],
+                                                                  "logprob":  -8.935751914978027
+                                                              },
+                                                              {
+                                                                  "id":  18,
+                                                                  "token":  "3",
+                                                                  "bytes":  [
+                                                                                51
+                                                                            ],
+                                                                  "logprob":  -9.018757820129395
+                                                              },
+                                                              {
+                                                                  "id":  19,
+                                                                  "token":  "4",
+                                                                  "bytes":  [
+                                                                                52
+                                                                            ],
+                                                                  "logprob":  -11.009652137756348
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  21,
+                                         "token":  "6",
+                                         "bytes":  [
+                                                       54
+                                                   ],
+                                         "logprob":  -0.0640370175242424,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  21,
+                                                                  "token":  "6",
+                                                                  "bytes":  [
+                                                                                54
+                                                                            ],
+                                                                  "logprob":  -0.0640370175242424
+                                                              },
+                                                              {
+                                                                  "id":  20,
+                                                                  "token":  "5",
+                                                                  "bytes":  [
+                                                                                53
+                                                                            ],
+                                                                  "logprob":  -3.4704108238220215
+                                                              },
+                                                              {
+                                                                  "id":  22,
+                                                                  "token":  "7",
+                                                                  "bytes":  [
+                                                                                55
+                                                                            ],
+                                                                  "logprob":  -3.7268407344818115
+                                                              },
+                                                              {
+                                                                  "id":  23,
+                                                                  "token":  "8",
+                                                                  "bytes":  [
+                                                                                56
+                                                                            ],
+                                                                  "logprob":  -5.210729122161865
+                                                              },
+                                                              {
+                                                                  "id":  24,
+                                                                  "token":  "9",
+                                                                  "bytes":  [
+                                                                                57
+                                                                            ],
+                                                                  "logprob":  -6.6449503898620605
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  25,
+                                         "token":  ":",
+                                         "bytes":  [
+                                                       58
+                                                   ],
+                                         "logprob":  -0.0011925653088837862,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  25,
+                                                                  "token":  ":",
+                                                                  "bytes":  [
+                                                                                58
+                                                                            ],
+                                                                  "logprob":  -0.0011925653088837862
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.963516712188721
+                                                              },
+                                                              {
+                                                                  "id":  12,
+                                                                  "token":  "-",
+                                                                  "bytes":  [
+                                                                                45
+                                                                            ],
+                                                                  "logprob":  -9.860278129577637
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.95963191986084
+                                                              },
+                                                              {
+                                                                  "id":  2962,
+                                                                  "token":  " continue",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -10.501100540161133
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  2962,
+                                         "token":  " continue",
+                                         "bytes":  [
+                                                       32,
+                                                       99,
+                                                       111,
+                                                       110,
+                                                       116,
+                                                       105,
+                                                       110,
+                                                       117,
+                                                       101
+                                                   ],
+                                         "logprob":  -0.539799690246582,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  2962,
+                                                                  "token":  " continue",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -0.539799690246582
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -0.8895406126976013
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -5.893511772155762
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.721634864807129
+                                                              },
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -8.43935489654541
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  198,
+                                         "token":  "\n",
+                                         "bytes":  [
+                                                       10
+                                                   ],
+                                         "logprob":  -0.0038596871308982372,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -0.0038596871308982372
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -5.759882926940918
+                                                              },
+                                                              {
+                                                                  "id":  1358,
+                                                                  "token":  "\n\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.595534324645996
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.990012168884277
+                                                              },
+                                                              {
+                                                                  "id":  2962,
+                                                                  "token":  " continue",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -9.264142036437988
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  69267,
+                                         "token":  "Assistant",
+                                         "bytes":  [
+                                                       65,
+                                                       115,
+                                                       115,
+                                                       105,
+                                                       115,
+                                                       116,
+                                                       97,
+                                                       110,
+                                                       116
+                                                   ],
+                                         "logprob":  -0.019100669771432877,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  69267,
+                                                                  "token":  "Assistant",
+                                                                  "bytes":  [
+                                                                                65,
+                                                                                115,
+                                                                                115,
+                                                                                105,
+                                                                                115,
+                                                                                116,
+                                                                                97,
+                                                                                110,
+                                                                                116
+                                                                            ],
+                                                                  "logprob":  -0.019100669771432877
+                                                              },
+                                                              {
+                                                                  "id":  1421,
+                                                                  "token":  "User",
+                                                                  "bytes":  [
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -3.983480930328369
+                                                              },
+                                                              {
+                                                                  "id":  2244,
+                                                                  "token":  "System",
+                                                                  "bytes":  [
+                                                                                83,
+                                                                                121,
+                                                                                115,
+                                                                                116,
+                                                                                101,
+                                                                                109
+                                                                            ],
+                                                                  "logprob":  -10.465446472167969
+                                                              },
+                                                              {
+                                                                  "id":  22791,
+                                                                  "token":  "Continue",
+                                                                  "bytes":  [
+                                                                                67,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -10.472916603088379
+                                                              },
+                                                              {
+                                                                  "id":  34944,
+                                                                  "token":  "Contin",
+                                                                  "bytes":  [
+                                                                                67,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -10.666348457336426
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  25,
+                                         "token":  ":",
+                                         "bytes":  [
+                                                       58
+                                                   ],
+                                         "logprob":  -0.0001644031290197745,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  25,
+                                                                  "token":  ":",
+                                                                  "bytes":  [
+                                                                                58
+                                                                            ],
+                                                                  "logprob":  -0.0001644031290197745
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.292377471923828
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -10.287662506103516
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -11.362762451171875
+                                                              },
+                                                              {
+                                                                  "id":  51595,
+                                                                  "token":  ":*",
+                                                                  "bytes":  [
+                                                                                58,
+                                                                                42
+                                                                            ],
+                                                                  "logprob":  -11.97691535949707
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  198,
+                                         "token":  "\n",
+                                         "bytes":  [
+                                                       10
+                                                   ],
+                                         "logprob":  -0.003450618125498295,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -0.003450618125498295
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.133035659790039
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -7.543478488922119
+                                                              },
+                                                              {
+                                                                  "id":  2570,
+                                                                  "token":  " User",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -8.006214141845703
+                                                              },
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -8.59805679321289
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  1421,
+                                         "token":  "User",
+                                         "bytes":  [
+                                                       85,
+                                                       115,
+                                                       101,
+                                                       114
+                                                   ],
+                                         "logprob":  -0.004266110248863697,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  1421,
+                                                                  "token":  "User",
+                                                                  "bytes":  [
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -0.004266110248863697
+                                                              },
+                                                              {
+                                                                  "id":  69267,
+                                                                  "token":  "Assistant",
+                                                                  "bytes":  [
+                                                                                65,
+                                                                                115,
+                                                                                115,
+                                                                                105,
+                                                                                115,
+                                                                                116,
+                                                                                97,
+                                                                                110,
+                                                                                116
+                                                                            ],
+                                                                  "logprob":  -5.517348766326904
+                                                              },
+                                                              {
+                                                                  "id":  846,
+                                                                  "token":  "user",
+                                                                  "bytes":  [
+                                                                                117,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -10.403730392456055
+                                                              },
+                                                              {
+                                                                  "id":  2244,
+                                                                  "token":  "System",
+                                                                  "bytes":  [
+                                                                                83,
+                                                                                121,
+                                                                                115,
+                                                                                116,
+                                                                                101,
+                                                                                109
+                                                                            ],
+                                                                  "logprob":  -10.422282218933105
+                                                              },
+                                                              {
+                                                                  "id":  18801,
+                                                                  "token":  "Turn",
+                                                                  "bytes":  [
+                                                                                84,
+                                                                                117,
+                                                                                114,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -10.881793022155762
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  2404,
+                                         "token":  " turn",
+                                         "bytes":  [
+                                                       32,
+                                                       116,
+                                                       117,
+                                                       114,
+                                                       110
+                                                   ],
+                                         "logprob":  -0.0004343141335994005,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  2404,
+                                                                  "token":  " turn",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -0.0004343141335994005
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.354998588562012
+                                                              },
+                                                              {
+                                                                  "id":  10263,
+                                                                  "token":  " turns",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                115
+                                                                            ],
+                                                                  "logprob":  -9.68903636932373
+                                                              },
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -10.534472465515137
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -11.14486312866211
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  220,
+                                         "token":  " ",
+                                         "bytes":  [
+                                                       32
+                                                   ],
+                                         "logprob":  -0.004441394004970789,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -0.004441394004970789
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -5.513302803039551
+                                                              },
+                                                              {
+                                                                  "id":  4558,
+                                                                  "token":  " \n\n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.560593605041504
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.121472358703613
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -10.501622200012207
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  18,
+                                         "token":  "3",
+                                         "bytes":  [
+                                                       51
+                                                   ],
+                                         "logprob":  -0.00022324430756270885,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  18,
+                                                                  "token":  "3",
+                                                                  "bytes":  [
+                                                                                51
+                                                                            ],
+                                                                  "logprob":  -0.00022324430756270885
+                                                              },
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -9.113616943359375
+                                                              },
+                                                              {
+                                                                  "id":  17,
+                                                                  "token":  "2",
+                                                                  "bytes":  [
+                                                                                50
+                                                                            ],
+                                                                  "logprob":  -9.810640335083008
+                                                              },
+                                                              {
+                                                                  "id":  19,
+                                                                  "token":  "4",
+                                                                  "bytes":  [
+                                                                                52
+                                                                            ],
+                                                                  "logprob":  -10.57107925415039
+                                                              },
+                                                              {
+                                                                  "id":  20,
+                                                                  "token":  "5",
+                                                                  "bytes":  [
+                                                                                53
+                                                                            ],
+                                                                  "logprob":  -11.131828308105469
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  16,
+                                         "token":  "1",
+                                         "bytes":  [
+                                                       49
+                                                   ],
+                                         "logprob":  -0.026982413604855537,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -0.026982413604855537
+                                                              },
+                                                              {
+                                                                  "id":  17,
+                                                                  "token":  "2",
+                                                                  "bytes":  [
+                                                                                50
+                                                                            ],
+                                                                  "logprob":  -3.643843650817871
+                                                              },
+                                                              {
+                                                                  "id":  18,
+                                                                  "token":  "3",
+                                                                  "bytes":  [
+                                                                                51
+                                                                            ],
+                                                                  "logprob":  -8.063935279846191
+                                                              },
+                                                              {
+                                                                  "id":  15,
+                                                                  "token":  "0",
+                                                                  "bytes":  [
+                                                                                48
+                                                                            ],
+                                                                  "logprob":  -9.717177391052246
+                                                              },
+                                                              {
+                                                                  "id":  19,
+                                                                  "token":  "4",
+                                                                  "bytes":  [
+                                                                                52
+                                                                            ],
+                                                                  "logprob":  -10.323342323303223
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  22,
+                                         "token":  "7",
+                                         "bytes":  [
+                                                       55
+                                                   ],
+                                         "logprob":  -0.1584244668483734,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  22,
+                                                                  "token":  "7",
+                                                                  "bytes":  [
+                                                                                55
+                                                                            ],
+                                                                  "logprob":  -0.1584244668483734
+                                                              },
+                                                              {
+                                                                  "id":  23,
+                                                                  "token":  "8",
+                                                                  "bytes":  [
+                                                                                56
+                                                                            ],
+                                                                  "logprob":  -2.317869186401367
+                                                              },
+                                                              {
+                                                                  "id":  21,
+                                                                  "token":  "6",
+                                                                  "bytes":  [
+                                                                                54
+                                                                            ],
+                                                                  "logprob":  -3.3585739135742188
+                                                              },
+                                                              {
+                                                                  "id":  24,
+                                                                  "token":  "9",
+                                                                  "bytes":  [
+                                                                                57
+                                                                            ],
+                                                                  "logprob":  -4.330295562744141
+                                                              },
+                                                              {
+                                                                  "id":  20,
+                                                                  "token":  "5",
+                                                                  "bytes":  [
+                                                                                53
+                                                                            ],
+                                                                  "logprob":  -9.792510986328125
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  25,
+                                         "token":  ":",
+                                         "bytes":  [
+                                                       58
+                                                   ],
+                                         "logprob":  -0.0012557042064145207,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  25,
+                                                                  "token":  ":",
+                                                                  "bytes":  [
+                                                                                58
+                                                                            ],
+                                                                  "logprob":  -0.0012557042064145207
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.770370960235596
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -10.18293285369873
+                                                              },
+                                                              {
+                                                                  "id":  12,
+                                                                  "token":  "-",
+                                                                  "bytes":  [
+                                                                                45
+                                                                            ],
+                                                                  "logprob":  -11.151442527770996
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -11.565629005432129
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  198,
+                                         "token":  "\n",
+                                         "bytes":  [
+                                                       10
+                                                   ],
+                                         "logprob":  -0.6963131427764893,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -0.6963131427764893
+                                                              },
+                                                              {
+                                                                  "id":  2962,
+                                                                  "token":  " continue",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -0.6983311176300049
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.505072593688965
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.821869850158691
+                                                              },
+                                                              {
+                                                                  "id":  8308,
+                                                                  "token":  " continued",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101,
+                                                                                100
+                                                                            ],
+                                                                  "logprob":  -8.761472702026367
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  1421,
+                                         "token":  "User",
+                                         "bytes":  [
+                                                       85,
+                                                       115,
+                                                       101,
+                                                       114
+                                                   ],
+                                         "logprob":  -0.12791363894939423,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  1421,
+                                                                  "token":  "User",
+                                                                  "bytes":  [
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -0.12791363894939423
+                                                              },
+                                                              {
+                                                                  "id":  69267,
+                                                                  "token":  "Assistant",
+                                                                  "bytes":  [
+                                                                                65,
+                                                                                115,
+                                                                                115,
+                                                                                105,
+                                                                                115,
+                                                                                116,
+                                                                                97,
+                                                                                110,
+                                                                                116
+                                                                            ],
+                                                                  "logprob":  -2.126176118850708
+                                                              },
+                                                              {
+                                                                  "id":  2244,
+                                                                  "token":  "System",
+                                                                  "bytes":  [
+                                                                                83,
+                                                                                121,
+                                                                                115,
+                                                                                116,
+                                                                                101,
+                                                                                109
+                                                                            ],
+                                                                  "logprob":  -9.229424476623535
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.506913185119629
+                                                              },
+                                                              {
+                                                                  "id":  52,
+                                                                  "token":  "U",
+                                                                  "bytes":  [
+                                                                                85
+                                                                            ],
+                                                                  "logprob":  -9.943126678466797
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  2404,
+                                         "token":  " turn",
+                                         "bytes":  [
+                                                       32,
+                                                       116,
+                                                       117,
+                                                       114,
+                                                       110
+                                                   ],
+                                         "logprob":  -0.00037546054227277637,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  2404,
+                                                                  "token":  " turn",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -0.00037546054227277637
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -8.401372909545898
+                                                              },
+                                                              {
+                                                                  "id":  10263,
+                                                                  "token":  " turns",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                115
+                                                                            ],
+                                                                  "logprob":  -10.194280624389648
+                                                              },
+                                                              {
+                                                                  "id":  4990,
+                                                                  "token":  " fill",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                102,
+                                                                                105,
+                                                                                108,
+                                                                                108
+                                                                            ],
+                                                                  "logprob":  -11.220449447631836
+                                                              },
+                                                              {
+                                                                  "id":  6316,
+                                                                  "token":  " turned",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                101,
+                                                                                100
+                                                                            ],
+                                                                  "logprob":  -11.292372703552246
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  220,
+                                         "token":  " ",
+                                         "bytes":  [
+                                                       32
+                                                   ],
+                                         "logprob":  -0.028551682829856873,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -0.028551682829856873
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -3.6274478435516357
+                                                              },
+                                                              {
+                                                                  "id":  4558,
+                                                                  "token":  " \n\n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -7.313272953033447
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -7.351255893707275
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.601958274841309
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  18,
+                                         "token":  "3",
+                                         "bytes":  [
+                                                       51
+                                                   ],
+                                         "logprob":  -0.00036735128378495574,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  18,
+                                                                  "token":  "3",
+                                                                  "bytes":  [
+                                                                                51
+                                                                            ],
+                                                                  "logprob":  -0.00036735128378495574
+                                                              },
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -8.7933931350708
+                                                              },
+                                                              {
+                                                                  "id":  17,
+                                                                  "token":  "2",
+                                                                  "bytes":  [
+                                                                                50
+                                                                            ],
+                                                                  "logprob":  -9.105538368225098
+                                                              },
+                                                              {
+                                                                  "id":  19,
+                                                                  "token":  "4",
+                                                                  "bytes":  [
+                                                                                52
+                                                                            ],
+                                                                  "logprob":  -9.9646577835083
+                                                              },
+                                                              {
+                                                                  "id":  20,
+                                                                  "token":  "5",
+                                                                  "bytes":  [
+                                                                                53
+                                                                            ],
+                                                                  "logprob":  -10.614640235900879
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  16,
+                                         "token":  "1",
+                                         "bytes":  [
+                                                       49
+                                                   ],
+                                         "logprob":  -0.5951789021492004,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -0.5951789021492004
+                                                              },
+                                                              {
+                                                                  "id":  17,
+                                                                  "token":  "2",
+                                                                  "bytes":  [
+                                                                                50
+                                                                            ],
+                                                                  "logprob":  -0.8035834431648254
+                                                              },
+                                                              {
+                                                                  "id":  18,
+                                                                  "token":  "3",
+                                                                  "bytes":  [
+                                                                                51
+                                                                            ],
+                                                                  "logprob":  -7.328667163848877
+                                                              },
+                                                              {
+                                                                  "id":  19,
+                                                                  "token":  "4",
+                                                                  "bytes":  [
+                                                                                52
+                                                                            ],
+                                                                  "logprob":  -10.068557739257813
+                                                              },
+                                                              {
+                                                                  "id":  20,
+                                                                  "token":  "5",
+                                                                  "bytes":  [
+                                                                                53
+                                                                            ],
+                                                                  "logprob":  -10.352325439453125
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  23,
+                                         "token":  "8",
+                                         "bytes":  [
+                                                       56
+                                                   ],
+                                         "logprob":  -0.40031349658966064,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  23,
+                                                                  "token":  "8",
+                                                                  "bytes":  [
+                                                                                56
+                                                                            ],
+                                                                  "logprob":  -0.40031349658966064
+                                                              },
+                                                              {
+                                                                  "id":  24,
+                                                                  "token":  "9",
+                                                                  "bytes":  [
+                                                                                57
+                                                                            ],
+                                                                  "logprob":  -1.17194664478302
+                                                              },
+                                                              {
+                                                                  "id":  22,
+                                                                  "token":  "7",
+                                                                  "bytes":  [
+                                                                                55
+                                                                            ],
+                                                                  "logprob":  -3.915848970413208
+                                                              },
+                                                              {
+                                                                  "id":  21,
+                                                                  "token":  "6",
+                                                                  "bytes":  [
+                                                                                54
+                                                                            ],
+                                                                  "logprob":  -9.42898941040039
+                                                              },
+                                                              {
+                                                                  "id":  16,
+                                                                  "token":  "1",
+                                                                  "bytes":  [
+                                                                                49
+                                                                            ],
+                                                                  "logprob":  -10.596535682678223
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  25,
+                                         "token":  ":",
+                                         "bytes":  [
+                                                       58
+                                                   ],
+                                         "logprob":  -0.0024526966735720634,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  25,
+                                                                  "token":  ":",
+                                                                  "bytes":  [
+                                                                                58
+                                                                            ],
+                                                                  "logprob":  -0.0024526966735720634
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.089241027832031
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.721405029296875
+                                                              },
+                                                              {
+                                                                  "id":  12,
+                                                                  "token":  "-",
+                                                                  "bytes":  [
+                                                                                45
+                                                                            ],
+                                                                  "logprob":  -10.42525863647461
+                                                              },
+                                                              {
+                                                                  "id":  2962,
+                                                                  "token":  " continue",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -10.96232795715332
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  198,
+                                         "token":  "\n",
+                                         "bytes":  [
+                                                       10
+                                                   ],
+                                         "logprob":  -0.2245567888021469,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -0.2245567888021469
+                                                              },
+                                                              {
+                                                                  "id":  2962,
+                                                                  "token":  " continue",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101
+                                                                            ],
+                                                                  "logprob":  -1.6275681257247925
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.18349552154541
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -6.778054237365723
+                                                              },
+                                                              {
+                                                                  "id":  8308,
+                                                                  "token":  " continued",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                99,
+                                                                                111,
+                                                                                110,
+                                                                                116,
+                                                                                105,
+                                                                                110,
+                                                                                117,
+                                                                                101,
+                                                                                100
+                                                                            ],
+                                                                  "logprob":  -8.780430793762207
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  1421,
+                                         "token":  "User",
+                                         "bytes":  [
+                                                       85,
+                                                       115,
+                                                       101,
+                                                       114
+                                                   ],
+                                         "logprob":  -0.0438288077712059,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  1421,
+                                                                  "token":  "User",
+                                                                  "bytes":  [
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -0.0438288077712059
+                                                              },
+                                                              {
+                                                                  "id":  69267,
+                                                                  "token":  "Assistant",
+                                                                  "bytes":  [
+                                                                                65,
+                                                                                115,
+                                                                                115,
+                                                                                105,
+                                                                                115,
+                                                                                116,
+                                                                                97,
+                                                                                110,
+                                                                                116
+                                                                            ],
+                                                                  "logprob":  -3.1587789058685303
+                                                              },
+                                                              {
+                                                                  "id":  2244,
+                                                                  "token":  "System",
+                                                                  "bytes":  [
+                                                                                83,
+                                                                                121,
+                                                                                115,
+                                                                                116,
+                                                                                101,
+                                                                                109
+                                                                            ],
+                                                                  "logprob":  -9.950822830200195
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -10.121878623962402
+                                                              },
+                                                              {
+                                                                  "id":  2570,
+                                                                  "token":  " User",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                85,
+                                                                                115,
+                                                                                101,
+                                                                                114
+                                                                            ],
+                                                                  "logprob":  -10.497018814086914
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  2404,
+                                         "token":  " turn",
+                                         "bytes":  [
+                                                       32,
+                                                       116,
+                                                       117,
+                                                       114,
+                                                       110
+                                                   ],
+                                         "logprob":  -0.00019534349848981947,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  2404,
+                                                                  "token":  " turn",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110
+                                                                            ],
+                                                                  "logprob":  -0.00019534349848981947
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.181220054626465
+                                                              },
+                                                              {
+                                                                  "id":  10263,
+                                                                  "token":  " turns",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                115
+                                                                            ],
+                                                                  "logprob":  -10.821135520935059
+                                                              },
+                                                              {
+                                                                  "id":  6316,
+                                                                  "token":  " turned",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                101,
+                                                                                100
+                                                                            ],
+                                                                  "logprob":  -11.06132984161377
+                                                              },
+                                                              {
+                                                                  "id":  12680,
+                                                                  "token":  " turning",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                116,
+                                                                                117,
+                                                                                114,
+                                                                                110,
+                                                                                105,
+                                                                                110,
+                                                                                103
+                                                                            ],
+                                                                  "logprob":  -11.97900390625
+                                                              }
+                                                          ]
+                                     },
+                                     {
+                                         "id":  220,
+                                         "token":  " ",
+                                         "bytes":  [
+                                                       32
+                                                   ],
+                                         "logprob":  -0.012784676626324654,
+                                         "top_logprobs":  [
+                                                              {
+                                                                  "id":  220,
+                                                                  "token":  " ",
+                                                                  "bytes":  [
+                                                                                32
+                                                                            ],
+                                                                  "logprob":  -0.012784676626324654
+                                                              },
+                                                              {
+                                                                  "id":  695,
+                                                                  "token":  " \n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -4.439347743988037
+                                                              },
+                                                              {
+                                                                  "id":  4558,
+                                                                  "token":  " \n\n",
+                                                                  "bytes":  [
+                                                                                32,
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -7.887643337249756
+                                                              },
+                                                              {
+                                                                  "id":  198,
+                                                                  "token":  "\n",
+                                                                  "bytes":  [
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -7.890649318695068
+                                                              },
+                                                              {
+                                                                  "id":  271,
+                                                                  "token":  "\n\n",
+                                                                  "bytes":  [
+                                                                                10,
+                                                                                10
+                                                                            ],
+                                                                  "logprob":  -9.804121017456055
+                                                              }
+                                                          ]
+                                     }
+                                 ]
+}

@@ -1,0 +1,162 @@
+# Review package: 19acf3fb2..a9d5d9595
+
+## Commits
+a9d5d9595 tests : add kv tree acceptance harness
+
+## Files changed
+ tests/test-t32-tree.cpp | 85 ++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 84 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 04f6102b6..b384027ae 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -464,28 +464,35 @@ static int scenario_ssd(llama_context * ctx, const kv_tree_config & cfg_in) {
+     kv_tree_config cfg = cfg_in;
+     cfg.ram_limit  = 64 << 10;    // force everything to disk
+     cfg.disk_limit = 64 << 20;
+     cfg.disk_dir   = (std::filesystem::temp_directory_path() / "t32-tree-test").string();
+ 
+     std::error_code ec;
+     std::filesystem::remove_all(cfg.disk_dir, ec);
+     std::filesystem::create_directories(cfg.disk_dir + "/blocks", ec);
+     std::filesystem::create_directories(cfg.disk_dir + "/anchors", ec);
+ 
+-    kv_tree tree(cfg);
+     kv_tree_io_llama io(ctx, 0);
+ 
+     const auto tokens = make_tokens(1536, 0);
+ 
+     llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
+     prefill(ctx, 0, tokens, 0, 512);
+ 
++    // size the disk budget to the model: pure-attention PARTIAL_ONLY is the whole KV
++    const size_t seq_bytes    = llama_state_seq_get_size_range_ext(ctx, 0, 0, 1536, 0);
++    const size_t anchor_bytes = llama_state_seq_get_size_ext(ctx, 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++
++    cfg.disk_limit = 4 * (seq_bytes + anchor_bytes);
++
++    kv_tree tree(cfg);
++
+     check(tree.park(io, nullptr, tokens, {}), "ssd: park");
+     check(tree.stats().blocks_disk > 0, "ssd: blocks demoted to disk");
+     check(tree.stats().anchors_disk > 0, "ssd: tip anchor demoted to disk");
+     check_eq(tree.stats().blocks_ram, 0, "ssd: no blocks left in ram");
+ 
+     {
+         const auto base = run_baseline(ctx, tokens, 42, 8);
+         const auto r = run_tree_path(ctx, tree, io, tokens, 42, 8);
+         check_eq(r.res.C, 1536, "ssd: restore point is the tip");
+         check(r.gen == base, "ssd: tokens match the baseline");
+@@ -503,20 +510,92 @@ static int scenario_ssd(llama_context * ctx, const kv_tree_config & cfg_in) {
+         check(tree.stats().disk_errors > errors_before, "ssd: disk error counted");
+     }
+ 
+     std::filesystem::remove_all(cfg.disk_dir, ec);
+ 
+     tree.dump();
+ 
+     return n_fail == 0 ? 0 : 1;
+ }
+ 
++static int run_accept(llama_context * ctx, const kv_tree_config & cfg) {
++    fprintf(stderr, "[t32-tree] mode accept\n");
++
++    kv_tree tree(cfg);
++    kv_tree_io_llama io(ctx, 0);
++
++    // A-mini: two 4096-token sequences sharing 3072 tokens, six alternating restores
++    const auto tok_a = make_fork_tokens(3072, 1024, 0);
++    const auto tok_b = make_fork_tokens(3072, 1024, 1);
++
++    prefill(ctx, 0, tok_a, 0, 512);
++
++    const size_t seq_bytes    = llama_state_seq_get_size_range_ext(ctx, 0, 0, 4096, 0);
++    const size_t anchor_bytes = llama_state_seq_get_size_ext(ctx, 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++
++    check(tree.park(io, nullptr, tok_a, {}), "accept: park A (4096)");
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    prefill(ctx, 0, tok_b, 0, 512);
++    check(tree.park(io, nullptr, tok_b, {}), "accept: park B (4096)");
++
++    const auto base_a = run_baseline(ctx, tok_a, 42, 8);
++    const auto base_b = run_baseline(ctx, tok_b, 42, 8);
++
++    for (int round = 0; round < 6; ++round) {
++        const auto ra = run_tree_path(ctx, tree, io, tok_a, 42, 8);
++        check_eq(ra.res.C, 4096, "accept: A restores at the tip");
++        check(ra.gen == base_a, "accept: A tokens match the baseline");
++
++        const auto rb = run_tree_path(ctx, tree, io, tok_b, 42, 8);
++        check_eq(rb.res.C, 4096, "accept: B restores at the tip");
++        check(rb.gen == base_b, "accept: B tokens match the baseline");
++    }
++
++    check_eq(tree.stats().tokens_reused, 12 * 4096, "accept: tokens reused");
++    check_eq(tree.stats().blocks_ram + tree.stats().blocks_disk, 10, "accept: shared trunk stored once (6+2+2 blocks)");
++    check(tree.stats().bytes_ram + tree.stats().bytes_disk < 2 * ((int64_t) seq_bytes + (int64_t) anchor_bytes), "accept: stored bytes below two full copies (dedup)");
++
++    // B-mini: four 1024-token sessions sharing a 512-token prefix
++    {
++        kv_tree_config cfg2 = cfg;
++        cfg2.ram_limit = 4096ull << 20;
++
++        kv_tree tree2(cfg2);
++        kv_tree_io_llama io2(ctx, 0);
++
++        std::vector<std::vector<llama_token>> toks;
++        for (int i = 0; i < 4; ++i) {
++            toks.push_back(make_fork_tokens(512, 512, 10 + i));
++        }
++
++        for (int i = 0; i < 4; ++i) {
++            llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++            prefill(ctx, 0, toks[i], 0, 512);
++            check(tree2.park(io2, nullptr, toks[i], {}), "accept: park short session");
++        }
++
++        check_eq(tree2.stats().blocks_ram + tree2.stats().blocks_disk, 5, "accept: shared prefix stored once (1+4 blocks)");
++
++        for (int i = 0; i < 4; ++i) {
++            const auto base = run_baseline(ctx, toks[i], 42, 8);
++            const auto r = run_tree_path(ctx, tree2, io2, toks[i], 42, 8);
++            check_eq(r.res.C, 1024, "accept: short session restores at the tip");
++            check(r.gen == base, "accept: short session tokens match the baseline");
++        }
++    }
++
++    tree.dump();
++
++    return n_fail == 0 ? 0 : 1;
++}
++
+ int main(int argc, char ** argv) {
+     std::string mode = "logic";
+ 
+     int    chunk       = 512;
+     int    anchor_step = 32768;
+     int    ram_mib     = 8192;
+     int    disk_mib    = 65536;
+     std::string disk;
+ 
+     std::vector<char *> args;
+@@ -588,13 +667,17 @@ int main(int argc, char ** argv) {
+ 
+     if (mode == "model") {
+         int ret = 0;
+         ret |= scenario_tip(ctx, cfg);
+         ret |= scenario_fork(ctx, cfg);
+         ret |= scenario_sparsify(ctx, cfg);
+         ret |= scenario_ssd(ctx, cfg);
+         return ret;
+     }
+ 
++    if (mode == "accept") {
++        return run_accept(ctx, cfg);
++    }
++
+     fprintf(stderr, "unknown mode %s\n", mode.c_str());
+     return 1;
+ }

@@ -1,0 +1,168 @@
+# Review package: 7d5b11bb1..587272960
+
+## Commits
+587272960 server : fix kv tree media access and keep_first chunk boundary
+
+## Files changed
+ tools/server/server-common.cpp  | 6 ++++--
+ tools/server/server-common.h    | 3 +++
+ tools/server/server-context.cpp | 8 ++++----
+ 3 files changed, 11 insertions(+), 6 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-common.cpp b/tools/server/server-common.cpp
+index c98d33cde..679c5800d 100644
+--- a/tools/server/server-common.cpp
++++ b/tools/server/server-common.cpp
+@@ -684,23 +684,25 @@ void server_tokens::keep_first(size_t n) {
+             return; // nothing to do
+         }
+         // we throw an error if we try to remove a token in the middle of an image
+         // for ex. with input of 5 text tokens and 2 images:
+         //    [0] [1] [2] [3] [4] [img0] [img0] [img0] [img1] [img1]
+         // n  1   2   3   4   5   6      7      8      9      10
+         // allowed to resize      ^                    ^
+         // disallowed to resize          ^      ^             ^
+         if (n > 0) {
+             // make sure we never remove tokens in the middle of an image
+-            // note that the case where we keep a full image at the end is allowed:
++            // note that keeping a full image at the end is allowed:
+             //   tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] != LLAMA_TOKEN_NULL
+-            if (tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] == LLAMA_TOKEN_NULL) {
++            // and so is the boundary between two adjacent images (a chunk starting at n)
++            if (tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] == LLAMA_TOKEN_NULL &&
++                    map_idx_to_media.find(n) == map_idx_to_media.end()) {
+                 find_chunk(n - 1); // will throw an error if the token is not begin-of-chunk
+             }
+         }
+         // remove all image chunks that are not used anymore
+         for (auto it = map_idx_to_media.begin(); it != map_idx_to_media.end(); ) {
+             size_t idx = it->first;
+             if (idx >= n) {
+                 it = map_idx_to_media.erase(it);
+             } else {
+                 ++it;
+diff --git a/tools/server/server-common.h b/tools/server/server-common.h
+index dc68d2f3f..192bb81ee 100644
+--- a/tools/server/server-common.h
++++ b/tools/server/server-common.h
+@@ -211,20 +211,23 @@ public:
+ 
+     // appends server tokens, updates the media map. copies media chunks.
+     void push_back(server_tokens & tokens);
+ 
+     // for compatibility with context shift and prompt truncation
+     void insert(const llama_tokens & inp_tokens);
+ 
+     // for compatibility with speculative decoding, ctx shift
+     const llama_tokens & get_tokens() const;
+ 
++    // raw token list, media placeholders included; only for consumers that understand media
++    const llama_tokens & get_tokens_raw() const { return tokens; }
++
+     llama_tokens get_text_tokens() const;
+ 
+     std::vector<char> serialize() const;
+     static server_tokens deserialize(const llama_tokens & packed, bool has_mtmd);
+ 
+     // for compatibility with speculative decoding
+     void set_token(llama_pos pos, llama_token id);
+ 
+     size_t size() const { return tokens.size(); }
+ 
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 9c148ed06..42777030e 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -349,21 +349,21 @@ struct server_slot {
+             if (c.data_tgt.empty()) {
+                 continue;
+             }
+             kv_tree_anchor_in in;
+             in.tok      = c.n_tokens;
+             in.data_tgt = c.data_tgt;
+             in.data_dft = c.data_dft;
+             cks.push_back(std::move(in));
+         }
+ 
+-        const bool ok = tree.park(io_tgt, io_dft_ptr, prompt.tokens.get_tokens(), tree_media_spans(prompt.tokens), cks);
++        const bool ok = tree.park(io_tgt, io_dft_ptr, prompt.tokens.get_tokens_raw(), tree_media_spans(prompt.tokens), cks);
+         if (ok) {
+             SLT_INF(*this, "kv tree: parked %d tokens, %zu checkpoint candidates, ram = %lld B, disk = %lld B\n",
+                     (int) prompt.tokens.size(), cks.size(),
+                     (long long) tree.stats().bytes_ram, (long long) tree.stats().bytes_disk);
+         } else {
+             SLT_TRC(*this, "%s", "kv tree: park did not store (see module log)\n");
+         }
+         return ok;
+     }
+ 
+@@ -373,21 +373,21 @@ struct server_slot {
+         }
+ 
+         kv_tree_io_llama io_tgt(ctx_tgt, id);
+         std::unique_ptr<kv_tree_io_llama> io_dft;
+         kv_tree_io * io_dft_ptr = nullptr;
+         if (ctx_dft != nullptr) {
+             io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
+             io_dft_ptr = io_dft.get();
+         }
+ 
+-        kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens(), tree_media_spans(tokens));
++        kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens_raw(), tree_media_spans(tokens));
+         if (res.C <= 0) {
+             SLT_INF(*this, "kv tree: restore miss for %zu tokens, full prefill\n", tokens.size());
+             tree_heal = res.heal;   // seed a fork anchor while the prompt is re-prefilled
+             return false;
+         }
+ 
+         prompt.tokens = tokens.clone();
+         prompt.tokens.keep_first(res.C);
+         prompt.checkpoints.clear();
+ 
+@@ -2881,21 +2881,21 @@ private:
+                         // if requested slot is unavailable, we defer this task for processing later
+                         SRV_DBG("requested slot is unavailable, defer task, id_task = %d\n", task.id);
+                         queue_tasks.defer(std::move(task));
+                         break;
+                     }
+ 
+                     // Erase token cache
+                     const size_t n_erased = slot->prompt.tokens.size();
+ 
+                     if (tree) {
+-                        if (tree->drop_seq(slot->prompt.tokens.get_tokens(), tree_media_spans(slot->prompt.tokens))) {
++                        if (tree->drop_seq(slot->prompt.tokens.get_tokens_raw(), tree_media_spans(slot->prompt.tokens))) {
+                             SLT_INF(*slot, "%s", "kv tree: dropped the stored sequence\n");
+                         }
+                     }
+ 
+                     slot->prompt_clear();
+ 
+                     auto res = std::make_unique<server_task_result_slot_erase>();
+                     res->id       = task.id;
+                     res->id_slot  = id_slot;
+                     res->n_erased = n_erased;
+@@ -3661,21 +3661,21 @@ private:
+ 
+                         if ((llama_pos) slot.prompt.n_tokens() == hp) {
+                             kv_tree_io_llama io_h_tgt(ctx_tgt, slot.id);
+                             std::unique_ptr<kv_tree_io_llama> io_h_dft;
+                             kv_tree_io * io_h_dft_ptr = nullptr;
+                             if (ctx_dft != nullptr) {
+                                 io_h_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, slot.id);
+                                 io_h_dft_ptr = io_h_dft.get();
+                             }
+ 
+-                            if (tree->capture_anchor(io_h_tgt, io_h_dft_ptr, slot.prompt.tokens.get_tokens(), tree_media_spans(slot.prompt.tokens), hp)) {
++                            if (tree->capture_anchor(io_h_tgt, io_h_dft_ptr, slot.prompt.tokens.get_tokens_raw(), tree_media_spans(slot.prompt.tokens), hp)) {
+                                 SLT_INF(slot, "kv tree: captured heal anchor at %d\n", hp);
+                             } else {
+                                 SLT_TRC(slot, "kv tree: heal anchor at %d not stored\n", hp);
+                             }
+ 
+                             slot.tree_heal = -1;
+                         } else if ((llama_pos) slot.prompt.n_tokens() > hp) {
+                             SLT_TRC(slot, "kv tree: heal position %d missed (now %d)\n", hp, slot.prompt.n_tokens());
+                             slot.tree_heal = -1;
+                         }

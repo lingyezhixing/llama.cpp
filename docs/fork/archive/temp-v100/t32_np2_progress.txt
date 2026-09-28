@@ -1,0 +1,6 @@
+﻿[16:39:02] A-round0 slot=0 prompt_n=23072   prompt_ms=28368.8   vram_used=25503 MiB
+[16:39:32] B-round0 slot=1 prompt_n=23076   prompt_ms=28450.8   vram_used=25503 MiB
+[16:39:33] A-round1 slot=0 prompt_n=33      prompt_ms=609.2     vram_used=25505 MiB
+[16:39:35] B-round1 slot=1 prompt_n=33      prompt_ms=562.6     vram_used=25505 MiB
+[16:39:37] A-round2 slot=0 prompt_n=33      prompt_ms=557.5     vram_used=25505 MiB
+[16:39:38] B-round2 slot=1 prompt_n=33      prompt_ms=568.2     vram_used=25505 MiB

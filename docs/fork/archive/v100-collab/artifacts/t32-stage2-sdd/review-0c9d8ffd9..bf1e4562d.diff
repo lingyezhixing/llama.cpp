@@ -1,0 +1,392 @@
+# Review package: 0c9d8ffd9..bf1e4562d
+
+## Commits
+bf1e4562d server : add kv tree eviction order and pin discipline
+
+## Files changed
+ tests/test-t32-tree.cpp         |  55 ++++++++++++
+ tools/server/server-kv-tree.cpp | 179 ++++++++++++++++++++++++++++++++++++----
+ tools/server/server-kv-tree.h   |  10 +++
+ 3 files changed, 230 insertions(+), 14 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 41b23146b..04f6102b6 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -78,23 +78,78 @@ struct kv_tree_io_fake : public kv_tree_io {
+ };
+ 
+ static std::vector<llama_token> make_tokens(int n, int salt) {
+     std::vector<llama_token> t(n);
+     for (int i = 0; i < n; ++i) {
+         t[i] = 10 + (i * 7 + salt) % 1000;
+     }
+     return t;
+ }
+ 
++static int run_logic_evict() {
++    fprintf(stderr, "[t32-tree] logic: eviction\n");
++
++    kv_tree_config cfg;
++    cfg.chunk       = 512;
++    cfg.anchor_step = 512;
++    cfg.ram_limit   = 20 * 1024;   // 5 chunks worth of fake payloads
++    cfg.disk_dir    = "";          // no disk tier: eviction only
++
++    kv_tree tree(cfg);
++
++    const auto tok_a = make_tokens(1536, 0);
++    const auto tok_b = make_tokens(1536, 1);
++
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++        check(tree.park(io, nullptr, tok_a, {}), "evict: park A");
++        check_eq(tree.stats().blocks_ram, 3, "evict: A has 3 blocks");
++    }
++
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++        check(tree.park(io, nullptr, tok_b, {}), "evict: park B forces eviction");
++        check(tree.stats().evicted_blocks > 0, "evict: blocks were evicted");
++        check_eq(tree.stats().park_refused, 0, "evict: park still succeeded");
++    }
++
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++        const auto r = tree.restore(io, nullptr, tok_a);
++        check_eq(r.C, -1, "evict: A degrades to a full prefill (visible)");
++    }
++
++    {
++        kv_tree_config cfg2 = cfg;
++        cfg2.ram_limit = 4 * 1024;
++
++        kv_tree tree2(cfg2);
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++
++        check(!tree2.park(io, nullptr, tok_a, {}), "evict: park refused with a tiny budget");
++        check_eq(tree2.stats().park_refused, 1, "evict: refusal counted");
++        check_eq(tree2.stats().evict_refused, 1, "evict: refusal is visible");
++        check_eq(tree2.stats().blocks_ram, 0, "evict: nothing was left behind");
++    }
++
++    return n_fail == 0 ? 0 : 1;
++}
++
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
++    run_logic_evict();
++
+     kv_tree_config cfg;
+     cfg.chunk = 512;
+     cfg.ram_limit = 64ull << 20;
+ 
+     kv_tree tree(cfg);
+ 
+     const auto tok_a = make_tokens(1536, 0);   // 3 full chunks
+     const auto tok_b = make_tokens(1024, 0);   // shares the first 2 chunks with tok_a, then diverges
+     auto tok_b2 = tok_b;
+     tok_b2.resize(1536);
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 341322037..731c04d38 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -640,48 +640,196 @@ void kv_tree::settle() {
+         } else {
+             st.bytes_ram -= (int64_t) size;
+             st.anchors_ram--;
+             std::vector<uint8_t>().swap(a.data_tgt);
+             std::vector<uint8_t>().swap(a.data_dft);
+             std::vector<uint8_t>().swap(a.data_spec);
+         }
+     }
+ }
+ 
+-bool kv_tree::enforce_budget() {
+-    for (auto & p : blocks) {
+-        if ((size_t) st.bytes_ram <= cfg.ram_limit) {
+-            break;
++bool kv_tree::has_successor(const kv_tree_block & b) const {
++    const auto it = blocks_at.find(b.pos1);
++    return it != blocks_at.end() && !it->second.empty();
++}
++
++void kv_tree::remove_seq(std::unordered_map<uint64_t, kv_tree_seq>::iterator it) {
++    kv_tree_seq & s = it->second;
++
++    for (auto & kv : anchors) {
++        bool in_chain = false;
++        for (const uint64_t hash : s.chain) {
++            if (hash == kv.first.first) {
++                in_chain = true;
++                break;
++            }
++        }
++        if (in_chain && kv.second.refcount > 0) {
++            kv.second.refcount--;
+         }
++    }
+ 
+-        kv_tree_block & b = p.second;
++    for (auto rit = s.chain.rbegin(); rit != s.chain.rend(); ++rit) {
++        const auto b = blocks.find(*rit);
++        if (b == blocks.end()) {
++            continue;
++        }
++        if (--b->second.refcount <= 0) {
++            remove_block(b);
++        }
++    }
++
++    seqs.erase(it);
++    st.evicted_seqs++;
++}
++
++bool kv_tree::demote_one() {
++    auto best = blocks.end();
++    int64_t best_score = 0;
++
++    for (auto it = blocks.begin(); it != blocks.end(); ++it) {
++        const kv_tree_block & b = it->second;
+         if (b.on_disk || b.data.empty()) {
+             continue;
+         }
+ 
+-        demote_block(b);
+-    }
++        int64_t score = b.refcount * 1000000 + b.heat * 1000 + b.last_used;
++        if (!has_successor(b)) {
++            score -= 100000000;   // leaves go to disk first
++        }
+ 
+-    for (auto & p : anchors) {
+-        if ((size_t) st.bytes_ram <= cfg.ram_limit) {
+-            break;
++        if (best == blocks.end() || score < best_score) {
++            best = it;
++            best_score = score;
+         }
++    }
+ 
+-        kv_tree_anchor & a = p.second;
++    if (best != blocks.end() && demote_block(best->second)) {
++        return true;
++    }
++
++    auto best_a = anchors.end();
++    int64_t best_a_score = 0;
++
++    for (auto it = anchors.begin(); it != anchors.end(); ++it) {
++        const kv_tree_anchor & a = it->second;
+         if (a.on_disk || a.data_tgt.empty()) {
+             continue;
+         }
+ 
+-        demote_anchor(a);
++        const int64_t score = a.refcount * 1000000 + a.heat * 1000 + a.last_used;
++
++        if (best_a == anchors.end() || score < best_a_score) {
++            best_a = it;
++            best_a_score = score;
++        }
+     }
+ 
+-    return (size_t) st.bytes_ram <= cfg.ram_limit;
++    return best_a != anchors.end() && demote_anchor(best_a->second);
++}
++
++bool kv_tree::evict_anchor_one() {
++    auto best = anchors.end();
++    int64_t best_score = 0;
++
++    for (auto it = anchors.begin(); it != anchors.end(); ++it) {
++        const kv_tree_anchor & a = it->second;
++        if (a.pinned) {
++            continue;
++        }
++
++        const int64_t score = a.refcount * 1000000 + a.heat * 1000 + a.last_used;
++
++        if (best == anchors.end() || score < best_score) {
++            best = it;
++            best_score = score;
++        }
++    }
++
++    if (best == anchors.end()) {
++        return false;
++    }
++
++    remove_anchor(best);
++    st.evicted_anchors++;
++    return true;
++}
++
++bool kv_tree::evict_block_one() {
++    auto best = blocks.end();
++    int64_t best_score = 0;
++
++    for (auto it = blocks.begin(); it != blocks.end(); ++it) {
++        const kv_tree_block & b = it->second;
++        if (b.pinned || b.refcount > 1 || has_successor(b)) {
++            continue;
++        }
++
++        const int64_t score = b.refcount * 1000000 + b.heat * 1000 + b.last_used;
++
++        if (best == blocks.end() || score < best_score) {
++            best = it;
++            best_score = score;
++        }
++    }
++
++    if (best == blocks.end()) {
++        return false;
++    }
++
++    remove_block(best);
++    return true;
++}
++
++bool kv_tree::evict_seq_one() {
++    auto best = seqs.end();
++    int64_t best_score = 0;
++
++    for (auto it = seqs.begin(); it != seqs.end(); ++it) {
++        if (it->second.pinned) {
++            continue;
++        }
++
++        const int64_t score = it->second.last_used;
++
++        if (best == seqs.end() || score < best_score) {
++            best = it;
++            best_score = score;
++        }
++    }
++
++    if (best == seqs.end()) {
++        return false;
++    }
++
++    remove_seq(best);
++    return true;
++}
++
++bool kv_tree::enforce_budget() {
++    while ((size_t) st.bytes_ram > cfg.ram_limit && demote_one()) {
++    }
++
++    // still short: evict in the order anchors -> leaf blocks -> whole leaf sequences
++    while ((size_t) st.bytes_ram > cfg.ram_limit) {
++        if (!evict_anchor_one() && !evict_block_one() && !evict_seq_one()) {
++            break;
++        }
++    }
++
++    if ((size_t) st.bytes_ram > cfg.ram_limit) {
++        fprintf(stderr, "[kv-tree] eviction could not free enough ram (%" PRId64 " > %zu)\n", st.bytes_ram, cfg.ram_limit);
++        st.evict_refused++;
++        return false;
++    }
++
++    return true;
+ }
+ 
+ void kv_tree::remove_block(std::unordered_map<uint64_t, kv_tree_block>::iterator it) {
+     kv_tree_block & b = it->second;
+ 
+     // anchors whose containing block is gone can never be used again
+     for (auto a = anchors.begin(); a != anchors.end(); ) {
+         if (a->first.first == b.hash) {
+             remove_anchor(a++);
+         } else {
+@@ -930,22 +1078,23 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+         if (!was_touched) {
+             kv.second.refcount++;
+             touched.emplace_back(kv.first.first, kv.second.pos);
+         }
+     }
+ 
+     kv_tree_seq & s = seqs[tip];
+     s.chain     = h;
+     s.len       = L;
+     s.last_used = ++now;
++    s.pinned    = true;
+ 
+-    // pin the new payloads while the budget is enforced, then roll back if it cannot be met
++    // pin the new payloads and the new sequence while the budget is enforced, then roll back if it cannot be met
+     std::vector<uint64_t> pinned_blocks;
+     for (const auto & p : blobs) {
+         pinned_blocks.push_back(p.first);
+     }
+     for (const uint64_t hash : pinned_blocks) {
+         auto it = blocks.find(hash);
+         if (it != blocks.end()) {
+             it->second.pinned = true;
+         }
+     }
+@@ -964,20 +1113,22 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+             it->second.pinned = false;
+         }
+     }
+     for (const auto & key : touched) {
+         auto it = anchors.find(key);
+         if (it != anchors.end()) {
+             it->second.pinned = false;
+         }
+     }
+ 
++    s.pinned = false;
++
+     if (!fits) {
+         fprintf(stderr, "[kv-tree] park refused: the budget cannot hold the sequence\n");
+         park_rollback(blobs, m, touched, tip);
+         st.park_refused++;
+         return false;
+     }
+ 
+     st.park_ok++;
+     return true;
+ }
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index d3148e95d..533069c1f 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -172,20 +172,30 @@ private:
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+     uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 
+     void promote_prune(llama_pos pos);
+ 
+     void remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it);
+ 
+     bool enforce_budget();
+ 
++    bool has_successor(const kv_tree_block & b) const;
++
++    bool demote_one();
++
++    bool evict_anchor_one();
++    bool evict_block_one();
++    bool evict_seq_one();
++
++    void remove_seq(std::unordered_map<uint64_t, kv_tree_seq>::iterator it);
++
+     void park_rollback(const std::vector<std::pair<uint64_t, std::vector<uint8_t>>> & blobs,
+                        const kv_tree_match & m,
+                        const std::vector<std::pair<uint64_t, llama_pos>> & touched,
+                        uint64_t tip);
+ 
+     void remove_block(std::unordered_map<uint64_t, kv_tree_block>::iterator it);
+ 
+     bool load_payload(kv_tree_block & b);
+     bool load_payload(kv_tree_anchor & a);
+     bool demote_block(kv_tree_block & b);

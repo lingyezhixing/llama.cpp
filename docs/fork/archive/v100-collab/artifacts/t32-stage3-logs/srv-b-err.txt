@@ -1,0 +1,1393 @@
+0.00.001.175 I srv  llama_server: initializing ...
+0.00.022.954 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.023.073 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.026.061 I srv    load_model: loading model '<models>\Qwen3.5-2B-UD-Q4_K_XL.gguf'
+0.01.647.922 I cmn          init: llama threadpool init, n_threads = 8
+0.01.752.738 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 24576, kv_unified = 'false'
+0.01.753.682 I srv    load_model: kv tree enabled: chunk = 512, anchor_step = 4096, ram = 128 MiB, disk = <TEMP>\v100\t32-stage3\tree-b (2048 MiB)
+0.01.759.116 I srv  llama_server: model loaded
+0.01.759.123 I srv  llama_server: listening on http://127.0.0.1:8933
+0.02.090.678 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.02.090.724 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.02.999.256 I slot print_timing: id  0 | task 0 | prompt eval time =     487.15 ms /  2591 tokens (    0.19 ms per token,  5318.69 tokens per second)
+0.02.999.265 I slot print_timing: id  0 | task 0 |        eval time =     421.36 ms /    48 tokens (    8.97 ms per token,   111.54 tokens per second)
+0.02.999.266 I slot print_timing: id  0 | task 0 |       total time =     908.51 ms /  2639 tokens
+0.02.999.268 I slot print_timing: id  0 | task 0 |    graphs reused =         47
+0.02.999.369 I slot      release: id  0 | task 0 | stop processing: n_tokens = 2638, truncated = 0
+0.03.031.975 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.395
+[kv-tree] blocks: 6 ram, 0 disk, 65286744 bytes ram, 0 bytes disk
+[kv-tree] anchors: 2 ram, 0 disk, 2 added, 1 skipped
+[kv-tree] park: 1 calls, 1 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=1 heat=0 ram 735864 bytes
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+0.03.061.326 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 65286744 B, disk = 0 B
+0.03.065.059 I slot launch_slot_: id  0 | task 52 | processing task, is_child = 0
+0.03.939.120 I slot print_timing: id  0 | task 52 | prompt eval time =     459.67 ms /  2591 tokens (    0.18 ms per token,  5636.70 tokens per second)
+0.03.939.131 I slot print_timing: id  0 | task 52 |        eval time =     414.36 ms /    48 tokens (    8.82 ms per token,   113.43 tokens per second)
+0.03.939.133 I slot print_timing: id  0 | task 52 |       total time =     874.03 ms /  2639 tokens
+0.03.939.134 I slot print_timing: id  0 | task 52 |    graphs reused =         93
+0.03.939.240 I slot      release: id  0 | task 52 | stop processing: n_tokens = 2638, truncated = 0
+0.03.946.408 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.395
+[kv-tree] blocks: 10 ram, 0 disk, 120914784 bytes ram, 0 bytes disk
+[kv-tree] anchors: 4 ram, 0 disk, 4 added, 2 skipped
+[kv-tree] park: 2 calls, 2 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=2 heat=1 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=1 heat=0 ram 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=2 heat=1 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=1 heat=0 ram 735864 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=1 heat=0 ram 4829352 bytes
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+0.03.972.921 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 120914784 B, disk = 0 B
+0.03.975.705 I slot launch_slot_: id  0 | task 104 | processing task, is_child = 0
+0.04.851.358 I slot print_timing: id  0 | task 104 | prompt eval time =     460.18 ms /  2591 tokens (    0.18 ms per token,  5630.37 tokens per second)
+0.04.851.366 I slot print_timing: id  0 | task 104 |        eval time =     415.44 ms /    48 tokens (    8.84 ms per token,   113.13 tokens per second)
+0.04.851.368 I slot print_timing: id  0 | task 104 |       total time =     875.62 ms /  2639 tokens
+0.04.851.368 I slot print_timing: id  0 | task 104 |    graphs reused =        139
+0.04.851.470 I slot      release: id  0 | task 104 | stop processing: n_tokens = 2638, truncated = 0
+0.04.858.533 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.395
+[kv-tree] blocks: 2 ram, 12 disk, 130871064 bytes ram, 45671760 bytes disk
+[kv-tree] anchors: 6 ram, 0 disk, 6 added, 3 skipped
+[kv-tree] park: 3 calls, 3 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=3 heat=2 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=3 heat=2 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+0.04.935.315 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 45671760 B
+0.04.938.643 I slot launch_slot_: id  0 | task 156 | processing task, is_child = 0
+0.05.818.494 I slot print_timing: id  0 | task 156 | prompt eval time =     460.97 ms /  2591 tokens (    0.18 ms per token,  5620.81 tokens per second)
+0.05.818.502 I slot print_timing: id  0 | task 156 |        eval time =     418.85 ms /    48 tokens (    8.91 ms per token,   112.21 tokens per second)
+0.05.818.504 I slot print_timing: id  0 | task 156 |       total time =     879.81 ms /  2639 tokens
+0.05.818.505 I slot print_timing: id  0 | task 156 |    graphs reused =        185
+0.05.818.607 I slot      release: id  0 | task 156 | stop processing: n_tokens = 2638, truncated = 0
+0.05.830.109 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.395
+[kv-tree] blocks: 0 ram, 18 disk, 121212360 bytes ram, 110958504 bytes disk
+[kv-tree] anchors: 6 ram, 2 disk, 8 added, 4 skipped
+[kv-tree] park: 4 calls, 4 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=4 heat=3 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=4 heat=3 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=1 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+0.05.918.542 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 110958504 B
+0.05.922.288 I slot launch_slot_: id  0 | task 208 | processing task, is_child = 0
+0.06.817.251 I slot print_timing: id  0 | task 208 | prompt eval time =     474.48 ms /  2639 tokens (    0.18 ms per token,  5561.93 tokens per second)
+0.06.817.259 I slot print_timing: id  0 | task 208 |        eval time =     420.45 ms /    48 tokens (    8.95 ms per token,   111.78 tokens per second)
+0.06.817.260 I slot print_timing: id  0 | task 208 |       total time =     894.93 ms /  2687 tokens
+0.06.817.261 I slot print_timing: id  0 | task 208 |    graphs reused =        231
+0.06.817.378 I slot      release: id  0 | task 208 | stop processing: n_tokens = 2686, truncated = 0
+0.06.824.240 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.388
+[kv-tree] blocks: 0 ram, 19 disk, 121212360 bytes ram, 132349164 bytes disk
+[kv-tree] anchors: 6 ram, 3 disk, 9 added, 6 skipped
+[kv-tree] park: 5 calls, 5 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=5 heat=4 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=5 heat=4 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=2 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+0.06.862.509 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 132349164 B
+0.06.866.334 I slot launch_slot_: id  0 | task 260 | processing task, is_child = 0
+0.07.783.569 I slot print_timing: id  0 | task 260 | prompt eval time =     476.60 ms /  2639 tokens (    0.18 ms per token,  5537.18 tokens per second)
+0.07.783.580 I slot print_timing: id  0 | task 260 |        eval time =     440.61 ms /    48 tokens (    9.37 ms per token,   106.67 tokens per second)
+0.07.783.581 I slot print_timing: id  0 | task 260 |       total time =     917.20 ms /  2687 tokens
+0.07.783.581 I slot print_timing: id  0 | task 260 |    graphs reused =        277
+0.07.783.663 I slot      release: id  0 | task 260 | stop processing: n_tokens = 2686, truncated = 0
+0.07.789.256 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.388
+[kv-tree] blocks: 0 ram, 20 disk, 121212360 bytes ram, 153739824 bytes disk
+[kv-tree] anchors: 6 ram, 4 disk, 10 added, 8 skipped
+[kv-tree] park: 6 calls, 6 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=6 heat=5 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=6 heat=5 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=2 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+0.07.825.659 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 153739824 B
+0.07.828.518 I slot launch_slot_: id  0 | task 312 | processing task, is_child = 0
+0.08.661.626 I slot print_timing: id  0 | task 312 | prompt eval time =     447.83 ms /  2639 tokens (    0.17 ms per token,  5892.85 tokens per second)
+0.08.661.632 I slot print_timing: id  0 | task 312 |        eval time =     385.25 ms /    48 tokens (    8.20 ms per token,   122.00 tokens per second)
+0.08.661.633 I slot print_timing: id  0 | task 312 |       total time =     833.08 ms /  2687 tokens
+0.08.661.633 I slot print_timing: id  0 | task 312 |    graphs reused =        323
+0.08.661.697 I slot      release: id  0 | task 312 | stop processing: n_tokens = 2686, truncated = 0
+0.08.667.218 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.388
+[kv-tree] blocks: 0 ram, 21 disk, 121212360 bytes ram, 175130484 bytes disk
+[kv-tree] anchors: 6 ram, 5 disk, 11 added, 10 skipped
+[kv-tree] park: 7 calls, 7 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=1 heat=0 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=7 heat=6 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=7 heat=6 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=1 heat=0 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=2 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=1 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+0.08.700.368 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 175130484 B
+0.08.703.086 I slot launch_slot_: id  0 | task 364 | processing task, is_child = 0
+0.09.491.816 I slot print_timing: id  0 | task 364 | prompt eval time =     420.56 ms /  2639 tokens (    0.16 ms per token,  6274.91 tokens per second)
+0.09.491.826 I slot print_timing: id  0 | task 364 |        eval time =     368.14 ms /    48 tokens (    7.83 ms per token,   127.67 tokens per second)
+0.09.491.826 I slot print_timing: id  0 | task 364 |       total time =     788.70 ms /  2687 tokens
+0.09.491.827 I slot print_timing: id  0 | task 364 |    graphs reused =        369
+0.09.491.906 I slot      release: id  0 | task 364 | stop processing: n_tokens = 2686, truncated = 0
+0.09.497.198 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.388
+[kv-tree] blocks: 0 ram, 22 disk, 121212360 bytes ram, 196521144 bytes disk
+[kv-tree] anchors: 6 ram, 6 disk, 12 added, 12 skipped
+[kv-tree] park: 8 calls, 8 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=8 heat=7 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=8 heat=7 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=2 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+0.09.529.588 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 196521144 B
+0.09.532.140 I slot launch_slot_: id  0 | task 416 | processing task, is_child = 0
+0.10.317.475 I slot print_timing: id  0 | task 416 | prompt eval time =     423.08 ms /  2687 tokens (    0.16 ms per token,  6351.01 tokens per second)
+0.10.317.481 I slot print_timing: id  0 | task 416 |        eval time =     362.22 ms /    48 tokens (    7.71 ms per token,   129.76 tokens per second)
+0.10.317.482 I slot print_timing: id  0 | task 416 |       total time =     785.30 ms /  2735 tokens
+0.10.317.483 I slot print_timing: id  0 | task 416 |    graphs reused =        415
+0.10.317.551 I slot      release: id  0 | task 416 | stop processing: n_tokens = 2734, truncated = 0
+0.10.322.475 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.381
+[kv-tree] blocks: 0 ram, 23 disk, 121212360 bytes ram, 218364540 bytes disk
+[kv-tree] anchors: 6 ram, 7 disk, 13 added, 14 skipped
+[kv-tree] park: 9 calls, 9 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=9 heat=8 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=9 heat=8 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+0.10.354.589 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 218364540 B
+0.10.357.257 I slot launch_slot_: id  0 | task 468 | processing task, is_child = 0
+0.11.146.914 I slot print_timing: id  0 | task 468 | prompt eval time =     423.93 ms /  2687 tokens (    0.16 ms per token,  6338.31 tokens per second)
+0.11.146.920 I slot print_timing: id  0 | task 468 |        eval time =     365.70 ms /    48 tokens (    7.78 ms per token,   128.52 tokens per second)
+0.11.146.921 I slot print_timing: id  0 | task 468 |       total time =     789.63 ms /  2735 tokens
+0.11.146.921 I slot print_timing: id  0 | task 468 |    graphs reused =        461
+0.11.146.988 I slot      release: id  0 | task 468 | stop processing: n_tokens = 2734, truncated = 0
+0.11.152.009 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.381
+[kv-tree] blocks: 0 ram, 24 disk, 121212360 bytes ram, 240207936 bytes disk
+[kv-tree] anchors: 6 ram, 8 disk, 14 added, 16 skipped
+[kv-tree] park: 10 calls, 10 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=10 heat=9 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=10 heat=9 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+0.11.186.293 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 240207936 B
+0.11.188.697 I slot launch_slot_: id  0 | task 520 | processing task, is_child = 0
+0.11.990.364 I slot print_timing: id  0 | task 520 | prompt eval time =     429.03 ms /  2687 tokens (    0.16 ms per token,  6262.95 tokens per second)
+0.11.990.370 I slot print_timing: id  0 | task 520 |        eval time =     372.61 ms /    48 tokens (    7.93 ms per token,   126.14 tokens per second)
+0.11.990.371 I slot print_timing: id  0 | task 520 |       total time =     801.64 ms /  2735 tokens
+0.11.990.371 I slot print_timing: id  0 | task 520 |    graphs reused =        507
+0.11.990.438 I slot      release: id  0 | task 520 | stop processing: n_tokens = 2734, truncated = 0
+0.11.995.938 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.381
+[kv-tree] blocks: 0 ram, 25 disk, 121212360 bytes ram, 262051332 bytes disk
+[kv-tree] anchors: 6 ram, 9 disk, 15 added, 18 skipped
+[kv-tree] park: 11 calls, 11 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=11 heat=10 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=11 heat=10 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=2 heat=1 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=1 heat=0 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=2 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+0.12.028.236 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 262051332 B
+0.12.030.847 I slot launch_slot_: id  0 | task 572 | processing task, is_child = 0
+0.12.827.288 I slot print_timing: id  0 | task 572 | prompt eval time =     425.96 ms /  2687 tokens (    0.16 ms per token,  6308.07 tokens per second)
+0.12.827.295 I slot print_timing: id  0 | task 572 |        eval time =     370.45 ms /    48 tokens (    7.88 ms per token,   126.87 tokens per second)
+0.12.827.296 I slot print_timing: id  0 | task 572 |       total time =     796.42 ms /  2735 tokens
+0.12.827.296 I slot print_timing: id  0 | task 572 |    graphs reused =        553
+0.12.827.364 I slot      release: id  0 | task 572 | stop processing: n_tokens = 2734, truncated = 0
+0.12.832.521 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.381
+[kv-tree] blocks: 0 ram, 26 disk, 121212360 bytes ram, 283894728 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 20 skipped
+[kv-tree] park: 12 calls, 12 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=0 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.12.866.494 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 283894728 B
+[kv-tree] blocks: 0 ram, 26 disk, 121212360 bytes ram, 283894728 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 20 skipped
+[kv-tree] park: 12 calls, 12 ok, 0 refused
+[kv-tree] restore: 1 calls, 1 hits, 0 miss, 2075 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 disk 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 disk 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=1 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.12.903.600 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2591)
+0.12.903.764 I slot launch_slot_: id  0 | task 624 | processing task, is_child = 0
+0.13.375.941 I slot print_timing: id  0 | task 624 | prompt eval time =     103.21 ms /   516 tokens (    0.20 ms per token,  4999.37 tokens per second)
+0.13.375.946 I slot print_timing: id  0 | task 624 |        eval time =     368.94 ms /    48 tokens (    7.85 ms per token,   127.39 tokens per second)
+0.13.375.947 I slot print_timing: id  0 | task 624 |       total time =     472.16 ms /   564 tokens
+0.13.375.948 I slot print_timing: id  0 | task 624 |    graphs reused =        599
+0.13.376.010 I slot      release: id  0 | task 624 | stop processing: n_tokens = 2638, truncated = 0
+0.13.381.389 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.395
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.13.385.889 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 121212360 B, disk = 283894728 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 22 skipped
+[kv-tree] park: 13 calls, 13 ok, 0 refused
+[kv-tree] restore: 2 calls, 2 hits, 0 miss, 4150 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=1 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.13.413.433 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2591)
+0.13.413.584 I slot launch_slot_: id  0 | task 674 | processing task, is_child = 0
+0.13.868.952 I slot print_timing: id  0 | task 674 | prompt eval time =      94.69 ms /   516 tokens (    0.18 ms per token,  5449.30 tokens per second)
+0.13.868.956 I slot print_timing: id  0 | task 674 |        eval time =     360.66 ms /    48 tokens (    7.67 ms per token,   130.32 tokens per second)
+0.13.868.957 I slot print_timing: id  0 | task 674 |       total time =     455.35 ms /   564 tokens
+0.13.868.958 I slot print_timing: id  0 | task 674 |    graphs reused =        645
+0.13.869.020 I slot      release: id  0 | task 674 | stop processing: n_tokens = 2638, truncated = 0
+0.13.874.012 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.395
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.13.878.494 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 24 skipped
+[kv-tree] park: 14 calls, 14 ok, 0 refused
+[kv-tree] restore: 3 calls, 3 hits, 0 miss, 6225 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=1 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=0 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.13.899.610 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2591)
+0.13.899.779 I slot launch_slot_: id  0 | task 724 | processing task, is_child = 0
+0.14.365.756 I slot print_timing: id  0 | task 724 | prompt eval time =      97.76 ms /   516 tokens (    0.19 ms per token,  5278.39 tokens per second)
+0.14.365.762 I slot print_timing: id  0 | task 724 |        eval time =     368.20 ms /    48 tokens (    7.83 ms per token,   127.65 tokens per second)
+0.14.365.763 I slot print_timing: id  0 | task 724 |       total time =     465.96 ms /   564 tokens
+0.14.365.763 I slot print_timing: id  0 | task 724 |    graphs reused =        691
+0.14.365.826 I slot      release: id  0 | task 724 | stop processing: n_tokens = 2638, truncated = 0
+0.14.370.665 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.402 (> 0.100 thold), f_keep = 0.395
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.14.375.185 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 26 skipped
+[kv-tree] park: 15 calls, 15 ok, 0 refused
+[kv-tree] restore: 4 calls, 4 hits, 0 miss, 8300 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=1 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.14.397.071 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2591)
+0.14.397.212 I slot launch_slot_: id  0 | task 774 | processing task, is_child = 0
+0.14.860.953 I slot print_timing: id  0 | task 774 | prompt eval time =      96.55 ms /   516 tokens (    0.19 ms per token,  5344.60 tokens per second)
+0.14.860.960 I slot print_timing: id  0 | task 774 |        eval time =     367.17 ms /    48 tokens (    7.81 ms per token,   128.01 tokens per second)
+0.14.860.961 I slot print_timing: id  0 | task 774 |       total time =     463.72 ms /   564 tokens
+0.14.860.962 I slot print_timing: id  0 | task 774 |    graphs reused =        737
+0.14.861.029 I slot      release: id  0 | task 774 | stop processing: n_tokens = 2638, truncated = 0
+0.14.866.558 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.395
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.14.870.843 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2638 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 28 skipped
+[kv-tree] park: 16 calls, 16 ok, 0 refused
+[kv-tree] restore: 5 calls, 5 hits, 0 miss, 10375 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=2 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.14.901.289 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2639)
+0.14.901.432 I slot launch_slot_: id  0 | task 824 | processing task, is_child = 0
+0.15.380.104 I slot print_timing: id  0 | task 824 | prompt eval time =     112.80 ms /   564 tokens (    0.20 ms per token,  5000.22 tokens per second)
+0.15.380.109 I slot print_timing: id  0 | task 824 |        eval time =     365.86 ms /    48 tokens (    7.78 ms per token,   128.47 tokens per second)
+0.15.380.110 I slot print_timing: id  0 | task 824 |       total time =     478.65 ms /   612 tokens
+0.15.380.110 I slot print_timing: id  0 | task 824 |    graphs reused =        783
+0.15.380.175 I slot      release: id  0 | task 824 | stop processing: n_tokens = 2686, truncated = 0
+0.15.385.408 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.388
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.15.389.889 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 30 skipped
+[kv-tree] park: 17 calls, 17 ok, 0 refused
+[kv-tree] restore: 6 calls, 6 hits, 0 miss, 12450 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=2 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.15.411.246 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2639)
+0.15.411.441 I slot launch_slot_: id  0 | task 875 | processing task, is_child = 0
+0.15.906.743 I slot print_timing: id  0 | task 875 | prompt eval time =     110.27 ms /   564 tokens (    0.20 ms per token,  5114.63 tokens per second)
+0.15.906.749 I slot print_timing: id  0 | task 875 |        eval time =     385.00 ms /    48 tokens (    8.19 ms per token,   122.08 tokens per second)
+0.15.906.750 I slot print_timing: id  0 | task 875 |       total time =     495.27 ms /   612 tokens
+0.15.906.750 I slot print_timing: id  0 | task 875 |    graphs reused =        829
+0.15.906.817 I slot      release: id  0 | task 875 | stop processing: n_tokens = 2686, truncated = 0
+0.15.913.010 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.388
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.15.917.326 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 32 skipped
+[kv-tree] park: 18 calls, 18 ok, 0 refused
+[kv-tree] restore: 7 calls, 7 hits, 0 miss, 14525 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=2 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=1 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.15.940.059 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2639)
+0.15.940.198 I slot launch_slot_: id  0 | task 926 | processing task, is_child = 0
+0.16.459.173 I slot print_timing: id  0 | task 926 | prompt eval time =     120.59 ms /   564 tokens (    0.21 ms per token,  4677.08 tokens per second)
+0.16.459.179 I slot print_timing: id  0 | task 926 |        eval time =     398.36 ms /    48 tokens (    8.48 ms per token,   117.98 tokens per second)
+0.16.459.180 I slot print_timing: id  0 | task 926 |       total time =     518.95 ms /   612 tokens
+0.16.459.180 I slot print_timing: id  0 | task 926 |    graphs reused =        875
+0.16.459.246 I slot      release: id  0 | task 926 | stop processing: n_tokens = 2686, truncated = 0
+0.16.464.994 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.394 (> 0.100 thold), f_keep = 0.388
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.16.469.503 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 34 skipped
+[kv-tree] park: 19 calls, 19 ok, 0 refused
+[kv-tree] restore: 8 calls, 8 hits, 0 miss, 16600 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=2 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.16.491.199 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2639)
+0.16.491.384 I slot launch_slot_: id  0 | task 977 | processing task, is_child = 0
+0.17.054.282 I slot print_timing: id  0 | task 977 | prompt eval time =     126.68 ms /   564 tokens (    0.22 ms per token,  4452.20 tokens per second)
+0.17.054.291 I slot print_timing: id  0 | task 977 |        eval time =     436.19 ms /    48 tokens (    9.28 ms per token,   107.75 tokens per second)
+0.17.054.292 I slot print_timing: id  0 | task 977 |       total time =     562.87 ms /   612 tokens
+0.17.054.293 I slot print_timing: id  0 | task 977 |    graphs reused =        921
+0.17.054.399 I slot      release: id  0 | task 977 | stop processing: n_tokens = 2686, truncated = 0
+0.17.060.940 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.388
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.17.066.114 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2686 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 36 skipped
+[kv-tree] park: 20 calls, 20 ok, 0 refused
+[kv-tree] restore: 9 calls, 9 hits, 0 miss, 18675 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=3 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.17.104.170 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2687)
+0.17.104.381 I slot launch_slot_: id  0 | task 1028 | processing task, is_child = 0
+0.17.667.731 I slot print_timing: id  0 | task 1028 | prompt eval time =     131.73 ms /   612 tokens (    0.22 ms per token,  4645.73 tokens per second)
+0.17.667.738 I slot print_timing: id  0 | task 1028 |        eval time =     431.58 ms /    48 tokens (    9.18 ms per token,   108.90 tokens per second)
+0.17.667.739 I slot print_timing: id  0 | task 1028 |       total time =     563.32 ms /   660 tokens
+0.17.667.740 I slot print_timing: id  0 | task 1028 |    graphs reused =        967
+0.17.667.853 I slot      release: id  0 | task 1028 | stop processing: n_tokens = 2734, truncated = 0
+0.17.675.244 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.381
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.17.680.875 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 38 skipped
+[kv-tree] park: 21 calls, 21 ok, 0 refused
+[kv-tree] restore: 10 calls, 10 hits, 0 miss, 20750 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=3 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=3 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.17.705.401 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2687)
+0.17.705.613 I slot launch_slot_: id  0 | task 1079 | processing task, is_child = 0
+0.18.266.719 I slot print_timing: id  0 | task 1079 | prompt eval time =     133.60 ms /   612 tokens (    0.22 ms per token,  4580.91 tokens per second)
+0.18.266.726 I slot print_timing: id  0 | task 1079 |        eval time =     427.47 ms /    48 tokens (    9.10 ms per token,   109.95 tokens per second)
+0.18.266.728 I slot print_timing: id  0 | task 1079 |       total time =     561.07 ms /   660 tokens
+0.18.266.728 I slot print_timing: id  0 | task 1079 |    graphs reused =       1013
+0.18.266.835 I slot      release: id  0 | task 1079 | stop processing: n_tokens = 2734, truncated = 0
+0.18.273.609 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.381
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.18.278.758 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 40 skipped
+[kv-tree] park: 22 calls, 22 ok, 0 refused
+[kv-tree] restore: 11 calls, 11 hits, 0 miss, 22825 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=3 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=3 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=3 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=2 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.18.302.056 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2687)
+0.18.302.231 I slot launch_slot_: id  0 | task 1130 | processing task, is_child = 0
+0.18.860.405 I slot print_timing: id  0 | task 1130 | prompt eval time =     131.40 ms /   612 tokens (    0.21 ms per token,  4657.43 tokens per second)
+0.18.860.422 I slot print_timing: id  0 | task 1130 |        eval time =     426.75 ms /    48 tokens (    9.08 ms per token,   110.14 tokens per second)
+0.18.860.423 I slot print_timing: id  0 | task 1130 |       total time =     558.15 ms /   660 tokens
+0.18.860.424 I slot print_timing: id  0 | task 1130 |    graphs reused =       1059
+0.18.860.511 I slot      release: id  0 | task 1130 | stop processing: n_tokens = 2734, truncated = 0
+0.18.867.950 I slot get_availabl: id  0 | task -1 | selected slot by LCP similarity, f_sim_best = 0.387 (> 0.100 thold), f_keep = 0.381
+[kv-tree] park: sequence already stored, 2 checkpoint candidates not adopted
+0.18.873.151 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2734 tokens, 2 checkpoint candidates, ram = 130871064 B, disk = 274236024 B
+[kv-tree] blocks: 2 ram, 24 disk, 130871064 bytes ram, 274236024 bytes disk
+[kv-tree] anchors: 6 ram, 10 disk, 16 added, 42 skipped
+[kv-tree] park: 23 calls, 23 ok, 0 refused
+[kv-tree] restore: 12 calls, 12 hits, 0 miss, 24900 tokens reused
+[kv-tree]   block 5a096e31cf3f4ccf [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 081251b791afd3be [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 4cfb72ed7629fdad [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 1ec0300aa5321d77 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 22f5d1c63631f701 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 8aa538c39cdf5e04 [0, 512) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 936d3e068c5e6f58 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 7080640e1d53e491 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 3e73c95c356fd5e2 [512, 1024) ref=12 heat=11 ram 4829352 bytes
+[kv-tree]   block 89ba6d061a19f677 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block a60661b7518601cc [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block b1475bb9eb02052d [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block ac41cb55eac17e88 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block f20ec0d94961e3f2 [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 874e128d09a991d0 [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 6f4b615a49c053c4 [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block efa923e89036aeca [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 3aa08f13c39c3a30 [2560, 2638) ref=2 heat=1 disk 735864 bytes
+[kv-tree]   block 96f08b9f2485f7ac [1024, 1536) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block 380a399a28ee36ff [1536, 2048) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block c12bd781a16dbbaf [2048, 2560) ref=3 heat=2 disk 4829352 bytes
+[kv-tree]   block d792249d045f185a [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 3cc912fd62076760 [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 62e18b6066d0d73f [2560, 2686) ref=2 heat=1 disk 1188600 bytes
+[kv-tree]   block 23de0d775cd7a637 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   block 7d1aa04723ef0259 [2560, 2734) ref=1 heat=0 disk 1641336 bytes
+[kv-tree]   anchor 1ec0300aa5321d77@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 22f5d1c63631f701@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 23de0d775cd7a637@2734 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3aa08f13c39c3a30@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 3cc912fd62076760@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 4cfb72ed7629fdad@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 5a096e31cf3f4ccf@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 62e18b6066d0d73f@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7080640e1d53e491@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 7d1aa04723ef0259@2734 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 874e128d09a991d0@2075 kind=1 ref=3 heat=3 ram
+[kv-tree]   anchor 89ba6d061a19f677@2075 kind=1 ref=3 heat=3 disk
+[kv-tree]   anchor ac41cb55eac17e88@2075 kind=1 ref=3 heat=3 ram
+[kv-tree]   anchor b1475bb9eb02052d@2638 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor c12bd781a16dbbaf@2075 kind=1 ref=3 heat=3 ram
+[kv-tree]   anchor d792249d045f185a@2686 kind=0 ref=1 heat=0 disk
+[kv-tree]   seq tip=b1475bb9eb02052d len=2638 blocks=6
+[kv-tree]   seq tip=d792249d045f185a len=2686 blocks=6
+[kv-tree]   seq tip=3aa08f13c39c3a30 len=2638 blocks=6
+[kv-tree]   seq tip=7080640e1d53e491 len=2638 blocks=6
+[kv-tree]   seq tip=5a096e31cf3f4ccf len=2686 blocks=6
+[kv-tree]   seq tip=4cfb72ed7629fdad len=2734 blocks=6
+[kv-tree]   seq tip=1ec0300aa5321d77 len=2734 blocks=6
+[kv-tree]   seq tip=22f5d1c63631f701 len=2638 blocks=6
+[kv-tree]   seq tip=3cc912fd62076760 len=2686 blocks=6
+[kv-tree]   seq tip=62e18b6066d0d73f len=2686 blocks=6
+[kv-tree]   seq tip=23de0d775cd7a637 len=2734 blocks=6
+[kv-tree]   seq tip=7d1aa04723ef0259 len=2734 blocks=6
+0.18.897.570 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2075 tokens (heal = 2687)
+0.18.897.774 I slot launch_slot_: id  0 | task 1181 | processing task, is_child = 0
+0.19.473.852 I slot print_timing: id  0 | task 1181 | prompt eval time =     136.55 ms /   612 tokens (    0.22 ms per token,  4481.74 tokens per second)
+0.19.473.860 I slot print_timing: id  0 | task 1181 |        eval time =     439.49 ms /    48 tokens (    9.35 ms per token,   106.94 tokens per second)
+0.19.473.861 I slot print_timing: id  0 | task 1181 |       total time =     576.04 ms /   660 tokens
+0.19.473.862 I slot print_timing: id  0 | task 1181 |    graphs reused =       1105
+0.19.473.962 I slot      release: id  0 | task 1181 | stop processing: n_tokens = 2734, truncated = 0

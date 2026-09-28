@@ -1,0 +1,657 @@
+# Review package: 52b7bf7de..15588ab6c
+
+## Commits
+15588ab6c server : add kv tree module skeleton and block matching
+
+## Files changed
+ tests/CMakeLists.txt            |   3 +
+ tests/test-t32-tree.cpp         | 162 +++++++++++++++++++++++++++++
+ tools/server/CMakeLists.txt     |   3 +
+ tools/server/server-kv-tree.cpp | 218 ++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.h   | 173 +++++++++++++++++++++++++++++++
+ 5 files changed, 559 insertions(+)
+
+## Diff
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index bf0fd73e4..ad1889043 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -314,20 +314,23 @@ llama_build_and_test(test-model-load-cancel.cpp LABEL "model")
+ llama_build_and_test(test-autorelease.cpp       LABEL "model")
+ llama_build_and_test(test-backend-sampler.cpp   LABEL "model")
+ 
+ # Test for state restore with fragmented KV cache
+ # Requires a model, uses same args pattern as test-thread-safety
+ llama_build_and_test(test-state-restore-fragmented.cpp LABEL "model" ARGS -m "${MODEL_DEST}")
+ set_tests_properties(test-state-restore-fragmented PROPERTIES FIXTURES_REQUIRED test-download-model)
+ 
+ llama_build(test-t32-range.cpp)
+ 
++llama_build(test-t32-tree.cpp ${PROJECT_SOURCE_DIR}/tools/server/server-kv-tree.cpp)
++target_include_directories(test-t32-tree PRIVATE ${PROJECT_SOURCE_DIR}/tools/server ${PROJECT_SOURCE_DIR}/vendor)
++
+ if (APPLE)
+     llama_build(test-rset-release.cpp)
+ endif()
+ 
+ if (NOT GGML_BACKEND_DL AND GGML_CPU)
+     # these tests use the backends directly and cannot be built with dynamic loading
+     llama_build_and_test(test-barrier.cpp)
+     llama_build_and_test(test-quantize-fns.cpp)
+     llama_build_and_test(test-quantize-perf.cpp)
+     llama_build_and_test(test-rope.cpp)
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+new file mode 100644
+index 000000000..8f2bb96a8
+--- /dev/null
++++ b/tests/test-t32-tree.cpp
+@@ -0,0 +1,162 @@
++// Harness for the T32 KV tree module (stage 2)
++#include "arg.h"
++#include "common.h"
++#include "llama.h"
++#include "server-kv-tree.h"
++
++#include <algorithm>
++#include <cstdio>
++#include <cstring>
++#include <string>
++#include <vector>
++
++static int n_fail = 0;
++
++static void check(bool cond, const char * what) {
++    fprintf(stderr, "[t32-tree] %-72s %s\n", what, cond ? "PASS" : "FAIL");
++    if (!cond) {
++        n_fail++;
++    }
++}
++
++static void check_eq(long long got, long long want, const char * what) {
++    fprintf(stderr, "[t32-tree] %-72s %s (got %lld, want %lld)\n", what, got == want ? "PASS" : "FAIL", got, want);
++    if (got != want) {
++        n_fail++;
++    }
++}
++
++// fake io: payload bytes are a deterministic function of the position, so that
++// identical prefixes produce identical blobs (models "attention KV is a function of the prefix")
++struct kv_tree_io_fake : public kv_tree_io {
++    llama_pos max_pos = -1;
++    int64_t set_range_bytes = 0;
++    int64_t set_range_calls = 0;
++    int64_t set_partial_calls = 0;
++
++    static std::vector<uint8_t> pattern(llama_pos p0, size_t n) {
++        std::vector<uint8_t> v(n);
++        for (size_t i = 0; i < n; ++i) {
++            v[i] = (uint8_t) (p0 * 31 + i * 7);
++        }
++        return v;
++    }
++
++    bool get_range(llama_pos p0, llama_pos p1, std::vector<uint8_t> & out) override {
++        out = pattern(p0, (size_t) (p1 - p0) * 8);
++        return true;
++    }
++    bool set_range(const uint8_t * data, size_t size, bool append) override {
++        (void) data;
++        (void) append;
++        set_range_calls++;
++        set_range_bytes += (int64_t) size;
++        return true;
++    }
++    bool get_partial(std::vector<uint8_t> & out) override {
++        out = pattern(0, 64);
++        return true;
++    }
++    bool set_partial(const uint8_t * data, size_t size) override {
++        (void) data;
++        (void) size;
++        set_partial_calls++;
++        return true;
++    }
++    bool seq_rm(llama_pos p0, llama_pos p1) override {
++        if (p0 == -1) {
++            max_pos = -1;
++        } else if (p1 == -1) {
++            max_pos = p0 - 1;
++        }
++        return true;
++    }
++    llama_pos pos_max() override {
++        return max_pos;
++    }
++};
++
++static std::vector<llama_token> make_tokens(int n, int salt) {
++    std::vector<llama_token> t(n);
++    for (int i = 0; i < n; ++i) {
++        t[i] = 10 + (i * 7 + salt) % 1000;
++    }
++    return t;
++}
++
++static int run_logic() {
++    fprintf(stderr, "[t32-tree] mode logic\n");
++
++    kv_tree_config cfg;
++    cfg.chunk = 512;
++    cfg.ram_limit = 64ull << 20;
++
++    kv_tree tree(cfg);
++
++    const auto tok_a = make_tokens(1536, 0);   // 3 full chunks
++    const auto tok_b = make_tokens(1024, 0);   // shares the first 2 chunks with tok_a, then diverges
++    auto tok_b2 = tok_b;
++    tok_b2.resize(1536);
++    for (int i = 1024; i < 1536; ++i) {
++        tok_b2[i] = 500 + i % 100;             // same as tok_a in [0, 1024), different tail
++    }
++    auto tok_c = make_tokens(1024, 0);         // shared prefix only, short tail
++    tok_c.resize(1124);
++    for (int i = 1024; i < 1124; ++i) {
++        tok_c[i] = 700 + i % 50;
++    }
++
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++        check(tree.park(io, nullptr, tok_a, {}), "park A (3 chunks)");
++        check_eq(tree.stats().blocks_ram, 3, "blocks after A");
++    }
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++        check(tree.park(io, nullptr, tok_b2, {}), "park B2 (shares 2 chunks)");
++        check_eq(tree.stats().blocks_ram, 4, "blocks after B2 (dedup)");
++    }
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1535;
++        check(tree.park(io, nullptr, tok_a, {}), "park A again (identical)");
++        check_eq(tree.stats().blocks_ram, 4, "blocks after A re-park (no duplicate)");
++    }
++    {
++        kv_tree_io_fake io;
++        io.max_pos = 1123;
++        check(tree.park(io, nullptr, tok_c, {}), "park C (partial tail block)");
++        check_eq(tree.stats().blocks_ram, 5, "blocks after C (tail is a new block)");
++    }
++
++    tree.dump();
++
++    return n_fail == 0 ? 0 : 1;
++}
++
++int main(int argc, char ** argv) {
++    std::string mode = "logic";
++
++    std::vector<char *> args;
++    args.push_back(argv[0]);
++
++    for (int i = 1; i < argc; ++i) {
++        const std::string arg = argv[i];
++
++        if (arg == "--mode" && i + 1 < argc) {
++            mode = argv[++i];
++            continue;
++        }
++
++        args.push_back(argv[i]);
++    }
++
++    if (mode == "logic") {
++        return run_logic();
++    }
++
++    fprintf(stderr, "mode %s not implemented yet\n", mode.c_str());
++    return 1;
++}
+diff --git a/tools/server/CMakeLists.txt b/tools/server/CMakeLists.txt
+index 4adaaceef..163cac24d 100644
+--- a/tools/server/CMakeLists.txt
++++ b/tools/server/CMakeLists.txt
+@@ -8,36 +8,39 @@ add_library(${TARGET} STATIC
+     server-chat.cpp
+     server-chat.h
+     server-task.cpp
+     server-task.h
+     server-queue.cpp
+     server-queue.h
+     server-common.cpp
+     server-common.h
+     server-context.cpp
+     server-context.h
++    server-kv-tree.cpp
++    server-kv-tree.h
+     server-stream.cpp
+     server-stream.h
+     server-tools.cpp
+     server-tools.h
+     server-mcp.cpp
+     server-mcp.h
+     server-schema.cpp
+     server-schema.h
+ )
+ 
+ if (BUILD_SHARED_LIBS)
+     set_target_properties(${TARGET} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+ endif()
+ 
+ target_include_directories(${TARGET} PRIVATE ../mtmd)
+ target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR})
++target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/vendor)
+ target_link_libraries(${TARGET} PUBLIC llama-common mtmd ${CMAKE_THREAD_LIBS_INIT})
+ 
+ # llama-server-impl: server logic, reusable by app
+ 
+ set(TARGET llama-server-impl)
+ 
+ add_library(${TARGET}
+     server.cpp
+     server-http.cpp
+     server-http.h
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+new file mode 100644
+index 000000000..88b4c67f3
+--- /dev/null
++++ b/tools/server/server-kv-tree.cpp
+@@ -0,0 +1,218 @@
++#include "server-kv-tree.h"
++
++#include <algorithm>
++#include <cinttypes>
++#include <cstdio>
++#include <cstring>
++
++#define XXH_INLINE_ALL
++#include "hash/xxhash/xxhash.h"
++
++static uint64_t chunk_hash(const llama_token * tok, size_t n, uint64_t seed) {
++    return XXH64(tok, n * sizeof(llama_token), seed);
++}
++
++static void chain_hashes(const std::vector<llama_token> & tokens, int chunk, std::vector<uint64_t> & h) {
++    h.clear();
++
++    uint64_t cur = 0;
++
++    for (size_t a = 0; a < tokens.size(); a += (size_t) chunk) {
++        const size_t b = std::min(tokens.size(), a + (size_t) chunk);
++        cur = chunk_hash(tokens.data() + a, b - a, cur);
++        h.push_back(cur);
++    }
++}
++
++kv_tree::kv_tree(const kv_tree_config & cfg) : cfg(cfg) {
++}
++
++kv_tree_match kv_tree::match(const std::vector<llama_token> & tokens) const {
++    kv_tree_match m;
++
++    std::vector<uint64_t> h;
++    chain_hashes(tokens, cfg.chunk, h);
++
++    for (size_t i = 0; i < h.size(); ++i) {
++        const auto it = blocks.find(h[i]);
++        if (it == blocks.end()) {
++            break;
++        }
++
++        const kv_tree_block & b = it->second;
++        const size_t a = i * (size_t) cfg.chunk;
++
++        if (a + b.tokens.size() > tokens.size()) {
++            break;
++        }
++        if (memcmp(tokens.data() + a, b.tokens.data(), b.tokens.size() * sizeof(llama_token)) != 0) {
++            break;
++        }
++
++        m.path.push_back(h[i]);
++        m.n_full++;
++        m.deep = (llama_pos) (a + b.tokens.size());
++    }
++
++    // partial match inside the last chunk only when the full chain is verified
++    const size_t n_full_req = tokens.size() / (size_t) cfg.chunk;
++    const size_t tail_a = n_full_req * (size_t) cfg.chunk;
++
++    if (m.n_full == n_full_req && tail_a < tokens.size()) {
++        const auto it = blocks_at.find((llama_pos) tail_a);
++        if (it != blocks_at.end()) {
++            for (const uint64_t hash : it->second) {
++                const kv_tree_block & b = blocks.at(hash);
++
++                const size_t n = std::min(b.tokens.size(), tokens.size() - tail_a);
++                size_t k = 0;
++                while (k < n && b.tokens[k] == tokens[tail_a + k]) {
++                    ++k;
++                }
++
++                if (k > m.n_part) {
++                    m.n_part = k;
++                    m.part_hash = hash;
++                }
++            }
++        }
++
++        m.deep = std::max(m.deep, (llama_pos) (tail_a + m.n_part));
++    }
++
++    return m;
++}
++
++bool kv_tree::make_room(size_t need_ram) {
++    return (size_t) st.bytes_ram + need_ram <= cfg.ram_limit;
++}
++
++bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
++                   const std::vector<kv_tree_anchor_in> & checkpoints) {
++    (void) io_dft;
++    (void) checkpoints;
++
++    st.park_calls++;
++
++    const llama_pos L = (llama_pos) tokens.size();
++
++    if (L <= 0 || io_tgt.pos_max() != L - 1) {
++        fprintf(stderr, "[kv-tree] park refused: sequence end %d, expected %d\n", io_tgt.pos_max(), L - 1);
++        st.park_refused++;
++        return false;
++    }
++
++    std::vector<uint64_t> h;
++    chain_hashes(tokens, cfg.chunk, h);
++
++    const uint64_t tip = h.back();
++
++    if (seqs.count(tip) != 0) {
++        seqs[tip].last_used = ++now;
++        st.park_ok++;
++        return true;
++    }
++
++    const kv_tree_match m = match(tokens);
++
++    std::vector<std::pair<uint64_t, std::vector<uint8_t>>> blobs;
++    std::vector<size_t> idxs;
++
++    for (size_t i = m.n_full; i < h.size(); ++i) {
++        if (blocks.count(h[i]) != 0) {
++            continue;
++        }
++
++        const size_t a = i * (size_t) cfg.chunk;
++        const size_t b = std::min(tokens.size(), a + (size_t) cfg.chunk);
++
++        std::vector<uint8_t> blob;
++        if (!io_tgt.get_range((llama_pos) a, (llama_pos) b, blob)) {
++            fprintf(stderr, "[kv-tree] park refused: failed to read range [%zu, %zu)\n", a, b);
++            st.park_refused++;
++            return false;
++        }
++
++        blobs.emplace_back(h[i], std::move(blob));
++        idxs.push_back(i);
++    }
++
++    size_t need = 0;
++    for (const auto & p : blobs) {
++        need += p.second.size();
++    }
++
++    if (!make_room(need)) {
++        fprintf(stderr, "[kv-tree] park refused: no room for %zu bytes\n", need);
++        st.park_refused++;
++        return false;
++    }
++
++    for (size_t k = 0; k < blobs.size(); ++k) {
++        const size_t i = idxs[k];
++        const size_t a = i * (size_t) cfg.chunk;
++        const size_t b = std::min(tokens.size(), a + (size_t) cfg.chunk);
++
++        kv_tree_block & nb = blocks[blobs[k].first];
++
++        nb.hash      = blobs[k].first;
++        nb.pos0      = (llama_pos) a;
++        nb.pos1      = (llama_pos) b;
++        nb.refcount  = 1;
++        nb.last_used = ++now;
++        nb.tokens.assign(tokens.begin() + a, tokens.begin() + b);
++        nb.data      = std::move(blobs[k].second);
++        nb.bytes     = nb.data.size();
++
++        blocks_at[nb.pos0].push_back(nb.hash);
++        st.blocks_ram++;
++        st.bytes_ram += (int64_t) nb.data.size();
++    }
++
++    for (const uint64_t hash : m.path) {
++        kv_tree_block & b = blocks[hash];
++        b.refcount++;
++        b.heat++;
++        b.last_used = ++now;
++    }
++    if (m.n_part > 0) {
++        kv_tree_block & b = blocks[m.part_hash];
++        b.refcount++;
++        b.heat++;
++        b.last_used = ++now;
++    }
++
++    kv_tree_seq & s = seqs[tip];
++    s.chain     = h;
++    s.len       = L;
++    s.last_used = ++now;
++
++    st.park_ok++;
++    return true;
++}
++
++void kv_tree::dump() const {
++    fprintf(stderr, "[kv-tree] blocks: %" PRId64 " ram, %" PRId64 " disk, %" PRId64 " bytes ram, %" PRId64 " bytes disk\n",
++            st.blocks_ram, st.blocks_disk, st.bytes_ram, st.bytes_disk);
++    fprintf(stderr, "[kv-tree] anchors: %" PRId64 " ram, %" PRId64 " disk, %" PRId64 " added, %" PRId64 " skipped\n",
++            st.anchors_ram, st.anchors_disk, st.anchors_added, st.anchors_skipped);
++    fprintf(stderr, "[kv-tree] park: %" PRId64 " calls, %" PRId64 " ok, %" PRId64 " refused\n",
++            st.park_calls, st.park_ok, st.park_refused);
++    fprintf(stderr, "[kv-tree] restore: %" PRId64 " calls, %" PRId64 " hits, %" PRId64 " miss, %" PRId64 " tokens reused\n",
++            st.restore_calls, st.restore_hits, st.restore_miss, st.tokens_reused);
++
++    for (const auto & p : blocks) {
++        const kv_tree_block & b = p.second;
++        fprintf(stderr, "[kv-tree]   block %016" PRIx64 " [%d, %d) ref=%" PRId64 " heat=%" PRId64 " %s %zu bytes\n",
++                b.hash, b.pos0, b.pos1, b.refcount, b.heat, b.on_disk ? "disk" : "ram", b.bytes);
++    }
++    for (const auto & p : anchors) {
++        const kv_tree_anchor & a = p.second;
++        fprintf(stderr, "[kv-tree]   anchor %016" PRIx64 "@%d kind=%d ref=%" PRId64 " heat=%" PRId64 " %s\n",
++                a.blk_hash, a.pos, a.kind, a.refcount, a.heat, a.on_disk ? "disk" : "ram");
++    }
++    for (const auto & p : seqs) {
++        const kv_tree_seq & s = p.second;
++        fprintf(stderr, "[kv-tree]   seq tip=%016" PRIx64 " len=%d blocks=%zu\n", p.first, s.len, s.chain.size());
++    }
++}
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+new file mode 100644
+index 000000000..0827ab57c
+--- /dev/null
++++ b/tools/server/server-kv-tree.h
+@@ -0,0 +1,173 @@
++// T32 stage 2: content-addressed tree storage for attention KV and recurrent state anchors.
++// Pure logic is separated from llama_context I/O via kv_tree_io.
++
++#pragma once
++
++#include "llama.h"
++
++#include <cstdint>
++#include <map>
++#include <string>
++#include <unordered_map>
++#include <vector>
++
++struct kv_tree_config {
++    int         chunk       = 512;
++    int         anchor_step = 32768;
++    size_t      ram_limit   = 8ull  << 30;
++    size_t      disk_limit  = 64ull << 30;
++    std::string disk_dir;
++    bool        debug       = false;
++};
++
++enum kv_tree_anchor_kind {
++    KV_TREE_ANCHOR_TIP      = 0,
++    KV_TREE_ANCHOR_MESSAGE  = 1,
++    KV_TREE_ANCHOR_ONDEMAND = 2,
++};
++
++// anchor candidate captured by the caller (e.g. a server prompt checkpoint)
++struct kv_tree_anchor_in {
++    llama_pos pos = 0;
++    std::vector<uint8_t> data_tgt;
++    std::vector<uint8_t> data_dft;
++};
++
++struct kv_tree_stats {
++    int64_t blocks_ram      = 0;
++    int64_t blocks_disk     = 0;
++    int64_t anchors_ram     = 0;
++    int64_t anchors_disk    = 0;
++    int64_t bytes_ram       = 0;
++    int64_t bytes_disk      = 0;
++    int64_t park_calls      = 0;
++    int64_t park_ok         = 0;
++    int64_t park_refused    = 0;
++    int64_t restore_calls   = 0;
++    int64_t restore_hits    = 0;
++    int64_t restore_miss    = 0;
++    int64_t anchors_added   = 0;
++    int64_t anchors_skipped = 0;
++    int64_t tokens_reused   = 0;
++    int64_t bytes_store     = 0;
++    int64_t bytes_load      = 0;
++    int64_t evicted_anchors = 0;
++    int64_t evicted_blocks  = 0;
++    int64_t evicted_seqs    = 0;
++    int64_t evict_refused   = 0;
++    int64_t disk_errors     = 0;
++};
++
++// I/O seam: the harness uses a fake, the server a llama_context adapter
++struct kv_tree_io {
++    virtual ~kv_tree_io() = default;
++
++    // attention KV of [p0, p1) of the sequence, as a self-contained blob
++    virtual bool get_range(llama_pos p0, llama_pos p1, std::vector<uint8_t> & out) = 0;
++    // load a blob produced by get_range; append = keep the existing cells
++    virtual bool set_range(const uint8_t * data, size_t size, bool append) = 0;
++    // recurrent (PARTIAL_ONLY) state of the sequence at its current end
++    virtual bool get_partial(std::vector<uint8_t> & out) = 0;
++    virtual bool set_partial(const uint8_t * data, size_t size) = 0;
++    // drop attention KV in [p0, p1); p1 = -1 means "to the end", p0 = -1 means "everything"
++    virtual bool seq_rm(llama_pos p0, llama_pos p1) = 0;
++    // largest position currently in the sequence, -1 when empty
++    virtual llama_pos pos_max() = 0;
++};
++
++struct kv_tree_io_llama : public kv_tree_io {
++    kv_tree_io_llama(llama_context * ctx, llama_seq_id seq_id);
++
++    bool get_range(llama_pos p0, llama_pos p1, std::vector<uint8_t> & out) override;
++    bool set_range(const uint8_t * data, size_t size, bool append) override;
++    bool get_partial(std::vector<uint8_t> & out) override;
++    bool set_partial(const uint8_t * data, size_t size) override;
++    bool seq_rm(llama_pos p0, llama_pos p1) override;
++    llama_pos pos_max() override;
++
++    llama_context * ctx;
++    llama_seq_id    seq_id;
++};
++
++// one chunk of attention KV, content-addressed
++struct kv_tree_block {
++    uint64_t    hash     = 0;   // chained content hash
++    llama_pos   pos0     = 0;   // [pos0, pos1) covered by this block
++    llama_pos   pos1     = 0;
++    int64_t     refcount = 0;   // stored sequences referencing this block
++    int64_t     heat     = 0;
++    int64_t     last_used = 0;
++    bool        on_disk  = false;
++    bool        pinned   = false;
++    std::string path;
++    size_t      bytes    = 0;   // payload size, valid in both tiers
++    std::vector<llama_token> tokens;
++    std::vector<uint8_t>     data;
++};
++
++// recurrent state (PARTIAL_ONLY) captured at pos
++struct kv_tree_anchor {
++    uint64_t    blk_hash = 0;   // hash of the block containing pos
++    llama_pos   pos      = 0;
++    int         kind     = KV_TREE_ANCHOR_MESSAGE;
++    int64_t     refcount = 0;
++    int64_t     heat     = 0;
++    int64_t     last_used = 0;
++    bool        on_disk  = false;
++    bool        pinned   = false;
++    std::string path;
++    size_t      bytes    = 0;   // payload size, valid in both tiers
++    std::vector<uint8_t> data_tgt;
++    std::vector<uint8_t> data_dft;
++    std::vector<uint8_t> data_spec;
++};
++
++struct kv_tree_seq {
++    std::vector<uint64_t> chain;   // block hashes in order
++    llama_pos   len       = 0;
++    int64_t     last_used = 0;
++    bool        pinned    = false;
++};
++
++// verified prefix of a request against the stored blocks
++struct kv_tree_match {
++    std::vector<uint64_t> path;    // hashes of fully matched blocks
++    size_t      n_full    = 0;     // number of fully matched blocks
++    size_t      n_part    = 0;     // tokens verified inside the last partial block
++    uint64_t    part_hash = 0;     // hash of the partially matched block
++    llama_pos   deep      = 0;     // deepest verified position
++};
++
++struct kv_tree_restore {
++    llama_pos C = -1;              // restore point, -1 = caller must do a full prefill
++    llama_pos heal = -1;           // capture an anchor when the prefill crosses this pos
++    std::vector<llama_pos> anchors; // path anchors usable by the caller
++};
++
++class kv_tree {
++public:
++    explicit kv_tree(const kv_tree_config & cfg);
++
++    // store the sequence tokens[0, L); the io state must end exactly at L
++    bool park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
++              const std::vector<kv_tree_anchor_in> & checkpoints);
++
++    const kv_tree_stats & stats() const { return st; }
++
++    void dump() const;
++
++private:
++    kv_tree_match match(const std::vector<llama_token> & tokens) const;
++
++    bool make_room(size_t need_ram);
++
++    kv_tree_config cfg;
++    kv_tree_stats  st;
++
++    std::unordered_map<uint64_t, kv_tree_block> blocks;
++    std::unordered_map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
++    std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor> anchors;
++    std::unordered_map<uint64_t, kv_tree_seq> seqs;                  // tip hash -> sequence
++
++    int64_t now = 0;
++};

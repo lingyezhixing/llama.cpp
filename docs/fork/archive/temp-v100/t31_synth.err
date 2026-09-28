@@ -1,0 +1,6 @@
+13.00.000.000 I slot print_timing: id  0 | task 1 |        eval time =   10000.00 ms /   150 tokens (   66.67 ms per token,    15.00 tokens per second)
+13.00.000.100 I slot print_timing: id  0 | task 1 | draft acceptance = 0.38835 (  80 accepted /  206 generated), mean len =  2.16
+13.00.000.200 I slot print_trace: statistics   draft-mtp: #calls(b,g,a) =   50   206   206, #gen drafts =    618, #acc drafts =   240, #gen tokens =   3668, #acc tokens =   324, #mean acc len = 2.16, #acc rate/pos = (0.475, 0.291, 0.194), dur(b,g,a) = 8123.456, 2478.900, 411.200 ms
+13.05.000.000 I slot print_timing: id  0 | task 2 |        eval time =    9000.00 ms /   150 tokens (   60.00 ms per token,    16.67 tokens per second)
+13.05.000.100 I slot print_timing: id  0 | task 2 | draft acceptance = 0.40000 (  78 accepted /  195 generated), mean len =  2.20
+13.05.000.200 I slot print_trace: statistics   draft-mtp: #calls(b,g,a) =   90   401   401, #gen drafts =   1200, #acc drafts =   479, #gen tokens =   6800, #acc tokens =   660, #mean acc len = 2.30, #acc rate/pos = (0.480, 0.310, 0.205), dur(b,g,a) = 15000.000, 4900.000, 800.000 ms

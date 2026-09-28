@@ -1,0 +1,127 @@
+0.00.000.713 I srv  llama_server: initializing ...
+0.00.023.164 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.023.283 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.025.969 I srv    load_model: loading model '<models>\Qwen3.8-27B\Qwen3.8-27B-UD-Q6_K.gguf'
+0.01.001.842 W model has unused tensor blk.64.attn_norm.weight (size = 20480 bytes) -- ignoring
+0.01.001.855 W model has unused tensor blk.64.post_attention_norm.weight (size = 20480 bytes) -- ignoring
+0.01.001.871 W model has unused tensor blk.64.attn_q.weight (size = 51609600 bytes) -- ignoring
+0.01.001.877 W model has unused tensor blk.64.attn_k.weight (size = 5570560 bytes) -- ignoring
+0.01.001.883 W model has unused tensor blk.64.attn_v.weight (size = 5570560 bytes) -- ignoring
+0.01.001.905 W model has unused tensor blk.64.attn_output.weight (size = 25804800 bytes) -- ignoring
+0.01.001.911 W model has unused tensor blk.64.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+0.01.001.916 W model has unused tensor blk.64.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+0.01.001.922 W model has unused tensor blk.64.ffn_gate.weight (size = 73113600 bytes) -- ignoring
+0.01.001.928 W model has unused tensor blk.64.ffn_down.weight (size = 73113600 bytes) -- ignoring
+0.01.001.934 W model has unused tensor blk.64.ffn_up.weight (size = 73113600 bytes) -- ignoring
+0.01.001.941 W model has unused tensor blk.64.nextn.eh_proj.weight (size = 43008000 bytes) -- ignoring
+0.01.001.948 W model has unused tensor blk.64.nextn.enorm.weight (size = 20480 bytes) -- ignoring
+0.01.001.958 W model has unused tensor blk.64.nextn.hnorm.weight (size = 20480 bytes) -- ignoring
+0.01.001.977 W model has unused tensor blk.64.nextn.shared_head_norm.weight (size = 20480 bytes) -- ignoring
+0.18.035.846 I cmn          init: llama threadpool init, n_threads = 8
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=2 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+0.18.191.234 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'
+0.18.197.372 W srv          init: chat template supports preserving reasoning, it is enabled by default (may use more tokens, disable via --no-reasoning-preserve)
+0.18.197.390 I srv  llama_server: model loaded
+0.18.197.392 I srv  llama_server: listening on http://127.0.0.1:8473
+0.20.016.855 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.20.016.885 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=10 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=400 (MMA_F16)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=4 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=200 (TILE)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+FA_DEBUG n_q=1 n_head=24 n_head_kv=4 n_kv=256 head_dim=256 kernel=100 (VEC)
+0.20.988.650 I slot print_timing: id  0 | task 0 | prompt eval time =     234.15 ms /    14 tokens (   16.73 ms per token,    59.79 tokens per second)
+0.20.988.657 I slot print_timing: id  0 | task 0 |        eval time =     737.58 ms /    20 tokens (   38.82 ms per token,    25.76 tokens per second)
+0.20.988.658 I slot print_timing: id  0 | task 0 |       total time =     971.74 ms /    34 tokens
+0.20.988.658 I slot print_timing: id  0 | task 0 |    graphs reused =         19
+0.20.988.675 I slot      release: id  0 | task 0 | stop processing: n_tokens = 33, truncated = 0

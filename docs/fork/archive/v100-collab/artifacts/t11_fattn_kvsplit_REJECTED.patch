@@ -1,0 +1,31 @@
+diff --git a/ggml/src/ggml-cuda/fattn-common.cuh b/ggml/src/ggml-cuda/fattn-common.cuh
+index 6d1ce52db..c9630687b 100644
+--- a/ggml/src/ggml-cuda/fattn-common.cuh
++++ b/ggml/src/ggml-cuda/fattn-common.cuh
+@@ -1138,6 +1138,15 @@ void launch_fattn(
+     dim3 blocks_num;
+     if (stream_k) {
+         auto should_use_stream_k = [](const int cc, const int ntiles_dst, const int max_blocks, const int DKQ) {
++            // GGML_CUDA_FATTN_STREAM_K=0/1 overrides the heuristic (1 = always, 0 = never).
++            static const int stream_k_env = []() {
++                const char * env = getenv("GGML_CUDA_FATTN_STREAM_K");
++                return env ? atoi(env) : -1;
++            }();
++            if (stream_k_env >= 0) {
++                return stream_k_env != 0;
++            }
++
+             const int tiles_nwaves             = (ntiles_dst + max_blocks - 1) / max_blocks;
+             const int tiles_efficiency_percent = 100 * ntiles_dst / (max_blocks*tiles_nwaves);
+ 
+@@ -1147,6 +1156,10 @@ void launch_fattn(
+             if (amd_wmma_available(cc) && DKQ == 64) {
+                 return true; // TODO better configuration
+             }
++            // A partial last wave leaves SMs idle, so spread the work over all blocks with stream-K.
++            if (GGML_CUDA_CC_IS_NVIDIA(cc) && ntiles_dst > max_blocks && tiles_efficiency_percent < 96) {
++                return true;
++            }
+             return tiles_efficiency_percent < 75;
+         };
+ 
