@@ -1,0 +1,14 @@
+[1/6] Provisioning UI assets
+-- UI: downloading from b2036: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b2036/dist.tar.gz
+-- UI: download dist.tar.gz.sha256 from b2036 failed: "Timeout was reached"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: download dist.tar.gz.sha256 from latest failed: "Timeout was reached"
+-- UI: HF download failed
+CMake Warning at D:/LLM/Backend/src/llama.cpp-my/scripts/ui-assets.cmake:584 (message):
+  UI: no assets available - building without an embedded UI.  In a
+  disconnected environment, download the pre-built UI from a llama.cpp
+  release at https://github.com/ggml-org/llama.cpp/releases and extract to
+  tools/ui/dist.
+
+
+-- UI: assets unchanged, skipping embedding

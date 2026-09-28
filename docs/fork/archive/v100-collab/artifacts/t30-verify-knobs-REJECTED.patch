@@ -1,0 +1,58 @@
+diff --git a/ggml/src/ggml-cuda/fattn-common.cuh b/ggml/src/ggml-cuda/fattn-common.cuh
+index 29201744b..144e8eb1a 100644
+--- a/ggml/src/ggml-cuda/fattn-common.cuh
++++ b/ggml/src/ggml-cuda/fattn-common.cuh
+@@ -1133,7 +1133,21 @@ void launch_fattn(
+     int parallel_blocks = max_blocks_per_sm;
+ 
+     const int64_t n_kv = use_sparse ? n_kv_max : K->ne[1];
+-    const int ntiles_KV = (n_kv + nbatch_fa - 1) / nbatch_fa; // Max. number of parallel blocks limited by KV cache length.
++
++    // Verify batches (a few queries) need many KV splits for long context: both the KV tile size and the
++    // block count are tuned for prefill/decode shapes.
++    static const int verify_pb_env = []() {
++        const char * env = getenv("GGML_CUDA_FATTN_VERIFY_PB");
++        return env ? atoi(env) : -1;
++    }();
++    static const int verify_nbatch_env = []() {
++        const char * env = getenv("GGML_CUDA_FATTN_VERIFY_NBATCH");
++        return env ? atoi(env) : -1;
++    }();
++    const bool verify_batch = Q->ne[1] > 1 && Q->ne[1] <= 4;
++
++    const int nbatch_fa_eff = verify_batch && verify_nbatch_env > 0 ? std::min(nbatch_fa, verify_nbatch_env) : nbatch_fa;
++    const int ntiles_KV = (n_kv + nbatch_fa_eff - 1) / nbatch_fa_eff; // Max. number of parallel blocks limited by KV cache length.
+ 
+     dim3 blocks_num;
+     if (stream_k) {
+@@ -1233,6 +1247,10 @@ void launch_fattn(
+             }
+         }
+ 
++        if (verify_batch && verify_pb_env > 0) {
++            parallel_blocks = std::max(parallel_blocks, std::min(ntiles_KV, verify_pb_env));
++        }
++
+         blocks_num.x = ntiles_x;
+         blocks_num.y = parallel_blocks;
+         blocks_num.z = ntiles_z_gqa*K->ne[2]*Q->ne[3];
+diff --git a/ggml/src/ggml-cuda/fattn.cu b/ggml/src/ggml-cuda/fattn.cu
+index 7098c8b4c..546e49c4c 100644
+--- a/ggml/src/ggml-cuda/fattn.cu
++++ b/ggml/src/ggml-cuda/fattn.cu
+@@ -659,7 +659,14 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
+     }
+ 
+     if (volta_mma_available(cc) && Q->ne[0] != 40 && Q->ne[0] != 72) {
+-        if (can_use_vector_kernel && Q->ne[1] * gqa_ratio_eff <= 2) {
++        // verify batches (a few queries) otherwise use the tile kernel, which needs K/V in f16;
++        // the vector kernel reads quantized V directly and skips that conversion
++        static const int vec_verify_max_nq = []() {
++            const char * env = getenv("GGML_CUDA_FA_VEC_VERIFY");
++            return env ? atoi(env) : 0;
++        }();
++        if (can_use_vector_kernel &&
++                (Q->ne[1] * gqa_ratio_eff <= 2 || (vec_verify_max_nq > 0 && Q->ne[1] <= vec_verify_max_nq))) {
+             return BEST_FATTN_KERNEL_VEC;
+         }
+         if (Q->ne[1] * gqa_ratio_eff <= 16) {

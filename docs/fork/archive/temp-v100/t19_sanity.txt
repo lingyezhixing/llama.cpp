@@ -1,0 +1,4 @@
+OURS  pp512 tg0 = 953.31
+OURS  pp0 tg128 = 26.67
+STOCK pp512 tg0 = 882.26
+STOCK pp0 tg128 = 26.72

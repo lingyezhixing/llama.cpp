@@ -1,0 +1,279 @@
+# Review package: 5b843e2f6..e4a50cb83
+
+## Commits
+e4a50cb83 server : self-heal kv tree anchors at fork points
+
+## Files changed
+ tests/test-t32-tree.cpp         |  24 +++++++--
+ tools/server/server-kv-tree.cpp | 105 ++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.h   |  11 +++++
+ 3 files changed, 136 insertions(+), 4 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index fb9102605..def410cb5 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -312,24 +312,40 @@ static int scenario_fork(llama_context * ctx, const kv_tree_config & cfg_in) {
+         check(r.gen == base, "fork: A tokens match the baseline");
+     }
+     {
+         const auto base = run_baseline(ctx, tok_b, 42, 8);
+         const auto r = run_tree_path(ctx, tree, io, tok_b, 42, 8);
+         check_eq(r.res.C, 2048, "fork: B restores at the tip");
+         check(r.gen == base, "fork: B tokens match the baseline");
+     }
+     {
+         const auto base = run_baseline(ctx, tok_a2, 42, 8);
+-        const auto r = run_tree_path(ctx, tree, io, tok_a2, 42, 8);
+-        check_eq(r.res.C, 512, "fork: A' restores at the deepest usable anchor");
+-        check_eq(r.res.heal, 1024, "fork: A' asks for a heal at the fork point");
+-        check(r.gen == base, "fork: A' tokens match the baseline");
++
++        llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++
++        const auto r = tree.restore(io, nullptr, tok_a2);
++        check_eq(r.C, 512, "fork: A' restores at the deepest usable anchor");
++        check_eq(r.heal, 1024, "fork: A' asks for a heal at the fork point");
++
++        prefill(ctx, 0, std::vector<llama_token>(tok_a2.begin(), tok_a2.begin() + 1024), (int) r.C, 512);
++
++        check(tree.capture_anchor(io, nullptr, tok_a2, 1024), "fork: heal capture at the fork point");
++
++        prefill(ctx, 0, tok_a2, 1024, 512);
++
++        const auto gen = generate(ctx, 0, 42, (llama_pos) tok_a2.size(), 8);
++        check(gen == base, "fork: A' tokens match the baseline");
++
++        const auto r2 = run_tree_path(ctx, tree, io, tok_a2, 42, 8);
++        check_eq(r2.res.C, 1024, "heal: A' restores at the self-healed anchor");
++        check_eq(r2.res.heal, -1, "heal: no second heal needed");
++        check(r2.gen == base, "heal: tokens still match the baseline");
+     }
+ 
+     tree.dump();
+ 
+     return n_fail == 0 ? 0 : 1;
+ }
+ 
+ static int scenario_sparsify(llama_context * ctx, const kv_tree_config & cfg_in) {
+     fprintf(stderr, "[t32-tree] scenario: sparsify\n");
+ 
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index d4172ea1b..1052a4706 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -1,16 +1,17 @@
+ #include "server-kv-tree.h"
+ 
+ #include <algorithm>
+ #include <cinttypes>
+ #include <cstdio>
+ #include <cstring>
++#include <filesystem>
+ 
+ #define XXH_INLINE_ALL
+ #include "hash/xxhash/xxhash.h"
+ 
+ static uint64_t chunk_hash(const llama_token * tok, size_t n, uint64_t seed) {
+     return XXH64(tok, n * sizeof(llama_token), seed);
+ }
+ 
+ static void chain_hashes(const std::vector<llama_token> & tokens, int chunk, std::vector<uint64_t> & h) {
+     h.clear();
+@@ -157,20 +158,124 @@ bool kv_tree::store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+     a.data_tgt  = std::move(data_tgt);
+     a.data_dft  = std::move(data_dft);
+ 
+     st.anchors_ram++;
+     st.anchors_added++;
+     st.bytes_ram += (int64_t) size;
+ 
+     return true;
+ }
+ 
++static size_t anchor_bytes(const kv_tree_anchor & a) {
++    return a.bytes;
++}
++
++void kv_tree::remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it) {
++    kv_tree_anchor & a = it->second;
++
++    if (a.transient) {
++        st.bytes_ram -= (int64_t) a.bytes;
++        st.anchors_ram--;
++    }
++
++    if (a.on_disk) {
++        std::error_code ec;
++        std::filesystem::remove(a.path, ec);
++        st.bytes_disk -= (int64_t) a.bytes;
++        st.anchors_disk--;
++    } else {
++        st.bytes_ram -= (int64_t) a.bytes;
++        st.anchors_ram--;
++    }
++
++    anchors.erase(it);
++}
++
++bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens, llama_pos pos) {
++    if (pos <= 0) {
++        return false;
++    }
++    if (io_tgt.pos_max() != pos - 1) {
++        fprintf(stderr, "[kv-tree] capture refused at %d: sequence end %d\n", pos, io_tgt.pos_max());
++        return false;
++    }
++
++    std::vector<uint64_t> chain;
++    chain_hashes(tokens, cfg.chunk, chain);
++
++    const uint64_t blk = containing_block(pos, &chain);
++    if (blk == 0) {
++        fprintf(stderr, "[kv-tree] capture refused at %d: no chain block contains this position\n", pos);
++        return false;
++    }
++
++    const auto key = std::make_pair(blk, pos);
++
++    const auto it = anchors.find(key);
++    if (it != anchors.end()) {
++        it->second.heat++;
++        it->second.last_used = ++now;
++        return true;
++    }
++
++    llama_pos prev = -1;
++    for (const auto & kv : anchors) {
++        if (kv.second.pos < pos && kv.second.pos > prev) {
++            prev = kv.second.pos;
++        }
++    }
++
++    if (prev >= 0 && pos - prev < cfg.anchor_step) {
++        st.anchors_skipped++;
++        return true;
++    }
++
++    std::vector<uint8_t> tgt;
++    std::vector<uint8_t> dft;
++
++    if (!io_tgt.get_partial(tgt)) {
++        fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the state\n", pos);
++        return false;
++    }
++    if (io_dft != nullptr && !io_dft->get_partial(dft)) {
++        fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the draft state\n", pos);
++        return false;
++    }
++
++    if (!store_anchor(blk, pos, KV_TREE_ANCHOR_ONDEMAND, std::move(tgt), std::move(dft))) {
++        return false;
++    }
++
++    promote_prune(pos);
++
++    return true;
++}
++
++void kv_tree::promote_prune(llama_pos pos) {
++    if (last_promote < 0) {
++        last_promote = pos;
++        return;
++    }
++
++    for (auto it = anchors.begin(); it != anchors.end(); ) {
++        kv_tree_anchor & a = it->second;
++
++        if (a.pos > last_promote && a.pos < pos && a.kind != KV_TREE_ANCHOR_TIP && a.refcount < 2 && !a.pinned) {
++            remove_anchor(it++);
++        } else {
++            ++it;
++        }
++    }
++
++    last_promote = pos;
++}
++
+ uint64_t kv_tree::containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const {
+     if (pos <= 0) {
+         return 0;
+     }
+ 
+     auto it = blocks_at.lower_bound(pos);
+     if (it == blocks_at.begin()) {
+         return 0;
+     }
+     --it;
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index a6e4981d3..ffce8dbf5 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -108,20 +108,21 @@ struct kv_tree_block {
+ // recurrent state (PARTIAL_ONLY) captured at pos
+ struct kv_tree_anchor {
+     uint64_t    blk_hash = 0;   // hash of the block containing pos
+     llama_pos   pos      = 0;
+     int         kind     = KV_TREE_ANCHOR_MESSAGE;
+     int64_t     refcount = 0;
+     int64_t     heat     = 0;
+     int64_t     last_used = 0;
+     bool        on_disk  = false;
+     bool        pinned   = false;
++    bool        transient = false;
+     std::string path;
+     size_t      bytes    = 0;   // payload size, valid in both tiers
+     std::vector<uint8_t> data_tgt;
+     std::vector<uint8_t> data_dft;
+     std::vector<uint8_t> data_spec;
+ };
+ 
+ struct kv_tree_seq {
+     std::vector<uint64_t> chain;   // block hashes in order
+     llama_pos   len       = 0;
+@@ -148,34 +149,44 @@ class kv_tree {
+ public:
+     explicit kv_tree(const kv_tree_config & cfg);
+ 
+     // store the sequence tokens[0, L); the io state must end exactly at L
+     bool park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+               const std::vector<kv_tree_anchor_in> & checkpoints);
+ 
+     // load the deepest anchor-covered prefix of tokens into the (cleared) sequence
+     kv_tree_restore restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens);
+ 
++    // capture the state at pos (the io state must be exactly at pos) as a fork anchor;
++    // tokens is the sequence content, used to attach the anchor to the right chain block
++    bool capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens, llama_pos pos);
++
+     const kv_tree_stats & stats() const { return st; }
+ 
+     void dump() const;
+ 
+ private:
+     kv_tree_match match(const std::vector<llama_token> & tokens) const;
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+     uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 
++    void promote_prune(llama_pos pos);
++
++    void remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it);
++
+     bool make_room(size_t need_ram);
+ 
+     kv_tree_config cfg;
+     kv_tree_stats  st;
+ 
+     std::unordered_map<uint64_t, kv_tree_block> blocks;
+     std::map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
+     std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor> anchors;
+     std::unordered_map<uint64_t, kv_tree_seq> seqs;                  // tip hash -> sequence
+ 
+     int64_t now = 0;
++
++    llama_pos last_promote = -1;
+ };

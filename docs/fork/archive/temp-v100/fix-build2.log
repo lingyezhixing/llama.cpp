@@ -1,0 +1,284 @@
+[1/130] Building CXX object common\CMakeFiles\llama-common-base.dir\Release\build-info.cpp.obj
+[2/130] Linking CXX static library common\Release\llama-common-base.lib
+[3/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-hybrid.cpp.obj
+[4/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-hybrid-iswa.cpp.obj
+[5/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-hybrid-idx.cpp.obj
+[6/130] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_7_cxx.cxx.obj
+[7/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-recurrent.cpp.obj
+[8/130] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_0_cxx.cxx.obj
+[9/130] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_5_cxx.cxx.obj
+[10/130] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_4_cxx.cxx.obj
+[11/130] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_8_cxx.cxx.obj
+[12/130] Building CXX object src\CMakeFiles\llama.dir\Release\Unity\unity_1_cxx.cxx.obj
+[13/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-graph.cpp.obj
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\memory(3630): warning C4244: “参数”: 从“const int64_t”转换到“uint32_t”，可能丢失数据
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\memory(3630): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\src\llama-graph.cpp(2567): note: 查看对正在编译的函数 模板 实例化“std::unique_ptr<llm_graph_input_out_ids,std::default_delete<llm_graph_input_out_ids>> std::make_unique<llm_graph_input_out_ids,const llama_hparams&,const llama_cparams&,const int64_t&,0>(const llama_hparams &,const llama_cparams &,const int64_t &)”的引用
+[14/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-sampler.cpp.obj
+D:\LLM\Backend\src\llama.cpp-my\src\llama-sampler.cpp(1165): warning C4834: 放弃具有 [[nodiscard]] 属性的函数的返回值
+D:\LLM\Backend\src\llama.cpp-my\src\llama-sampler.cpp(1380): warning C4834: 放弃具有 [[nodiscard]] 属性的函数的返回值
+[15/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-quant.cpp.obj
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): warning C4244: “参数”: 从“unsigned __int64”转换到“int”，可能丢失数据
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\src\llama-quant.cpp(275): note: 查看对正在编译的函数 模板 实例化“std::thread &std::vector<std::thread,std::allocator<std::thread>>::emplace_back<llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>&,ggml_type&,const uint8_t*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208> &,ggml_type &,const uint8_t *&&,float *&&,size_t &)”的引用
+D:\LLM\Backend\src\llama.cpp-my\src\llama-quant.cpp(275): note: 请参阅 "llama_tensor_dequantize_impl" 中对 "std::vector<std::thread,std::allocator<std::thread>>::emplace_back" 的第一个引用
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\vector(924): note: 查看对正在编译的函数 模板 实例化“_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_one_at_back<llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>&,ggml_type&,const unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208> &,ggml_type &,const unsigned char *&&,float *&&,size_t &)”的引用
+        with
+        [
+            _Ty=std::thread
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\vector(845): note: 查看对正在编译的函数 模板 实例化“_Ty &std::vector<_Ty,std::allocator<_Ty>>::_Emplace_back_with_unused_capacity<llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>&,ggml_type&,const unsigned char*,float*,size_t&>(llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208> &,ggml_type &,const unsigned char *&&,float *&&,size_t &)”的引用
+        with
+        [
+            _Ty=std::thread
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\vector(863): note: 查看对正在编译的函数 模板 实例化“void std::_Default_allocator_traits<_Alloc>::construct<_Ty,llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>&,ggml_type&,const unsigned char*,float*,size_t&>(_Alloc &,_Objty *const ,llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208> &,ggml_type &,const unsigned char *&&,float *&&,size_t &)”的引用
+        with
+        [
+            _Alloc=std::allocator<std::thread>,
+            _Ty=std::thread,
+            _Objty=std::thread
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xmemory(732): note: 查看对正在编译的函数 模板 实例化“std::thread::thread<llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>&,ggml_type&,_T,float*,size_t&,0>(_Fn,ggml_type &,_T &&,float *&&,size_t &)”的引用
+        with
+        [
+            _T=const uint8_t *,
+            _Fn=llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208> &
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(93): note: 查看对正在编译的函数 模板 实例化“void std::thread::_Start<llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>&,ggml_type&,_Ty,float*,size_t&>(_Fn,ggml_type &,_Ty &&,float *&&,size_t &)”的引用
+        with
+        [
+            _Ty=const uint8_t *,
+            _Fn=llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208> &
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(76): note: 查看对正在编译的函数 模板 实例化“unsigned int (__cdecl *std::thread::_Get_invoke<std::thread::_Start::_Tuple,0,1,2,3,4>(std::integer_sequence<size_t,0,1,2,3,4>) noexcept)(void *) noexcept”的引用
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(67): note: 查看对正在编译的函数 模板 实例化“unsigned int std::thread::_Invoke<_Tuple,0,1,2,3,4>(void *) noexcept”的引用
+        with
+        [
+            _Tuple=std::thread::_Start::_Tuple
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(60): note: 查看对正在编译的函数 模板 实例化“void std::invoke<llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>,ggml_type,const uint8_t*,_Ty*,unsigned __int64>(_Callable &&,_Ty1 &&,const uint8_t *&&,_Ty *&&,unsigned __int64 &&) noexcept(false)”的引用
+        with
+        [
+            _Ty=float,
+            _Callable=llama_tensor_dequantize_impl::<lambda_b6d322fd26eae12479f874b9caa4a208>,
+            _Ty1=ggml_type
+        ]
+[16/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\gigachat-v3.cpp.obj
+[17/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\parsers.cpp.obj
+[18/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-vocab.cpp.obj
+[19/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\gemma4.cpp.obj
+[20/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\lfm2.cpp.obj
+[21/130] Building CXX object src\CMakeFiles\llama.dir\Release\llama-model.cpp.obj
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\utility(274): warning C4244: “初始化”: 从“_Ty”转换到“_Ty2”，可能丢失数据
+        with
+        [
+            _Ty=int64_t
+        ]
+        and
+        [
+            _Ty2=uint32_t
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\utility(274): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\src\llama-model.cpp(642): note: 查看对正在编译的函数 模板 实例化“std::pair<int64_t,uint32_t>::pair<const int64_t&,int64_t,0>(_Other1,_Other2 &&) noexcept”的引用
+        with
+        [
+            _Other1=const int64_t &,
+            _Other2=int64_t
+        ]
+D:\LLM\Backend\src\llama.cpp-my\src\llama-model.cpp(642): note: 请参阅 "llama_meta_device_get_split_state::<lambda_a699d6f01bd1fcaea6d14e4967708d5f>::operator ()" 中对 "std::pair<int64_t,uint32_t>::pair" 的第一个引用
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\utility(274): warning C4244: “初始化”: 从“const int64_t”转换到“_Ty2”，可能丢失数据
+        with
+        [
+            _Ty2=uint32_t
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\utility(274): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\src\llama-model.cpp(645): note: 查看对正在编译的函数 模板 实例化“std::pair<int64_t,uint32_t>::pair<const int64_t&,const int64_t&,0>(_Other1,_Other2) noexcept”的引用
+        with
+        [
+            _Other1=const int64_t &,
+            _Other2=const int64_t &
+        ]
+D:\LLM\Backend\src\llama.cpp-my\src\llama-model.cpp(645): note: 请参阅 "llama_meta_device_get_split_state::<lambda_a699d6f01bd1fcaea6d14e4967708d5f>::operator ()" 中对 "std::pair<int64_t,uint32_t>::pair" 的第一个引用
+[22/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\cohere2moe.cpp.obj
+[23/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\gpt-oss.cpp.obj
+[24/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\kimi-k2.cpp.obj
+[25/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\deepseek.cpp.obj
+[26/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\functionary-v3-2.cpp.obj
+[27/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\kimi-k3.cpp.obj
+[28/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\minicpm5.cpp.obj
+[29/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\minimax-m3.cpp.obj
+[30/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\ling3.cpp.obj
+[31/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\ministral3.cpp.obj
+[32/130] Linking CXX shared library bin\Release\llama.dll
+[33/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\console.cpp.obj
+[34/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\muse-glimmer.cpp.obj
+[35/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\parsers\qwen3-coder.cpp.obj
+[36/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\chat-auto-parser-helpers.cpp.obj
+[37/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\chat-auto-parser-generator.cpp.obj
+[38/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\debug.cpp.obj
+[39/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\common.cpp.obj
+[40/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\imatrix-loader.cpp.obj
+[41/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\llguidance.cpp.obj
+[42/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\fit.cpp.obj
+[43/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\chat.cpp.obj
+[44/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\log.cpp.obj
+[45/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\chat-diff-analyzer.cpp.obj
+[46/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\chat-peg-parser.cpp.obj
+[47/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\ngram-map.cpp.obj
+[48/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\hf-cache.cpp.obj
+[49/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\ngram-cache.cpp.obj
+[50/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\reasoning-budget.cpp.obj
+[51/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\json-schema.cpp.obj
+[52/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\sampling.cpp.obj
+[53/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\download.cpp.obj
+[54/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\preset.cpp.obj
+[55/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\mtmd-helper-gen.cpp.obj
+[56/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\json-schema-to-grammar.cpp.obj
+[57/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\conformer.cpp.obj
+[58/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\speculative.cpp.obj
+[59/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\cogvlm.cpp.obj
+[60/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\mtmd-image.cpp.obj
+[61/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\mtmd-audio.cpp.obj
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xutility(5310): warning C4244: “=”: 从“const _Ty”转换到“float”，可能丢失数据
+        with
+        [
+            _Ty=double
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xutility(5310): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\tools\mtmd\mtmd-audio.cpp(323): note: 查看对正在编译的函数 模板 实例化“void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)”的引用
+        with
+        [
+            _Ty=float,
+            _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xutility(5310): warning C4244: “=”: 从“const _Ty”转换到“float”，可能丢失数据
+        with
+        [
+            _Ty=int
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xutility(5310): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\tools\mtmd\mtmd-audio.cpp(407): note: 查看对正在编译的函数 模板 实例化“void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,int>(const _FwdIt,const _FwdIt,const int &)”的引用
+        with
+        [
+            _Ty=float,
+            _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): warning C4244: “参数”: 从“__int64”转换到“int”，可能丢失数据
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\tools\mtmd\mtmd-audio.cpp(1318): note: 查看对正在编译的函数 模板 实例化“std::thread::thread<void(__cdecl &)(int,const float *,int,const std::vector<float,std::allocator<float>> &,int,int,int,int,int,const mtmd_audio_cache &,mtmd_audio_mel &),int,const float*&,const int&,std::reference_wrapper<const std::vector<float,std::allocator<float>>>,unsigned __int64,const int&,const int&,const int&,int64_t&,std::reference_wrapper<const mtmd_audio_cache>,std::reference_wrapper<mtmd_audio_mel>,0>(_Fn,int &&,const float *&,const int &,std::reference_wrapper<const std::vector<float,std::allocator<float>>> &&,unsigned __int64 &&,const int &,const int &,const int &,int64_t &,std::reference_wrapper<const mtmd_audio_cache> &&,std::reference_wrapper<mtmd_audio_mel> &&)”的引用
+        with
+        [
+            _Fn=void (__cdecl &)(int,const float *,int,const std::vector<float,std::allocator<float>> &,int,int,int,int,int,const mtmd_audio_cache &,mtmd_audio_mel &)
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(93): note: 查看对正在编译的函数 模板 实例化“void std::thread::_Start<void(__cdecl &)(int,const float *,int,const std::vector<float,std::allocator<float>> &,int,int,int,int,int,const mtmd_audio_cache &,mtmd_audio_mel &),_Ty,const float*&,const int&,std::reference_wrapper<const std::vector<float,std::allocator<float>>>,unsigned __int64,const int&,const int&,const int&,int64_t&,std::reference_wrapper<const mtmd_audio_cache>,std::reference_wrapper<mtmd_audio_mel>>(_Fn,_Ty &&,const float *&,const int &,std::reference_wrapper<const std::vector<float,std::allocator<float>>> &&,unsigned __int64 &&,const int &,const int &,const int &,int64_t &,std::reference_wrapper<const mtmd_audio_cache> &&,std::reference_wrapper<mtmd_audio_mel> &&)”的引用
+        with
+        [
+            _Ty=int,
+            _Fn=void (__cdecl &)(int,const float *,int,const std::vector<float,std::allocator<float>> &,int,int,int,int,int,const mtmd_audio_cache &,mtmd_audio_mel &)
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(76): note: 查看对正在编译的函数 模板 实例化“unsigned int (__cdecl *std::thread::_Get_invoke<std::thread::_Start::_Tuple,0,1,2,3,4,5,6,7,8,9,10,11>(std::integer_sequence<size_t,0,1,2,3,4,5,6,7,8,9,10,11>) noexcept)(void *) noexcept”的引用
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(67): note: 查看对正在编译的函数 模板 实例化“unsigned int std::thread::_Invoke<_Tuple,0,1,2,3,4,5,6,7,8,9,10,11>(void *) noexcept”的引用
+        with
+        [
+            _Tuple=std::thread::_Start::_Tuple
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\thread(60): note: 查看对正在编译的函数 模板 实例化“void std::invoke<void(__cdecl *)(int,const float *,int,const std::vector<float,std::allocator<float>> &,int,int,int,int,int,const mtmd_audio_cache &,mtmd_audio_mel &),int,const float*,int,std::reference_wrapper<const std::vector<float,std::allocator<float>>>,unsigned __int64,int,int,int,__int64,std::reference_wrapper<const mtmd_audio_cache>,std::reference_wrapper<mtmd_audio_mel>>(_Callable &&,_Ty1 &&,const float *&&,int &&,std::reference_wrapper<const std::vector<float,std::allocator<float>>> &&,unsigned __int64 &&,int &&,int &&,int &&,__int64 &&,std::reference_wrapper<const mtmd_audio_cache> &&,std::reference_wrapper<mtmd_audio_mel> &&) noexcept(false)”的引用
+        with
+        [
+            _Callable=void (__cdecl *)(int,const float *,int,const std::vector<float,std::allocator<float>> &,int,int,int,int,int,const mtmd_audio_cache &,mtmd_audio_mel &),
+            _Ty1=int
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\type_traits(1680): warning C4244: “参数”: 从“unsigned __int64”转换到“int”，可能丢失数据
+[62/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\deepseek4v.cpp.obj
+[63/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\peg-parser.cpp.obj
+[64/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\dots3note.cpp.obj
+[65/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\mtmd.cpp.obj
+[66/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\dotsocr.cpp.obj
+[67/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\exaone4_5.cpp.obj
+[68/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\gemma4a.cpp.obj
+[69/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\gemma4ua.cpp.obj
+[70/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\gemma4uv.cpp.obj
+[71/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\glm4v.cpp.obj
+[72/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\mtmd-helper.cpp.obj
+[73/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\gemma4v.cpp.obj
+[74/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\hunyuanvl.cpp.obj
+[75/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\granite-speech.cpp.obj
+[76/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\internvl.cpp.obj
+[77/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\granite4-vision.cpp.obj
+[78/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\kimik25.cpp.obj
+[79/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\kimivl.cpp.obj
+[80/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\nemotron-v2-vl.cpp.obj
+[81/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\muse-glimmer.cpp.obj
+[82/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\llama4.cpp.obj
+[83/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\llava.cpp.obj
+[84/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\minicpmv.cpp.obj
+[85/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\pixtral.cpp.obj
+[86/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\paddleocr.cpp.obj
+[87/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\minimax-m3.cpp.obj
+[88/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\qwen3vl.cpp.obj
+[89/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\qwen2vl.cpp.obj
+[90/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\ling3vl.cpp.obj
+[91/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\mimovl.cpp.obj
+[92/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\qwen3a.cpp.obj
+[93/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\qwen3tts-spkenc.cpp.obj
+[94/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\mimo-audio.cpp.obj
+[95/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\pockettts-spkenc.cpp.obj
+[96/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\pockettts-seanet.cpp.obj
+[97/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\clip.cpp.obj
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xutility(5310): warning C4244: “=”: 从“const _Ty”转换到“float”，可能丢失数据
+        with
+        [
+            _Ty=double
+        ]
+E:\Program files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\14.44.35207\include\xutility(5310): note: 模板实例化上下文(最早的实例化上下文)为
+D:\LLM\Backend\src\llama.cpp-my\tools\mtmd\clip.cpp(4962): note: 查看对正在编译的函数 模板 实例化“void std::fill<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,double>(const _FwdIt,const _FwdIt,const double &)”的引用
+        with
+        [
+            _Ty=float,
+            _FwdIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<float>>>
+        ]
+[98/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\step3vl.cpp.obj
+[99/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\siglip.cpp.obj
+[100/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\whisper-enc.cpp.obj
+[101/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\deepseekocr2.cpp.obj
+[102/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\deepseekocr.cpp.obj
+[103/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\qwen3tts-gen.cpp.obj
+[104/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\mobilenetv5.cpp.obj
+[105/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\youtuvl.cpp.obj
+[106/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\pockettts-gen.cpp.obj
+[107/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\yasa2.cpp.obj
+[108/130] Building CXX object tools\mtmd\CMakeFiles\mtmd.dir\Release\models\parakeet.cpp.obj
+[109/130] Linking CXX shared library bin\Release\mtmd.dll
+[110/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-kv-tree.cpp.obj
+[111/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-queue.cpp.obj
+[112/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-chat.cpp.obj
+[113/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-stream.cpp.obj
+[114/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-task.cpp.obj
+[115/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-mcp.cpp.obj
+[116/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-schema.cpp.obj
+[117/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-common.cpp.obj
+[118/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-tools.cpp.obj
+[119/130] Building CXX object tools\server\CMakeFiles\server-context.dir\Release\server-context.cpp.obj
+[120/130] Building CXX object common\CMakeFiles\llama-common.dir\Release\arg.cpp.obj
+[121/130] Linking CXX shared library bin\Release\llama-common.dll
+[122/130] Linking CXX static library tools\server\Release\server-context.lib
+[123/130] Provisioning UI assets
+-- UI: downloading from b2161: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b2161/dist.tar.gz
+-- UI: download dist.tar.gz.sha256 from b2161 failed: "Timeout was reached"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: download dist.tar.gz.sha256 from latest failed: "Timeout was reached"
+-- UI: HF download failed
+CMake Warning at D:/LLM/Backend/src/llama.cpp-my/scripts/ui-assets.cmake:584 (message):
+  UI: no assets available - building without an embedded UI.  In a
+  disconnected environment, download the pre-built UI from a llama.cpp
+  release at https://github.com/ggml-org/llama.cpp/releases and extract to
+  tools/ui/dist.
+
+
+-- UI: assets unchanged, skipping embedding
+[124/128] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\Release\server-http.cpp.obj
+[125/128] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\Release\server.cpp.obj
+[126/128] Building CXX object tools\server\CMakeFiles\llama-server-impl.dir\Release\server-models.cpp.obj
+[127/128] Linking CXX shared library bin\Release\llama-server-impl.dll
+[128/128] Linking CXX executable bin\Release\llama-server.exe

@@ -1,0 +1,5 @@
+0.01.178.702 I cmn          init: llama threadpool init, n_threads = 8
+[t32-h2d] fill: 64 tokens in 0.6 s (115.7 t/s)
+[t32-h2d] size: 20.0 MiB
+[t32-h2d] D2H:  0.00 s (11.96 GiB/s) [20990208 bytes]
+[t32-h2d] H2D:  0.00 s (11.31 GiB/s) [20990208 bytes]

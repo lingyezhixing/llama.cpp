@@ -1,0 +1,91 @@
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index e95fb63ab..5610bbf83 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -2361,7 +2361,17 @@ private:
+         cur.update_pos(slot.prompt.n_tokens() - n_tokens_cur, pos_min, pos_max);
+ 
+         cur.update_tgt(ctx_tgt, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+-        cur.update_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++
++        if (ctx_dft != nullptr) {
++            // a pure-attention draft KV is a pure function of the prefix and is reconstructed by
++            // trimming on restore, so snapshot it only when the partial state is a strict subset
++            const size_t size_dft_partial = llama_state_seq_get_size_ext(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++            const size_t size_dft_full    = llama_state_seq_get_size_ext(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_NONE);
++
++            if (size_dft_partial < size_dft_full) {
++                cur.update_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++            }
++        }
+         // stash the draft's speculative state with the checkpoint
+         common_speculative_get_state(spec.get(), slot.id, cur.data_spec);
+ 
+@@ -3366,13 +3376,26 @@ private:
+ 
+                                     if (!do_reset) {
+                                         // restore the context checkpoint
++                                        pos_next = std::min(pos_next, std::max(it->pos_min + 1, it->pos_max));
++                                        n_past   = std::min(slot.prompt.tokens.size_up_to_pos(pos_next), (size_t) it->n_tokens);
++
+                                         it->load_tgt(ctx_tgt, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
+-                                        it->load_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++
++                                        if (ctx_dft != nullptr) {
++                                            if (it->data_dft.empty()) {
++                                                // draft state is a pure function of the prefix - trim instead of restoring a snapshot
++                                                if (!llama_memory_seq_rm(llama_get_memory(ctx_dft), slot.id, n_past, -1)) {
++                                                    SLT_WRN(slot, "failed to trim draft sequence to %d - clearing it\n", n_past);
++                                                    llama_memory_seq_rm(llama_get_memory(ctx_dft), slot.id, -1, -1);
++                                                }
++                                            } else {
++                                                it->load_dft(ctx_dft, slot.id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++                                            }
++                                        }
++
+                                         // restore the draft's speculative state
+                                         common_speculative_set_state(spec.get(), slot.id, it->data_spec);
+ 
+-                                        pos_next = std::min(pos_next, std::max(it->pos_min + 1, it->pos_max));
+-                                        n_past   = std::min(slot.prompt.tokens.size_up_to_pos(pos_next), (size_t) it->n_tokens);
+                                         SLT_TRC(slot, "restored context checkpoint (pos_min = %d, pos_max = %d, n_tokens = %" PRId64 ", n_past = %d, size = %.3f MiB)\n", it->pos_min, it->pos_max, it->n_tokens, n_past, (float) it->size() / 1024 / 1024);
+                                     }
+ 
+diff --git a/tools/server/server-task.cpp b/tools/server/server-task.cpp
+index 0d3beb313..20bf945c3 100644
+--- a/tools/server/server-task.cpp
++++ b/tools/server/server-task.cpp
+@@ -1719,9 +1719,23 @@ server_prompt_cache_state * server_prompt_cache::alloc(const server_prompt & pro
+         }
+     }
+ 
++    // keep only the checkpoints useful for resuming: the oldest one and the 2 most recent ones
++    std::list<common_prompt_checkpoint> checkpoints_keep;
++    {
++        const int64_t n_ckpt = (int64_t) prompt.checkpoints.size();
++
++        int64_t i = 0;
++        for (const auto & ckpt : prompt.checkpoints) {
++            if (i == 0 || i >= n_ckpt - 2) {
++                checkpoints_keep.push_back(ckpt);
++            }
++            ++i;
++        }
++    }
++
+     // calculate checkpoints size to see if it will fit with the prompt
+     size_t checkpoints_size = 0;
+-    for (const auto & ckpt : prompt.checkpoints) {
++    for (const auto & ckpt : checkpoints_keep) {
+         checkpoints_size += ckpt.size();
+     }
+ 
+@@ -1779,7 +1793,7 @@ server_prompt_cache_state * server_prompt_cache::alloc(const server_prompt & pro
+     states.push_back({
+         /*.prompt =*/ {
+             /*.tokens      =*/ prompt.tokens.clone(),
+-            /*.checkpoints =*/ prompt.checkpoints,
++            /*.checkpoints =*/ checkpoints_keep,
+         },
+         /*.data   =*/ {
+             /*.main =*/ std::move(state_data_tgt),

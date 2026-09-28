@@ -1,0 +1,45 @@
+diff --git a/ggml/src/ggml-cuda/unary.cu b/ggml/src/ggml-cuda/unary.cu
+index d3e594878..b8ab83aef 100644
+--- a/ggml/src/ggml-cuda/unary.cu
++++ b/ggml/src/ggml-cuda/unary.cu
+@@ -276,8 +276,40 @@ static __global__ void unary_gated_op_kernel(const T * x, const T * g, T * dst,
+     dst[i] = (T)(op((float)x[j0]) * (float)g[j1]);
+ }
+ 
++template <float (*op)(float)>
++static __global__ void unary_gated_op_kernel_f32_vec4(const float * x, const float * g, float * dst, const int64_t k, const int64_t n, const int64_t o0, const int64_t o1) {
++    ggml_cuda_pdl_lc();
++    const int64_t i = 4*(int64_t(blockDim.x)*blockIdx.x + threadIdx.x);
++
++    if (i >= k) {
++        return;
++    }
++
++    // perform base op and multiply with gate (either offset in same tensor or a separate one)
++    const int64_t j0 = (i / n) * o0 + (i % n);
++    const int64_t j1 = o0 == o1 ? j0 : (i / n) * o1 + (i % n);
++
++    ggml_cuda_pdl_sync();
++    const float4 xv = *reinterpret_cast<const float4 *>(x + j0);
++    const float4 gv = *reinterpret_cast<const float4 *>(g + j1);
++    float4 dv;
++    dv.x = op(xv.x) * gv.x;
++    dv.y = op(xv.y) * gv.y;
++    dv.z = op(xv.z) * gv.z;
++    dv.w = op(xv.w) * gv.w;
++    *reinterpret_cast<float4 *>(dst + i) = dv;
++}
++
+ template <float (*op)(float), typename T>
+ static void unary_gated_cuda(const T * x, const T * g, T * dst, const int64_t k, const int64_t n, const int64_t o0, const int64_t o1, cudaStream_t stream) {
++    if constexpr (std::is_same<T, float>::value) {
++        if (k % 4 == 0 && n % 4 == 0 && o0 % 4 == 0 && o1 % 4 == 0) {
++            const int64_t num_blocks = (k/4 + CUDA_GLU_BLOCK_SIZE - 1) / CUDA_GLU_BLOCK_SIZE;
++            const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params((dim3)num_blocks, CUDA_GLU_BLOCK_SIZE, 0, stream);
++            ggml_cuda_kernel_launch(unary_gated_op_kernel_f32_vec4<op>, launch_params, x, g, dst, k, n, o0, o1);
++            return;
++        }
++    }
+     const int64_t num_blocks = (k + CUDA_GLU_BLOCK_SIZE - 1) / CUDA_GLU_BLOCK_SIZE;
+     const ggml_cuda_kernel_launch_params launch_params = ggml_cuda_kernel_launch_params((dim3)num_blocks, CUDA_GLU_BLOCK_SIZE, 0, stream);
+     ggml_cuda_kernel_launch(unary_gated_op_kernel<op, T>, launch_params, x, g, dst, k, n, o0, o1);

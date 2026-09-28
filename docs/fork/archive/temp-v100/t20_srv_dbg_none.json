@@ -1,0 +1,33 @@
+﻿{
+    "predicted_n":  20,
+    "predicted_ms":  737.583,
+    "prompt_n":  14,
+    "tps":  25.75981279394997,
+    "content":  "\n\n\u003cthink\u003e\nThe user wants a long, detailed, verbose essay about the history of computing. Let",
+    "stop_type":  "limit",
+    "tag":  "dbg_none",
+    "wall_s":  1.0007169999999999,
+    "extra":  "none",
+    "tokens":  [
+                   271,
+                   248068,
+                   198,
+                   760,
+                   1156,
+                   6587,
+                   264,
+                   1248,
+                   11,
+                   11346,
+                   11,
+                   13301,
+                   8627,
+                   883,
+                   279,
+                   3712,
+                   314,
+                   23470,
+                   13,
+                   6558
+               ]
+}

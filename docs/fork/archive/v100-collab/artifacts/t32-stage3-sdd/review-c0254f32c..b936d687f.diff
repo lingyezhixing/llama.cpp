@@ -1,0 +1,38 @@
+# Review package: c0254f32c..HEAD
+
+## Commits
+b936d687f server : skip kv tree restore when the prompt is not reused
+
+## Files changed
+ tools/server/server-context.cpp | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index d990aee3a..7986cfab1 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -1748,21 +1748,22 @@ private:
+             update_cache = update_cache && task.type == SERVER_TASK_TYPE_COMPLETION;
+ 
+             if (update_cache) {
+                 SRV_TRC("%s", "updating prompt cache\n");
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+                 if (tree) {
+                     ret->prompt_park(*tree);
+ 
+-                    if (!ret->prompt_restore_tree(*tree, task.tokens)) {
++                    // a restore is pointless when the request will not reuse the prompt (D10)
++                    if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens)) {
+                         ret->prompt_clear();
+                     }
+                 } else {
+                     ret->prompt_save(*prompt_cache);
+ 
+                     if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+                         ret->prompt_clear();
+                     }
+ 
+                     prompt_cache->update();

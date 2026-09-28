@@ -1,0 +1,160 @@
+# Review package: df4225828..HEAD
+
+## Commits
+376fa06ad server : reuse kv tree across slot switches
+
+## Files changed
+ tools/server/server-context.cpp | 93 ++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 87 insertions(+), 6 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index a6848d5ca..df79ee853 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -290,20 +290,91 @@ struct server_slot {
+ 
+     stop_type stop;
+ 
+     std::string stopping_word;
+ 
+     // state
+     slot_state state = SLOT_STATE_IDLE;
+ 
+     server_prompt prompt;
+ 
++    // T32: heal position produced by the last kv tree restore (-1 = none)
++    llama_pos tree_heal = -1;
++
++    bool prompt_park(kv_tree & tree) const {
++        if (!lora.empty() || prompt.tokens.empty() || prompt.tokens.has_mtmd) {
++            return false;
++        }
++
++        // note: llama_memory_seq_pos_min is not usable as a guard - for hybrid memory it
++        // reports the recurrent tail, not the first cached position; the server clears and
++        // reprocesses whenever a front removal is not supported (see D9)
++        const llama_pos p_max = llama_memory_seq_pos_max(llama_get_memory(ctx_tgt), id);
++        if (p_max != (llama_pos) prompt.tokens.size() - 1) {
++            SLT_WRN(*this, "kv tree: park skipped (seq end %d, tokens %zu)\n", p_max, prompt.tokens.size());
++            return false;
++        }
++
++        kv_tree_io_llama io_tgt(ctx_tgt, id);
++        std::unique_ptr<kv_tree_io_llama> io_dft;
++        kv_tree_io * io_dft_ptr = nullptr;
++        if (ctx_dft != nullptr) {
++            io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
++            io_dft_ptr = io_dft.get();
++        }
++
++        std::vector<kv_tree_anchor_in> cks;
++        for (const auto & c : prompt.checkpoints) {
++            if (c.data_tgt.empty()) {
++                continue;
++            }
++            kv_tree_anchor_in in;
++            in.pos      = (llama_pos) c.n_tokens;
++            in.data_tgt = c.data_tgt;
++            in.data_dft = c.data_dft;
++            cks.push_back(std::move(in));
++        }
++
++        const bool ok = tree.park(io_tgt, io_dft_ptr, prompt.tokens.get_tokens(), cks);
++        SLT_INF(*this, "kv tree: parked %d tokens, %zu checkpoint candidates, ram = %lld B, disk = %lld B\n",
++                (int) prompt.tokens.size(), cks.size(),
++                (long long) tree.stats().bytes_ram, (long long) tree.stats().bytes_disk);
++        return ok;
++    }
++
++    bool prompt_restore_tree(kv_tree & tree, const server_tokens & tokens) {
++        if (!lora.empty() || tokens.empty() || tokens.has_mtmd) {
++            return false;
++        }
++
++        kv_tree_io_llama io_tgt(ctx_tgt, id);
++        std::unique_ptr<kv_tree_io_llama> io_dft;
++        kv_tree_io * io_dft_ptr = nullptr;
++        if (ctx_dft != nullptr) {
++            io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
++            io_dft_ptr = io_dft.get();
++        }
++
++        const kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens());
++        if (res.C <= 0) {
++            SLT_INF(*this, "kv tree: restore miss for %zu tokens, full prefill\n", tokens.size());
++            return false;
++        }
++
++        prompt.tokens = server_tokens(llama_tokens(tokens.get_tokens().begin(), tokens.get_tokens().begin() + res.C), false);
++        prompt.checkpoints.clear();
++        tree_heal = res.heal > res.C ? res.heal : -1;
++
++        SLT_INF(*this, "kv tree: restored %d tokens (heal = %d)\n", (int) res.C, (int) tree_heal);
++        return true;
++    }
++
+     bool prompt_save(server_prompt_cache & prompt_cache) const {
+         if (prompt.tokens.size() == 0) {
+             return false;
+         }
+ 
+         const size_t cur_size_tgt =           llama_state_seq_get_size_ext(ctx_tgt, id, LLAMA_STATE_SEQ_FLAGS_NONE);
+         const size_t cur_size_dft = ctx_dft ? llama_state_seq_get_size_ext(ctx_dft, id, LLAMA_STATE_SEQ_FLAGS_NONE) : 0;
+ 
+         const size_t cur_size = cur_size_tgt + cur_size_dft;
+ 
+@@ -1662,37 +1733,47 @@ private:
+             }
+ 
+             if (ret != nullptr) {
+                 SLT_INF(*ret, "selected slot by LRU, t_last = %" PRId64 "\n", t_last);
+ 
+                 update_cache = true;
+             }
+         }
+ 
+         if (ret) {
+-            update_cache = update_cache && prompt_cache;
++            ret->tree_heal = -1;
++
++            update_cache = update_cache && (prompt_cache || tree);
+ 
+             // cache prompts only for completion tasks
+             update_cache = update_cache && task.type == SERVER_TASK_TYPE_COMPLETION;
+ 
+             if (update_cache) {
+                 SRV_TRC("%s", "updating prompt cache\n");
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+-                ret->prompt_save(*prompt_cache);
++                if (tree) {
++                    ret->prompt_park(*tree);
+ 
+-                if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+-                    ret->prompt_clear();
+-                }
++                    if (!ret->prompt_restore_tree(*tree, task.tokens)) {
++                        ret->prompt_clear();
++                    }
++                } else {
++                    ret->prompt_save(*prompt_cache);
++
++                    if (!ret->prompt_load(*prompt_cache, task.tokens)) {
++                        ret->prompt_clear();
++                    }
+ 
+-                prompt_cache->update();
++                    prompt_cache->update();
++                }
+ 
+                 SRV_TRC("prompt cache update took %.2f ms\n", (ggml_time_us() - t_start) / 1000.0);
+             }
+         }
+ 
+         return ret;
+     }
+ 
+     // return true if at least one slot has been cleared
+     // TODO: improve logic

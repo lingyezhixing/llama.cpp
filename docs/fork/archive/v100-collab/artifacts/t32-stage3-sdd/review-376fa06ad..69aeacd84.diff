@@ -1,0 +1,160 @@
+# Review package: 376fa06ad..HEAD
+
+## Commits
+69aeacd84 server : heal fork points, idle parks and slot erase in the kv tree
+
+## Files changed
+ tools/server/server-context.cpp | 41 +++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 39 insertions(+), 2 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index df79ee853..436598619 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -1517,21 +1517,21 @@ private:
+         queue_tasks.on_update_slots([this]() {
+             update_slots();
+         });
+         queue_tasks.on_sleeping_state([this](bool sleeping) {
+             handle_sleeping_state(sleeping);
+         });
+ 
+         metrics.init();
+ 
+         if (params_base.cache_idle_slots) {
+-            if (params_base.cache_ram_mib == 0) {
++            if (params_base.cache_ram_mib == 0 && !params_base.kv_tree) {
+                 SRV_WRN("%s", "--cache-idle-slots requires --cache-ram, disabling\n");
+                 params_base.cache_idle_slots = false;
+             } else {
+                 if (params_base.kv_unified) {
+                     SRV_TRC("%s", "idle slots will be saved to prompt cache and cleared upon starting a new task\n");
+                 } else {
+                     // without a unified KV cache, clearing a slot frees no reusable room, so we only
+                     // publish a RAM-cache copy of idle slots (their KV stays in VRAM) [TAG_IDLE_SLOT_CLEAR]
+                     SRV_TRC("%s", "idle slots will be saved to prompt cache upon starting a new task\n");
+                 }
+@@ -2557,21 +2557,23 @@ private:
+                     } else if (!launch_slot_with_task(*slot, std::move(task))) {
+                         SRV_ERR("failed to launch slot with task, id_task = %d\n", id_task);
+                         break; // drop the task
+                     }
+ 
+                     if (params_base.cache_idle_slots) {
+                         for (auto & slot : slots) {
+                             if (!slot.is_processing()) {
+                                 SLT_TRC(slot, "%s", "saving idle slot to prompt cache\n");
+ 
+-                                if (slot.prompt_save(*prompt_cache)) {
++                                if (tree) {
++                                    slot.prompt_park(*tree);
++                                } else if (slot.prompt_save(*prompt_cache)) {
+                                     SLT_DBG(slot, "%s", "__TEST_TAG_CACHE_IDLE_SLOT__\n");
+                                     prompt_cache->update();
+                                 }
+ 
+                                 if (params_base.kv_unified) {
+                                     // [TAG_IDLE_SLOT_CLEAR]
+                                     slot.prompt_clear();
+                                 }
+                             }
+                         }
+@@ -2794,20 +2796,26 @@ private:
+                     if (slot->is_processing()) {
+                         // if requested slot is unavailable, we defer this task for processing later
+                         SRV_DBG("requested slot is unavailable, defer task, id_task = %d\n", task.id);
+                         queue_tasks.defer(std::move(task));
+                         break;
+                     }
+ 
+                     // Erase token cache
+                     const size_t n_erased = slot->prompt.tokens.size();
+ 
++                    if (tree && !slot->prompt.tokens.has_mtmd) {
++                        if (tree->drop_seq(slot->prompt.tokens.get_tokens())) {
++                            SLT_INF(*slot, "%s", "kv tree: dropped the stored sequence\n");
++                        }
++                    }
++
+                     slot->prompt_clear();
+ 
+                     auto res = std::make_unique<server_task_result_slot_erase>();
+                     res->id       = task.id;
+                     res->id_slot  = id_slot;
+                     res->n_erased = n_erased;
+                     queue_results.send(std::move(res));
+                 } break;
+             case SERVER_TASK_TYPE_GET_LORA:
+                 {
+@@ -3557,20 +3565,45 @@ private:
+                             if (slot.task->params.return_progress) {
+                                 // send initial 0% progress update if needed
+                                 send_partial_response(slot, {}, true);
+                             } else {
+                                 // otherwise, for streaming without progress, signal HTTP to send the headers (i.e. 200 status)
+                                 send_partial_response(slot, {}, false, true);
+                             }
+                         }
+                     } // end of SLOT_STATE_STARTED
+ 
++                    if (tree && slot.tree_heal >= 0) {
++                        const llama_pos hp = slot.tree_heal;
++
++                        if ((llama_pos) slot.prompt.n_tokens() == hp) {
++                            kv_tree_io_llama io_h_tgt(ctx_tgt, slot.id);
++                            std::unique_ptr<kv_tree_io_llama> io_h_dft;
++                            kv_tree_io * io_h_dft_ptr = nullptr;
++                            if (ctx_dft != nullptr) {
++                                io_h_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, slot.id);
++                                io_h_dft_ptr = io_h_dft.get();
++                            }
++
++                            if (tree->capture_anchor(io_h_tgt, io_h_dft_ptr, slot.prompt.tokens.get_tokens(), hp)) {
++                                SLT_INF(slot, "kv tree: captured heal anchor at %d\n", hp);
++                            } else {
++                                SLT_WRN(slot, "kv tree: failed to capture heal anchor at %d\n", hp);
++                            }
++
++                            slot.tree_heal = -1;
++                        } else if ((llama_pos) slot.prompt.n_tokens() > hp) {
++                            SLT_TRC(slot, "kv tree: heal position %d missed (now %zu)\n", hp, slot.prompt.n_tokens());
++                            slot.tree_heal = -1;
++                        }
++                    }
++
+                     if (!slot.can_split()) {
+                         // cannot fit the prompt in the current batch - will try next iter
+                         if (batch.size() + slot.task->n_tokens() > n_batch) {
+                             return;
+                         }
+                     }
+ 
+                     // note: the prompt timing is advanced in post_decode(), so it does not cover
+                     //       the tokens added to the batch below
+                     slot.print_timings_pp();
+@@ -3654,20 +3687,24 @@ private:
+                         }
+ 
+                         has_mtmd = true;
+                     }
+ 
+                     const auto & spans = slot.task->params.message_spans;
+                     const auto last_user_pos = spans.last_user_message_pos();
+ 
+                     // add prompt tokens for processing in the current batch
+                     while (slot.prompt.n_tokens() < slot.task->n_tokens() && batch.size() < n_batch) {
++                        // stop exactly at the heal position so the state can be captured as an anchor
++                        if (tree && slot.tree_heal >= 0 && (llama_pos) slot.prompt.n_tokens() >= slot.tree_heal) {
++                            break;
++                        }
+                         // get next token to process
+                         llama_token cur_tok = input_tokens[slot.prompt.n_tokens()];
+                         if (cur_tok == LLAMA_TOKEN_NULL) {
+                             break; // end of text chunk
+                         }
+ 
+                         // if this is an alora request with pre-invocation
+                         // tokens that are not cached, we need to stop filling
+                         // this batch at those pre-invocation tokens.
+                         if (alora_scale > 0 && slot.prompt.n_tokens() == slot.alora_invocation_start - 1) {

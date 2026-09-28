@@ -1,0 +1,230 @@
+# Review package: 421dd61b6..HEAD
+
+## Commits
+df4225828 common : add kv tree server options
+
+## Files changed
+ common/arg.cpp                  | 63 +++++++++++++++++++++++++++++++++++++++++
+ common/common.h                 |  9 ++++++
+ tools/server/server-context.cpp | 35 +++++++++++++++++++++++
+ 3 files changed, 107 insertions(+)
+
+## Diff
+diff --git a/common/arg.cpp b/common/arg.cpp
+index 63e342776..904487bc8 100644
+--- a/common/arg.cpp
++++ b/common/arg.cpp
+@@ -1726,20 +1726,83 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+         }
+     ).set_env("LLAMA_ARG_KV_UNIFIED").set_examples({LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_PERPLEXITY, LLAMA_EXAMPLE_BATCHED, LLAMA_EXAMPLE_BENCH, LLAMA_EXAMPLE_PARALLEL}));
+     add_opt(common_arg(
+         {"--cache-idle-slots"},
+         {"--no-cache-idle-slots"},
+         "save idle slots to the prompt cache on new task, and clear them when using unified KV (default: enabled, requires cache-ram)",
+         [](common_params & params, bool value) {
+             params.cache_idle_slots = value;
+         }
+     ).set_env("LLAMA_ARG_CACHE_IDLE_SLOTS").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--kv-tree"},
++        {"--no-kv-tree"},
++        "store stable KV prefixes in a RAM+SSD tree and reuse them across tasks (default: disabled)",
++        [](common_params & params, bool value) {
++            params.kv_tree = value;
++        }
++    ).set_env("LLAMA_ARG_KV_TREE").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-chunk"}, "N",
++        string_format("kv tree block size in tokens (default: %d)", params.tree_chunk),
++        [](common_params & params, int value) {
++            if (value <= 0) {
++                throw std::invalid_argument("tree-chunk must be positive");
++            }
++            params.tree_chunk = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_CHUNK").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-anchor-step"}, "N",
++        string_format("minimum spacing between kv tree anchors in tokens (default: %d)", params.tree_anchor_step),
++        [](common_params & params, int value) {
++            if (value < 0) {
++                throw std::invalid_argument("tree-anchor-step must be non-negative");
++            }
++            params.tree_anchor_step = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_ANCHOR_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-ram"}, "N",
++        string_format("kv tree RAM tier limit in MiB (default: %d)", params.tree_ram_mib),
++        [](common_params & params, int value) {
++            if (value < 0) {
++                throw std::invalid_argument("tree-ram must be non-negative");
++            }
++            params.tree_ram_mib = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_RAM").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-disk"}, "PATH",
++        "kv tree SSD tier directory (default: empty = no SSD tier)",
++        [](common_params & params, const std::string & value) {
++            params.tree_disk_dir = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_DISK").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-disk-limit"}, "N",
++        string_format("kv tree SSD tier limit in MiB (default: %d)", params.tree_disk_mib),
++        [](common_params & params, int value) {
++            if (value < 0) {
++                throw std::invalid_argument("tree-disk-limit must be non-negative");
++            }
++            params.tree_disk_mib = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_DISK_LIMIT").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-debug"},
++        {"--no-tree-debug"},
++        "dump the kv tree state after each park/restore (default: disabled)",
++        [](common_params & params, bool value) {
++            params.tree_debug = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_DEBUG").set_examples({LLAMA_EXAMPLE_SERVER}));
+     add_opt(common_arg(
+         {"--context-shift"},
+         {"--no-context-shift"},
+         string_format("whether to use context shift on infinite text generation (default: %s)", params.ctx_shift ? "enabled" : "disabled"),
+         [](common_params & params, bool value) {
+             params.ctx_shift = value;
+         }
+     ).set_examples({LLAMA_EXAMPLE_COMPLETION, LLAMA_EXAMPLE_CLI, LLAMA_EXAMPLE_SERVER, LLAMA_EXAMPLE_IMATRIX, LLAMA_EXAMPLE_PERPLEXITY}).set_env("LLAMA_ARG_CONTEXT_SHIFT"));
+     add_opt(common_arg(
+         {"--chunks"}, "N",
+diff --git a/common/common.h b/common/common.h
+index 9194d3dcb..3fb472146 100644
+--- a/common/common.h
++++ b/common/common.h
+@@ -625,20 +625,29 @@ struct common_params {
+     int32_t sse_ping_interval   = 30;            // SSE ping interval in seconds
+     int32_t n_threads_http      = -1;    // number of threads to process HTTP requests (TODO: support threadpool)
+     int32_t n_cache_reuse       = 0;     // min chunk size to reuse from the cache via KV shifting
+     bool    cache_prompt        = true;  // whether to enable prompt caching
+     bool    cache_idle_slots    = true;  // save and clear idle slots upon starting a new task
+     int32_t n_ctx_checkpoints   = 32;    // max number of context checkpoints per slot
+     int32_t kv_unified_per_slot = 0;     // max context per parallel slot; 0 = unset
+     int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
+     int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
+ 
++    // kv tree params (T32)
++    bool        kv_tree         = false;    // use the kv tree for cross-session KV storage
++    int32_t     tree_chunk      = 512;      // KV tree block size in tokens
++    int32_t     tree_anchor_step = 32768;   // min spacing between kv tree anchors
++    int32_t     tree_ram_mib    = 8192;     // kv tree RAM tier limit in MiB
++    int32_t     tree_disk_mib   = 65536;    // kv tree SSD tier limit in MiB
++    std::string tree_disk_dir   = "";       // kv tree SSD tier directory (empty = no SSD tier)
++    bool        tree_debug      = false;    // dump the kv tree after each park/restore
++
+     std::string public_path   = "";                                                                         // NOLINT
+     std::string api_prefix    = "";                                                                         // NOLINT
+     std::string chat_template = "";                                                                         // NOLINT
+     std::vector<std::string> hostnames = {"127.0.0.1"};
+     bool use_jinja = true;                                                                                  // NOLINT
+ 
+     // server CORS params
+     std::string cors_origins = "*";
+     std::string cors_methods = "GET, POST, DELETE, OPTIONS";
+     std::string cors_headers = "*";
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 5610bbf83..a6848d5ca 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -1,14 +1,15 @@
+ #include "server-context.h"
+ #include "server-chat.h"
+ #include "server-common.h"
+ #include "server-http.h"
++#include "server-kv-tree.h"
+ #include "server-task.h"
+ #include "server-queue.h"
+ #include "server-schema.h"
+ #include "server-stream.h"
+ 
+ #include "build-info.h"
+ #include "common.h"
+ #include "fit.h"
+ #include "llama.h"
+ #include "log.h"
+@@ -906,20 +907,21 @@ private:
+     // slots / clients
+     std::vector<server_slot> slots;
+ 
+     int trace = 0;        // env: LLAMA_TRACE
+     int slots_debug = 0;  // env: LLAMA_SERVER_SLOTS_DEBUG
+     int slots_n_diff = 0; // env: LLAMA_SERVER_SLOTS_N_DIFF
+ 
+     int n_empty_consecutive = 0;
+ 
+     std::unique_ptr<server_prompt_cache> prompt_cache;
++    std::unique_ptr<kv_tree> tree;
+ 
+     server_metrics metrics;
+ 
+     // queued prompt stats - llama_decode() is async, so the timing is only valid after a sync
+     // note: kept out of server_metrics, which is copied as-is into the task result
+     int64_t  t_decode_start  = 0; // start of the last submitted decode
+     int64_t  t_prompt_start  = 0; // start of the oldest queued prompt decode
+     uint64_t n_prompt_queued = 0;
+ 
+     json json_ui_settings = json::object();
+@@ -1355,20 +1357,53 @@ private:
+                 SRV_TRC("prompt cache is enabled, size limit: %d MiB\n", params_base.cache_ram_mib);
+             }
+             SRV_TRC("%s", "use `--cache-ram 0` to disable the prompt cache\n");
+ 
+             prompt_cache = std::make_unique<server_prompt_cache>(params_base.cache_ram_mib, n_ctx);
+         } else {
+             SRV_TRC("%s", "prompt cache is disabled - use `--cache-ram N` to enable it\n");
+         }
+         SRV_TRC("%s", "for more info see https://github.com/ggml-org/llama.cpp/pull/16391\n");
+ 
++        if (params_base.kv_tree) {
++            if (params_base.kv_unified) {
++                SRV_WRN("%s", "--kv-tree is not supported with --kv-unified, disabling kv tree\n");
++                params_base.kv_tree = false;
++            }
++        }
++
++        if (params_base.kv_tree) {
++            kv_tree_config cfg;
++            cfg.chunk       = params_base.tree_chunk;
++            cfg.anchor_step = params_base.tree_anchor_step;
++            cfg.ram_limit   = (size_t) params_base.tree_ram_mib << 20;
++            cfg.disk_limit  = (size_t) params_base.tree_disk_mib << 20;
++            cfg.disk_dir    = params_base.tree_disk_dir;
++            cfg.debug       = params_base.tree_debug;
++
++            if (!cfg.disk_dir.empty()) {
++                std::error_code ec;
++                std::filesystem::create_directories(cfg.disk_dir, ec);
++                if (ec) {
++                    SRV_WRN("failed to create kv tree disk directory '%s': %s, disabling the SSD tier\n",
++                            cfg.disk_dir.c_str(), ec.message().c_str());
++                    cfg.disk_dir.clear();
++                }
++            }
++
++            tree = std::make_unique<kv_tree>(cfg);
++
++            SRV_INF("kv tree enabled: chunk = %d, anchor_step = %d, ram = %d MiB, disk = %s (%d MiB)\n",
++                    cfg.chunk, cfg.anchor_step, params_base.tree_ram_mib,
++                    cfg.disk_dir.empty() ? "off" : cfg.disk_dir.c_str(), params_base.tree_disk_mib);
++        }
++
+         if (params_base.n_ctx_checkpoints > 0) {
+             SRV_TRC("context checkpoints enabled, max = %d, min spacing = %d\n",
+                     params_base.n_ctx_checkpoints, params_base.checkpoint_min_step);
+         } else {
+             SRV_TRC("%s", "context checkpoints disabled\n");
+         }
+ 
+         if (!params_base.model_alias.empty()) {
+             // backward compat: use first alias as model name
+             model_name = *params_base.model_alias.begin();
