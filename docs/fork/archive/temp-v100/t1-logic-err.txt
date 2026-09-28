@@ -1,0 +1,58 @@
+[t32-tree] mode logic
+[t32-tree] logic: eviction
+[t32-tree] evict: park A                                                            PASS
+[t32-tree] evict: A has 3 blocks                                                    PASS (got 3, want 3)
+[t32-tree] evict: park B forces eviction                                            PASS
+[t32-tree] evict: blocks were evicted                                               PASS
+[t32-tree] evict: park still succeeded                                              PASS (got 0, want 0)
+[t32-tree] evict: A degrades to a full prefill (visible)                            PASS (got -1, want -1)
+[kv-tree] eviction could not free enough ram (12352 > 4096)
+[kv-tree] park refused: the budget cannot hold the sequence
+[t32-tree] evict: park refused with a tiny budget                                   PASS
+[t32-tree] evict: refusal counted                                                   PASS (got 1, want 1)
+[t32-tree] evict: refusal is visible                                                PASS (got 1, want 1)
+[t32-tree] evict: nothing was left behind                                           PASS (got 0, want 0)
+[t32-tree] logic: drop_seq
+[t32-tree] drop: park A                                                             PASS
+[t32-tree] drop: unrelated tokens are a no-op                                       PASS
+[t32-tree] drop: mid-tail tokens drop the sequence                                  PASS
+[t32-tree] drop: sequence was dropped                                               PASS (got 1, want 1)
+[t32-tree] drop: its blocks were released                                           PASS (got 0, want 0)
+[t32-tree] drop: second drop is a no-op                                             PASS
+[t32-tree] drop: re-park A                                                          PASS
+[t32-tree] drop: superstring drops the sequence                                     PASS
+[t32-tree] drop: sequence was dropped again                                         PASS (got 2, want 2)
+[t32-tree] logic: streaming restore
+[t32-tree] stream: park with spill                                                  PASS
+[t32-tree] stream: all blocks spilled to disk                                       PASS (got 3, want 3)
+[t32-tree] stream: park respects the ram budget                                     PASS
+[t32-tree] stream: restore hits the tip                                             PASS (got 1536, want 1536)
+[t32-tree] stream: no heal needed for an exact tip                                  PASS (got -1, want -1)
+[t32-tree] stream: all blocks were written to the io                                PASS (got 12288, want 12288)
+[t32-tree] stream: the anchor was written                                           PASS (got 1, want 1)
+[t32-tree] stream: restore respects the ram budget                                  PASS
+[t32-tree] stream: bytes_load counts payloads moved from disk                       PASS (got 12288, want 12288)
+[t32-tree] stream: streamed blocks stay on disk                                     PASS (got 3, want 3)
+[t32-tree] park A (3 chunks)                                                        PASS
+[t32-tree] blocks after A                                                           PASS (got 3, want 3)
+[t32-tree] park B2 (shares 2 chunks)                                                PASS
+[t32-tree] blocks after B2 (dedup)                                                  PASS (got 4, want 4)
+[t32-tree] park A again (identical)                                                 PASS
+[t32-tree] blocks after A re-park (no duplicate)                                    PASS (got 4, want 4)
+[t32-tree] park C (partial tail block)                                              PASS
+[t32-tree] blocks after C (tail is a new block)                                     PASS (got 5, want 5)
+[kv-tree] blocks: 5 ram, 0 disk, 17376 bytes ram, 0 bytes disk
+[kv-tree] anchors: 3 ram, 0 disk, 3 added, 0 skipped
+[kv-tree] park: 4 calls, 4 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=3 heat=2 ram 4096 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=3 heat=2 ram 4096 bytes
+[kv-tree]   block 9dd1e1b0716b6cb0 [1024, 1536) ref=1 heat=0 ram 4096 bytes
+[kv-tree]   block 0e97159f8b213b7d [1024, 1536) ref=1 heat=0 ram 4096 bytes
+[kv-tree]   block 79c27b0d350e3a05 [1024, 1124) ref=1 heat=0 ram 800 bytes
+[kv-tree]   anchor 0e97159f8b213b7d@1536 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 79c27b0d350e3a05@1124 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9dd1e1b0716b6cb0@1536 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=9dd1e1b0716b6cb0 len=1536 blocks=3
+[kv-tree]   seq tip=0e97159f8b213b7d len=1536 blocks=3
+[kv-tree]   seq tip=79c27b0d350e3a05 len=1124 blocks=3

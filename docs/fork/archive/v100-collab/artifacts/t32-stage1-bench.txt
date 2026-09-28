@@ -1,0 +1,182 @@
+T32 阶段 1: range state API 区间吞吐基准 + 回归实测
+
+日期: 2026-09-27
+工具: tests/test-t32-range.cpp (--mode range-bench), 私有 fork t32-stage1
+基线: HEAD 4ae887b1c ("t32 : add range state read API with append mode") + 本任务 bench mode 改动
+构建: <TEMP>\v100\build_test_t32.cmd test-t32-range test-state-restore-fragmented test-save-load-state
+      (编译通过; LLAMA_BUILD_TESTS=ON 保持)
+模型/环境: Qwen3.8-27B-UD-Q6_K (混合 GDN), CUDA_VISIBLE_DEVICES=1 (V100), 生产量化 -ctv q8_0
+每次运行自带 32K prefill (无预置状态), 退出码全部 0, stdout 全为空
+
+命令行 (运行 1: --chunk 512; 运行 2/3 仅把 --chunk 改为 1024 / 2048):
+  $env:CUDA_VISIBLE_DEVICES=1
+  & D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test-t32-range.exe `
+      -m <models>\Qwen3.8-27B\Qwen3.8-27B-UD-Q6_K.gguf `
+      -ngl 99 -fa on -ctv q8_0 -np 2 -c 65536 -b 512 -ub 512 --mode range-bench --n 32000 --chunk 512
+
+===== 运行 1: chunk=512 (退出码 0) =====
+完整 stderr:
+  0.01.066.170 W model has unused tensor blk.64.attn_norm.weight (size = 20480 bytes) -- ignoring
+  0.01.066.183 W model has unused tensor blk.64.post_attention_norm.weight (size = 20480 bytes) -- ignoring
+  0.01.066.200 W model has unused tensor blk.64.attn_q.weight (size = 51609600 bytes) -- ignoring
+  0.01.066.206 W model has unused tensor blk.64.attn_k.weight (size = 5570560 bytes) -- ignoring
+  0.01.066.212 W model has unused tensor blk.64.attn_v.weight (size = 5570560 bytes) -- ignoring
+  0.01.066.237 W model has unused tensor blk.64.attn_output.weight (size = 25804800 bytes) -- ignoring
+  0.01.066.243 W model has unused tensor blk.64.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+  0.01.066.249 W model has unused tensor blk.64.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+  0.01.066.255 W model has unused tensor blk.64.ffn_gate.weight (size = 73113600 bytes) -- ignoring
+  0.01.066.261 W model has unused tensor blk.64.ffn_down.weight (size = 73113600 bytes) -- ignoring
+  0.01.066.267 W model has unused tensor blk.64.ffn_up.weight (size = 73113600 bytes) -- ignoring
+  0.01.066.275 W model has unused tensor blk.64.nextn.eh_proj.weight (size = 43008000 bytes) -- ignoring
+  0.01.066.282 W model has unused tensor blk.64.nextn.enorm.weight (size = 20480 bytes) -- ignoring
+  0.01.066.288 W model has unused tensor blk.64.nextn.hnorm.weight (size = 20480 bytes) -- ignoring
+  0.01.066.310 W model has unused tensor blk.64.nextn.shared_head_norm.weight (size = 20480 bytes) -- ignoring
+  0.20.299.883 I cmn          init: llama threadpool init, n_threads = 8
+  [t32-bench] n=32000 chunk=512 chunks=63 fill=40.8s total=1532.0 MiB
+  [t32-bench] write: 1.28 s (1198.1 MiB/s, 20.30 ms/chunk)
+  [t32-bench] read:  0.81 s (1896.4 MiB/s, 12.82 ms/chunk)
+
+===== 运行 2: chunk=1024 (退出码 0) =====
+完整 stderr:
+  0.00.989.776 W model has unused tensor blk.64.attn_norm.weight (size = 20480 bytes) -- ignoring
+  0.00.989.788 W model has unused tensor blk.64.post_attention_norm.weight (size = 20480 bytes) -- ignoring
+  0.00.989.804 W model has unused tensor blk.64.attn_q.weight (size = 51609600 bytes) -- ignoring
+  0.00.989.810 W model has unused tensor blk.64.attn_k.weight (size = 5570560 bytes) -- ignoring
+  0.00.989.816 W model has unused tensor blk.64.attn_v.weight (size = 5570560 bytes) -- ignoring
+  0.00.989.837 W model has unused tensor blk.64.attn_output.weight (size = 25804800 bytes) -- ignoring
+  0.00.989.843 W model has unused tensor blk.64.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+  0.00.989.848 W model has unused tensor blk.64.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+  0.00.989.854 W model has unused tensor blk.64.ffn_gate.weight (size = 73113600 bytes) -- ignoring
+  0.00.989.860 W model has unused tensor blk.64.ffn_down.weight (size = 73113600 bytes) -- ignoring
+  0.00.989.866 W model has unused tensor blk.64.ffn_up.weight (size = 73113600 bytes) -- ignoring
+  0.00.989.873 W model has unused tensor blk.64.nextn.eh_proj.weight (size = 43008000 bytes) -- ignoring
+  0.00.989.879 W model has unused tensor blk.64.nextn.enorm.weight (size = 20480 bytes) -- ignoring
+  0.00.989.885 W model has unused tensor blk.64.nextn.hnorm.weight (size = 20480 bytes) -- ignoring
+  0.00.989.903 W model has unused tensor blk.64.nextn.shared_head_norm.weight (size = 20480 bytes) -- ignoring
+  0.18.659.220 I cmn          init: llama threadpool init, n_threads = 8
+  [t32-bench] n=32000 chunk=1024 chunks=32 fill=40.8s total=1532.0 MiB
+  [t32-bench] write: 1.11 s (1377.8 MiB/s, 34.75 ms/chunk)
+  [t32-bench] read:  0.74 s (2062.5 MiB/s, 23.21 ms/chunk)
+
+===== 运行 3: chunk=2048 (退出码 0) =====
+完整 stderr:
+  0.00.982.286 W model has unused tensor blk.64.attn_norm.weight (size = 20480 bytes) -- ignoring
+  0.00.982.298 W model has unused tensor blk.64.post_attention_norm.weight (size = 20480 bytes) -- ignoring
+  0.00.982.315 W model has unused tensor blk.64.attn_q.weight (size = 51609600 bytes) -- ignoring
+  0.00.982.321 W model has unused tensor blk.64.attn_k.weight (size = 5570560 bytes) -- ignoring
+  0.00.982.327 W model has unused tensor blk.64.attn_v.weight (size = 5570560 bytes) -- ignoring
+  0.00.982.348 W model has unused tensor blk.64.attn_output.weight (size = 25804800 bytes) -- ignoring
+  0.00.982.354 W model has unused tensor blk.64.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+  0.00.982.359 W model has unused tensor blk.64.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+  0.00.982.365 W model has unused tensor blk.64.ffn_gate.weight (size = 73113600 bytes) -- ignoring
+  0.00.982.371 W model has unused tensor blk.64.ffn_down.weight (size = 73113600 bytes) -- ignoring
+  0.00.982.377 W model has unused tensor blk.64.ffn_up.weight (size = 73113600 bytes) -- ignoring
+  0.00.982.385 W model has unused tensor blk.64.nextn.eh_proj.weight (size = 43008000 bytes) -- ignoring
+  0.00.982.392 W model has unused tensor blk.64.nextn.enorm.weight (size = 20480 bytes) -- ignoring
+  0.00.982.398 W model has unused tensor blk.64.nextn.hnorm.weight (size = 20480 bytes) -- ignoring
+  0.00.982.416 W model has unused tensor blk.64.nextn.shared_head_norm.weight (size = 20480 bytes) -- ignoring
+  0.17.996.541 I cmn          init: llama threadpool init, n_threads = 8
+  [t32-bench] n=32000 chunk=2048 chunks=16 fill=40.9s total=1532.0 MiB
+  [t32-bench] write: 0.96 s (1594.1 MiB/s, 60.06 ms/chunk)
+  [t32-bench] read:  0.66 s (2308.8 MiB/s, 41.47 ms/chunk)
+
+===== 汇总 =====
+chunk | chunks | write s | write MiB/s | write ms/chunk | read s | read MiB/s | read ms/chunk
+512   | 63     | 1.28    | 1198.1      | 20.30          | 0.81   | 1896.4     | 12.82
+1024  | 32     | 1.11    | 1377.8      | 34.75          | 0.74   | 2062.5     | 23.21
+2048  | 16     | 0.96    | 1594.1      | 60.06          | 0.66   | 2308.8     | 41.47
+
+- ms/chunk 翻倍比: 写 20.30 -> 34.75 -> 60.06 (x1.71, x1.73); 读 12.82 -> 23.21 -> 41.47 (x1.81, x1.79)
+- 固定开销份额 (由翻倍比推): 写 ~29%, 读 ~19% (chunk 512); 传输字节仍占主导
+- 对照阶段 0 全量 state 带宽 (27B Q6_K f16 V): H2D 2.37 GiB/s = 2426.9 MiB/s / D2H 2.60 GiB/s = 2662.4 MiB/s
+  - range 读: 512 时达全量 H2D 的 78%, 2048 时达 95% -> 逐 cell 分配有开销但有限
+  - range 写: 512 时仅为全量 D2H 的 45%, 2048 时 60% (写计时含每 chunk 新 vector 分配/first-touch, 口径保守)
+
+===== 尺寸换算 (目标 q8_0, range API 仅 attention, 不含 recurrent 常数) =====
+- 32K 区间 payload 1532.0 MiB = 1606418432 B; 63 个 8B 头 -> 50200 B/token (49.0 KiB/token)
+- chunk 512 -> 24.51 MiB (25.70 MB) per 块 (8B 头含)
+- 100K KV = 5.020 GB = 4.675 GiB; 按全量带宽外推 H2D ~1.97 s / D2H ~1.80 s (仅 attention target)
+- 说明: range payload = io header 8B + 仅 attention KV (hybrid 转发给 mem_attn, 见 2.2.6);
+  recurrent 常数为单独锚点项 (162 MiB), 不在此 payload 内
+
+===== 判读与决定 =====
+- ms/chunk 随 chunk 近似翻倍 (每翻倍 x1.71-1.81, 非持平) -> 固定开销不足以改变结论;
+  512 保住最好复用粒度 (块内分叉 <=512 token), 维持 `--tree-chunk` 默认 512
+- 上调到 2048 仅省 100K 序列约 1.4 s 搬运 (写 4.0->3.0 s, 读 2.5->2.1 s), 代价是分叉重复翻 4 倍
+- 无需强制批量装载路径; 写侧 45% 带宽有优化空间 (候选: 复用 blob 缓冲/合并 cell 拷贝), 记入阶段 2 观察,
+  不影响设计 (写判定不受阻)
+
+===== 回归测试 =====
+构建: 同上 (test-state-restore-fragmented, test-save-load-state)
+命令行:
+  $env:CUDA_VISIBLE_DEVICES=1
+  & D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test-state-restore-fragmented.exe -m <models>\Qwen3.5-2B-UD-Q4_K_XL.gguf -ngl 99 -fa on
+  & D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test-save-load-state.exe -m <models>\Qwen3.5-2B-UD-Q4_K_XL.gguf -ngl 99 -fa on
+
+test-state-restore-fragmented (退出码 0):
+  stderr:
+    0.01.740.091 I cmn          init: llama threadpool init, n_threads = 8
+    main : processed prompt on seq 0, 1, 2 (70 tokens each)
+    main : saved seq 1 state, 21064092 bytes
+    main : cleared seq 1 to create fragmentation
+    main : restored state into seq 1, 21064092 bytes
+    main : successfully decoded with restored state, generated: '
+
+    '
+    main : SUCCESS - state restore works with fragmented KV cache
+  stdout: (空)
+  结论: SUCCESS, 退出码 0
+
+test-save-load-state (退出码 0):
+  stderr:
+    0.01.576.225 I run_save_load_tests_for_model: no prompt provided, generating 100 (n_batch) random tokens
+    0.01.576.268 I run_save_load_tests_for_model: the input prompt is 100 tokens
+    0.01.817.251 I cmn  common_promp: saved session before last token to dump_state.bin, n_new = 100
+    0.03.628.646 E state_read_data: mismatched key type (1 != -1, layer 7)
+    0.03.673.975 E state_seq_set_data: error loading state: failed to restore kv cache
+    0.04.008.047 E state_read_data: mismatched key type (1 != -1, layer 7)
+    0.04.056.609 E llama_state_seq_load_file: error loading sequence state file: failed to restore kv cache
+  stdout:
+    === Test 1: baseline ===
+    86139 160292 118276 148926 154867 14235 1600 95726 8846 733 37 15934 4120 151466 323 220
+
+    === Test 2: sequence removal isolation ===
+    PASS
+
+    === Test 3: state load ===
+    86139 160292 118276 148926 154867 14235 1600 95726 8846 733 37 15934 4120 151466 323 220
+    PASS
+
+    === Test 4: seq copy (host) ===
+    86139 160292 118276 148926 154867 14235 1600 95726 8846 733 37 15934 4120 151466 323 220
+    PASS
+
+    === Test 5: seq copy (device) ===
+    86139 160292 118276 148926 154867 14235 1600 95726 8846 733 37 15934 4120 151466 323 220
+    PASS
+
+    === Test 6: seq copy (host, scatter) ===
+
+    PASS
+
+    === Test 7: seq copy (device, scatter) ===
+
+    PASS
+
+    === Test 8: state blob round-trip ===
+
+    PASS
+
+    === Test 9: state restore failure ===
+
+    PASS
+
+    All tests passed.
+  结论: All tests passed., 无 SKIP, 退出码 0
+  备注: 两条 E 日志来自 Test 9 故意损坏 state 的负路径 (corrupt_state + restore 失败判定),
+        以及保存/加载损坏 session 文件的负路径; 均为测试预期行为, 汇总无 FAIL
+
+===== spec 改动 (t32-tree-storage-design.md) =====
+- 1.2 / 3.4: --tree-chunk "阶段 1 出口定" -> 实测锁定默认 512
+- 附: 关键数字: 更新为 q8_0 实测 (50200 B/token, 块 24.5 MiB, 100K 4.68 GiB -> H2D ~2.0 s / D2H ~1.8 s);
+  加 range API 的 ms/chunk; mark range API 不含 recurrent 常数

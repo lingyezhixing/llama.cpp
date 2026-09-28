@@ -1,0 +1,287 @@
+0.00.000.863 I srv  llama_server: initializing ...
+0.00.030.821 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.030.956 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.034.069 I srv    load_model: loading model '<models>\Qwen2.5-Coder-3B-IQ4_XS.gguf'
+0.00.798.570 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.02.268.374 I cmn          init: llama threadpool init, n_threads = 8
+0.02.364.296 I srv    load_model: initializing, n_slots = 1, n_ctx_slot = 24576, kv_unified = 'false'
+[kv-tree] cleared 0 stale files from <TEMP>\v100\t32-stage3\tree-b3
+0.02.365.861 I srv    load_model: kv tree enabled: chunk = 512, anchor_step = 4096, fork_step = 8192, ram = 512 MiB, disk = <TEMP>\v100\t32-stage3\tree-b3 (2048 MiB)
+0.02.374.601 I srv  llama_server: model loaded
+0.02.374.609 I srv  llama_server: listening on http://127.0.0.1:8933
+0.03.156.907 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+0.03.156.970 I slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+0.04.439.246 I slot print_timing: id  0 | task 0 | prompt eval time =     919.77 ms /  4371 tokens (    0.21 ms per token,  4752.27 tokens per second)
+0.04.439.255 I slot print_timing: id  0 | task 0 |        eval time =     362.47 ms /    48 tokens (    7.71 ms per token,   129.67 tokens per second)
+0.04.439.257 I slot print_timing: id  0 | task 0 |       total time =    1282.24 ms /  4419 tokens
+0.04.439.258 I slot print_timing: id  0 | task 0 |    graphs reused =         47
+0.04.439.450 I slot      release: id  0 | task 0 | stop processing: n_tokens = 4418, truncated = 0
+0.04.478.783 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 4411407
+[kv-tree] blocks: 9 ram, 0 disk, 249502176 bytes ram, 0 bytes disk
+[kv-tree] anchors: 1 ram, 0 disk, 1 added, 0 skipped
+[kv-tree] park: 1 calls, 1 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block ddccb22b2be1ff2c [0, 512) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 089ec20ce899081b [512, 1024) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 0e0553f1e10cf63c [1024, 1536) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block bb257a70341bdf22 [2048, 2560) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 1b3b54b97ddbecc4 [1536, 2048) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block beb7e8a9aae5d285 [2560, 3072) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 3c1a4a99abef97c2 [3072, 3584) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 0b2b1b2d94431484 [3584, 4096) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 9692c2c49fcbc457 [4096, 4418) ref=1 heat=0 ram 9092880 bytes
+[kv-tree]   anchor 9692c2c49fcbc457@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=9692c2c49fcbc457 len=4418 blocks=9
+0.04.677.638 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4418 tokens, 0 checkpoint candidates, ram = 249502176 B, disk = 0 B
+0.04.678.568 I slot launch_slot_: id  0 | task 51 | processing task, is_child = 0
+0.05.880.401 I slot print_timing: id  0 | task 51 | prompt eval time =     844.91 ms /  4371 tokens (    0.19 ms per token,  5173.34 tokens per second)
+0.05.880.410 I slot print_timing: id  0 | task 51 |        eval time =     356.89 ms /    48 tokens (    7.59 ms per token,   131.69 tokens per second)
+0.05.880.411 I slot print_timing: id  0 | task 51 |       total time =    1201.80 ms /  4419 tokens
+0.05.880.412 I slot print_timing: id  0 | task 51 |    graphs reused =         93
+0.05.880.574 I slot      release: id  0 | task 51 | stop processing: n_tokens = 4418, truncated = 0
+0.05.894.377 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 5852531
+[kv-tree] blocks: 18 ram, 0 disk, 499004352 bytes ram, 0 bytes disk
+[kv-tree] anchors: 2 ram, 0 disk, 2 added, 0 skipped
+[kv-tree] park: 2 calls, 2 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block ddccb22b2be1ff2c [0, 512) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 089ec20ce899081b [512, 1024) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 0e0553f1e10cf63c [1024, 1536) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block bb257a70341bdf22 [2048, 2560) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 1b3b54b97ddbecc4 [1536, 2048) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block beb7e8a9aae5d285 [2560, 3072) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 3c1a4a99abef97c2 [3072, 3584) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 0b2b1b2d94431484 [3584, 4096) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 9692c2c49fcbc457 [4096, 4418) ref=1 heat=0 ram 9092880 bytes
+[kv-tree]   block bfe33fadfa19e359 [0, 512) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 5a963f0f8e72fcb4 [512, 1024) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 33c746cd8f18561c [1024, 1536) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 2590fabb194de91f [1536, 2048) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block e2a6ade4980453f1 [2048, 2560) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block d3cfa1522291c2fa [2560, 3072) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 28f7f0d7d59d6efc [3072, 3584) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block c3c2a51cddb838e4 [3584, 4096) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 2dd6041a639deaf4 [4096, 4418) ref=1 heat=0 ram 9092880 bytes
+[kv-tree]   anchor 2dd6041a639deaf4@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9692c2c49fcbc457@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=9692c2c49fcbc457 len=4418 blocks=9
+[kv-tree]   seq tip=2dd6041a639deaf4 len=4418 blocks=9
+0.06.097.685 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4418 tokens, 0 checkpoint candidates, ram = 499004352 B, disk = 0 B
+0.06.098.597 I slot launch_slot_: id  0 | task 102 | processing task, is_child = 0
+0.07.323.060 I slot print_timing: id  0 | task 102 | prompt eval time =     862.29 ms /  4419 tokens (    0.20 ms per token,  5124.75 tokens per second)
+0.07.323.070 I slot print_timing: id  0 | task 102 |        eval time =     362.14 ms /    48 tokens (    7.71 ms per token,   129.78 tokens per second)
+0.07.323.072 I slot print_timing: id  0 | task 102 |       total time =    1224.43 ms /  4467 tokens
+0.07.323.073 I slot print_timing: id  0 | task 102 |    graphs reused =        139
+0.07.323.241 I slot      release: id  0 | task 102 | stop processing: n_tokens = 4466, truncated = 0
+0.07.334.298 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 7295198
+[kv-tree] blocks: 11 ram, 8 disk, 534632856 bytes ram, 100922568 bytes disk
+[kv-tree] anchors: 3 ram, 0 disk, 3 added, 0 skipped
+[kv-tree] park: 3 calls, 3 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block ddccb22b2be1ff2c [0, 512) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 089ec20ce899081b [512, 1024) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 0e0553f1e10cf63c [1024, 1536) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block bb257a70341bdf22 [2048, 2560) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 1b3b54b97ddbecc4 [1536, 2048) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block beb7e8a9aae5d285 [2560, 3072) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 3c1a4a99abef97c2 [3072, 3584) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 0b2b1b2d94431484 [3584, 4096) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 9692c2c49fcbc457 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block bfe33fadfa19e359 [0, 512) ref=1 heat=0 disk 14457720 bytes
+[kv-tree]   block 5a963f0f8e72fcb4 [512, 1024) ref=1 heat=0 disk 14457720 bytes
+[kv-tree]   block 33c746cd8f18561c [1024, 1536) ref=1 heat=0 disk 14457720 bytes
+[kv-tree]   block 2590fabb194de91f [1536, 2048) ref=1 heat=0 disk 14457720 bytes
+[kv-tree]   block e2a6ade4980453f1 [2048, 2560) ref=1 heat=0 disk 14457720 bytes
+[kv-tree]   block d3cfa1522291c2fa [2560, 3072) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 28f7f0d7d59d6efc [3072, 3584) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block c3c2a51cddb838e4 [3584, 4096) ref=1 heat=0 ram 14457720 bytes
+[kv-tree]   block 2dd6041a639deaf4 [4096, 4418) ref=1 heat=0 disk 9092880 bytes
+[kv-tree]   block 46a2fc4f9077f30f [4096, 4466) ref=1 heat=0 disk 10448208 bytes
+[kv-tree]   anchor 2dd6041a639deaf4@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 46a2fc4f9077f30f@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9692c2c49fcbc457@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=9692c2c49fcbc457 len=4418 blocks=9
+[kv-tree]   seq tip=2dd6041a639deaf4 len=4418 blocks=9
+[kv-tree]   seq tip=46a2fc4f9077f30f len=4466 blocks=9
+0.07.517.594 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4466 tokens, 0 checkpoint candidates, ram = 534632856 B, disk = 100922568 B
+0.07.518.577 I slot launch_slot_: id  0 | task 153 | processing task, is_child = 0
+0.08.730.802 I slot print_timing: id  0 | task 153 | prompt eval time =     853.55 ms /  4419 tokens (    0.19 ms per token,  5177.18 tokens per second)
+0.08.730.810 I slot print_timing: id  0 | task 153 |        eval time =     358.63 ms /    48 tokens (    7.63 ms per token,   131.05 tokens per second)
+0.08.730.812 I slot print_timing: id  0 | task 153 |       total time =    1212.19 ms /  4467 tokens
+0.08.730.813 I slot print_timing: id  0 | task 153 |    graphs reused =        185
+0.08.730.979 I slot      release: id  0 | task 153 | stop processing: n_tokens = 4466, truncated = 0
+0.08.744.474 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 8702936
+[kv-tree] blocks: 2 ram, 18 disk, 530616240 bytes ram, 241490256 bytes disk
+[kv-tree] anchors: 4 ram, 0 disk, 4 added, 0 skipped
+[kv-tree] park: 4 calls, 4 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block ddccb22b2be1ff2c [0, 512) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 089ec20ce899081b [512, 1024) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 0e0553f1e10cf63c [1024, 1536) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block bb257a70341bdf22 [2048, 2560) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 1b3b54b97ddbecc4 [1536, 2048) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block beb7e8a9aae5d285 [2560, 3072) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 3c1a4a99abef97c2 [3072, 3584) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 0b2b1b2d94431484 [3584, 4096) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 9692c2c49fcbc457 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block bfe33fadfa19e359 [0, 512) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 5a963f0f8e72fcb4 [512, 1024) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 9e6dbd339391cc59 [4096, 4466) ref=1 heat=0 disk 10448208 bytes
+[kv-tree]   block 33c746cd8f18561c [1024, 1536) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 2590fabb194de91f [1536, 2048) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block e2a6ade4980453f1 [2048, 2560) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block d3cfa1522291c2fa [2560, 3072) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 28f7f0d7d59d6efc [3072, 3584) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block c3c2a51cddb838e4 [3584, 4096) ref=2 heat=1 ram 14457720 bytes
+[kv-tree]   block 2dd6041a639deaf4 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block 46a2fc4f9077f30f [4096, 4466) ref=1 heat=0 disk 10448208 bytes
+[kv-tree]   anchor 2dd6041a639deaf4@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 46a2fc4f9077f30f@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9692c2c49fcbc457@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9e6dbd339391cc59@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=9692c2c49fcbc457 len=4418 blocks=9
+[kv-tree]   seq tip=2dd6041a639deaf4 len=4418 blocks=9
+[kv-tree]   seq tip=9e6dbd339391cc59 len=4466 blocks=9
+[kv-tree]   seq tip=46a2fc4f9077f30f len=4466 blocks=9
+0.08.969.689 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4466 tokens, 0 checkpoint candidates, ram = 530616240 B, disk = 241490256 B
+0.08.970.368 I slot launch_slot_: id  0 | task 204 | processing task, is_child = 0
+0.10.178.223 I slot print_timing: id  0 | task 204 | prompt eval time =     854.25 ms /  4467 tokens (    0.19 ms per token,  5229.16 tokens per second)
+0.10.178.233 I slot print_timing: id  0 | task 204 |        eval time =     353.57 ms /    48 tokens (    7.52 ms per token,   132.93 tokens per second)
+0.10.178.234 I slot print_timing: id  0 | task 204 |       total time =    1207.82 ms /  4515 tokens
+0.10.178.235 I slot print_timing: id  0 | task 204 |    graphs reused =        231
+0.10.178.401 I slot      release: id  0 | task 204 | stop processing: n_tokens = 4514, truncated = 0
+0.10.193.234 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 10150358
+[kv-tree] blocks: 0 ram, 21 disk, 504411456 bytes ram, 406956768 bytes disk
+[kv-tree] anchors: 4 ram, 1 disk, 5 added, 0 skipped
+[kv-tree] park: 5 calls, 5 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block ddccb22b2be1ff2c [0, 512) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 089ec20ce899081b [512, 1024) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 0e0553f1e10cf63c [1024, 1536) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block bb257a70341bdf22 [2048, 2560) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 1b3b54b97ddbecc4 [1536, 2048) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block beb7e8a9aae5d285 [2560, 3072) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 3c1a4a99abef97c2 [3072, 3584) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 0b2b1b2d94431484 [3584, 4096) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 9692c2c49fcbc457 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block bfe33fadfa19e359 [0, 512) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 5a963f0f8e72fcb4 [512, 1024) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 9e6dbd339391cc59 [4096, 4466) ref=1 heat=0 disk 10448208 bytes
+[kv-tree]   block 33c746cd8f18561c [1024, 1536) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 2590fabb194de91f [1536, 2048) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block e2a6ade4980453f1 [2048, 2560) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block d3cfa1522291c2fa [2560, 3072) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 28f7f0d7d59d6efc [3072, 3584) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block c3c2a51cddb838e4 [3584, 4096) ref=2 heat=1 disk 14457720 bytes
+[kv-tree]   block 2dd6041a639deaf4 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block 46a2fc4f9077f30f [4096, 4466) ref=2 heat=1 disk 10448208 bytes
+[kv-tree]   block bcab71aedad07f7e [4096, 4514) ref=1 heat=0 disk 11803536 bytes
+[kv-tree]   anchor 2dd6041a639deaf4@4418 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 46a2fc4f9077f30f@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9692c2c49fcbc457@4418 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 9e6dbd339391cc59@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor bcab71aedad07f7e@4514 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=bcab71aedad07f7e len=4514 blocks=9
+[kv-tree]   seq tip=9692c2c49fcbc457 len=4418 blocks=9
+[kv-tree]   seq tip=2dd6041a639deaf4 len=4418 blocks=9
+[kv-tree]   seq tip=9e6dbd339391cc59 len=4466 blocks=9
+[kv-tree]   seq tip=46a2fc4f9077f30f len=4466 blocks=9
+0.10.475.212 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4514 tokens, 0 checkpoint candidates, ram = 504411456 B, disk = 406956768 B
+0.10.475.951 I slot launch_slot_: id  0 | task 255 | processing task, is_child = 0
+0.11.692.630 I slot print_timing: id  0 | task 255 | prompt eval time =     856.22 ms /  4467 tokens (    0.19 ms per token,  5217.11 tokens per second)
+0.11.692.638 I slot print_timing: id  0 | task 255 |        eval time =     360.42 ms /    48 tokens (    7.67 ms per token,   130.40 tokens per second)
+0.11.692.640 I slot print_timing: id  0 | task 255 |       total time =    1216.64 ms /  4515 tokens
+0.11.692.641 I slot print_timing: id  0 | task 255 |    graphs reused =        277
+0.11.692.769 I slot      release: id  0 | task 255 | stop processing: n_tokens = 4514, truncated = 0
+0.11.703.420 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 11664725
+[kv-tree] blocks: 0 ram, 22 disk, 507122112 bytes ram, 543507840 bytes disk
+[kv-tree] anchors: 4 ram, 2 disk, 6 added, 0 skipped
+[kv-tree] park: 6 calls, 6 ok, 0 refused
+[kv-tree] restore: 0 calls, 0 hits, 0 miss, 0 tokens reused
+[kv-tree]   block ddccb22b2be1ff2c [0, 512) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 089ec20ce899081b [512, 1024) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 0e0553f1e10cf63c [1024, 1536) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block bb257a70341bdf22 [2048, 2560) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 1b3b54b97ddbecc4 [1536, 2048) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block beb7e8a9aae5d285 [2560, 3072) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 3c1a4a99abef97c2 [3072, 3584) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 0b2b1b2d94431484 [3584, 4096) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 9692c2c49fcbc457 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block bfe33fadfa19e359 [0, 512) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 5a963f0f8e72fcb4 [512, 1024) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 9e6dbd339391cc59 [4096, 4466) ref=2 heat=1 disk 10448208 bytes
+[kv-tree]   block 33c746cd8f18561c [1024, 1536) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 2590fabb194de91f [1536, 2048) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block e2a6ade4980453f1 [2048, 2560) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block d3cfa1522291c2fa [2560, 3072) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 28f7f0d7d59d6efc [3072, 3584) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block c3c2a51cddb838e4 [3584, 4096) ref=3 heat=2 disk 14457720 bytes
+[kv-tree]   block 2dd6041a639deaf4 [4096, 4418) ref=2 heat=1 disk 9092880 bytes
+[kv-tree]   block 46a2fc4f9077f30f [4096, 4466) ref=2 heat=1 disk 10448208 bytes
+[kv-tree]   block bcab71aedad07f7e [4096, 4514) ref=1 heat=0 disk 11803536 bytes
+[kv-tree]   block 2d3de797f299108d [4096, 4514) ref=1 heat=0 disk 11803536 bytes
+[kv-tree]   anchor 2d3de797f299108d@4514 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 2dd6041a639deaf4@4418 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 46a2fc4f9077f30f@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor 9692c2c49fcbc457@4418 kind=0 ref=1 heat=0 disk
+[kv-tree]   anchor 9e6dbd339391cc59@4466 kind=0 ref=1 heat=0 ram
+[kv-tree]   anchor bcab71aedad07f7e@4514 kind=0 ref=1 heat=0 ram
+[kv-tree]   seq tip=bcab71aedad07f7e len=4514 blocks=9
+[kv-tree]   seq tip=9692c2c49fcbc457 len=4418 blocks=9
+[kv-tree]   seq tip=2dd6041a639deaf4 len=4418 blocks=9
+[kv-tree]   seq tip=9e6dbd339391cc59 len=4466 blocks=9
+[kv-tree]   seq tip=46a2fc4f9077f30f len=4466 blocks=9
+[kv-tree]   seq tip=2d3de797f299108d len=4514 blocks=9
+0.11.959.270 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4514 tokens, 0 checkpoint candidates, ram = 507122112 B, disk = 543507840 B
+0.11.960.150 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 4371 tokens, full prefill
+0.11.960.314 I slot launch_slot_: id  0 | task 306 | processing task, is_child = 0
+0.13.169.137 I slot print_timing: id  0 | task 306 | prompt eval time =     845.75 ms /  4371 tokens (    0.19 ms per token,  5168.20 tokens per second)
+0.13.169.146 I slot print_timing: id  0 | task 306 |        eval time =     363.04 ms /    48 tokens (    7.72 ms per token,   129.46 tokens per second)
+0.13.169.147 I slot print_timing: id  0 | task 306 |       total time =    1208.79 ms /  4419 tokens
+0.13.169.148 I slot print_timing: id  0 | task 306 |    graphs reused =        323
+0.13.169.320 I slot      release: id  0 | task 306 | stop processing: n_tokens = 4418, truncated = 0
+0.13.180.387 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 13141277
+0.13.180.401 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4418 tokens, 0 checkpoint candidates, ram = 507122112 B, disk = 543507840 B
+0.13.181.186 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 4371 tokens, full prefill
+0.13.181.339 I slot launch_slot_: id  0 | task 357 | processing task, is_child = 0
+0.14.377.538 I slot print_timing: id  0 | task 357 | prompt eval time =     844.06 ms /  4371 tokens (    0.19 ms per token,  5178.56 tokens per second)
+0.14.377.548 I slot print_timing: id  0 | task 357 |        eval time =     352.11 ms /    48 tokens (    7.49 ms per token,   133.48 tokens per second)
+0.14.377.549 I slot print_timing: id  0 | task 357 |       total time =    1196.17 ms /  4419 tokens
+0.14.377.550 I slot print_timing: id  0 | task 357 |    graphs reused =        369
+0.14.377.712 I slot      release: id  0 | task 357 | stop processing: n_tokens = 4418, truncated = 0
+0.14.390.329 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 14349669
+0.14.390.346 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4418 tokens, 0 checkpoint candidates, ram = 507122112 B, disk = 543507840 B
+0.14.390.927 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 4419 tokens, full prefill
+0.14.391.044 I slot launch_slot_: id  0 | task 408 | processing task, is_child = 0
+0.15.592.247 I slot print_timing: id  0 | task 408 | prompt eval time =     852.01 ms /  4419 tokens (    0.19 ms per token,  5186.54 tokens per second)
+0.15.592.256 I slot print_timing: id  0 | task 408 |        eval time =     349.17 ms /    48 tokens (    7.43 ms per token,   134.61 tokens per second)
+0.15.592.257 I slot print_timing: id  0 | task 408 |       total time =    1201.18 ms /  4467 tokens
+0.15.592.258 I slot print_timing: id  0 | task 408 |    graphs reused =        415
+0.15.592.416 I slot      release: id  0 | task 408 | stop processing: n_tokens = 4466, truncated = 0
+0.15.602.984 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 15564373
+0.15.602.998 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4466 tokens, 0 checkpoint candidates, ram = 507122112 B, disk = 543507840 B
+0.15.603.763 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 4419 tokens, full prefill
+0.15.603.896 I slot launch_slot_: id  0 | task 459 | processing task, is_child = 0
+0.16.807.940 I slot print_timing: id  0 | task 459 | prompt eval time =     853.02 ms /  4419 tokens (    0.19 ms per token,  5180.44 tokens per second)
+0.16.807.950 I slot print_timing: id  0 | task 459 |        eval time =     351.00 ms /    48 tokens (    7.47 ms per token,   133.90 tokens per second)
+0.16.807.952 I slot print_timing: id  0 | task 459 |       total time =    1204.02 ms /  4467 tokens
+0.16.807.953 I slot print_timing: id  0 | task 459 |    graphs reused =        461
+0.16.808.117 I slot      release: id  0 | task 459 | stop processing: n_tokens = 4466, truncated = 0
+0.16.819.083 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 16780074
+0.16.819.097 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4466 tokens, 0 checkpoint candidates, ram = 507122112 B, disk = 543507840 B
+0.16.819.726 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 4467 tokens, full prefill
+0.16.819.872 I slot launch_slot_: id  0 | task 510 | processing task, is_child = 0
+0.18.018.735 I slot print_timing: id  0 | task 510 | prompt eval time =     854.42 ms /  4467 tokens (    0.19 ms per token,  5228.10 tokens per second)
+0.18.018.744 I slot print_timing: id  0 | task 510 |        eval time =     344.42 ms /    48 tokens (    7.33 ms per token,   136.46 tokens per second)
+0.18.018.745 I slot print_timing: id  0 | task 510 |       total time =    1198.84 ms /  4515 tokens
+0.18.018.746 I slot print_timing: id  0 | task 510 |    graphs reused =        507
+0.18.018.905 I slot      release: id  0 | task 510 | stop processing: n_tokens = 4514, truncated = 0
+0.18.029.145 I slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = 17990862
+0.18.029.163 I slot  prompt_park: id  0 | task -1 | kv tree: parked 4514 tokens, 0 checkpoint candidates, ram = 507122112 B, disk = 543507840 B
+0.18.029.822 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 4467 tokens, full prefill
+0.18.030.549 I slot launch_slot_: id  0 | task 561 | processing task, is_child = 0
+0.19.237.457 I slot print_timing: id  0 | task 561 | prompt eval time =     856.91 ms /  4467 tokens (    0.19 ms per token,  5212.89 tokens per second)
+0.19.237.469 I slot print_timing: id  0 | task 561 |        eval time =     349.96 ms /    48 tokens (    7.45 ms per token,   134.30 tokens per second)
+0.19.237.470 I slot print_timing: id  0 | task 561 |       total time =    1206.88 ms /  4515 tokens
+0.19.237.471 I slot print_timing: id  0 | task 561 |    graphs reused =        553
+0.19.237.642 I slot      release: id  0 | task 561 | stop processing: n_tokens = 4514, truncated = 0

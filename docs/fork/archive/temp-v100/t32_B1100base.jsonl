@@ -1,0 +1,8 @@
+﻿{"tag":"B1100base","step":"A-round0","req":1,"prompt_n":5718,"prompt_ms":7232.8,"gen_n":1,"gen_ms":0.0,"wall_s":7.31}
+{"tag":"B1100base","step":"B-round0","req":2,"prompt_n":5433,"prompt_ms":6675.2,"gen_n":1,"gen_ms":0.0,"wall_s":7.08}
+{"tag":"B1100base","step":"A-round1","req":3,"prompt_n":5480,"prompt_ms":6701.1,"gen_n":1,"gen_ms":0.0,"wall_s":7.13}
+{"tag":"B1100base","step":"B-round1","req":4,"prompt_n":5500,"prompt_ms":6698.8,"gen_n":1,"gen_ms":0.0,"wall_s":7.12}
+{"tag":"B1100base","step":"A-round2","req":5,"prompt_n":5547,"prompt_ms":6777.0,"gen_n":1,"gen_ms":0.0,"wall_s":7.18}
+{"tag":"B1100base","step":"B-round2","req":6,"prompt_n":5567,"prompt_ms":6780.8,"gen_n":1,"gen_ms":0.0,"wall_s":7.18}
+{"tag":"B1100base","step":"A-final","req":7,"prompt_n":5547,"prompt_ms":6779.1,"gen_n":1,"gen_ms":0.0,"wall_s":7.16}
+{"tag":"B1100base","step":"B-final","req":8,"prompt_n":5567,"prompt_ms":6780.2,"gen_n":1,"gen_ms":0.0,"wall_s":7.17}

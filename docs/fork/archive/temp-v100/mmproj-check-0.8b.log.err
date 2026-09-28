@@ -1,0 +1,33 @@
+0.01.436.223 W model has unused tensor blk.24.attn_norm.weight (size = 4096 bytes) -- ignoring
+0.01.436.240 W model has unused tensor blk.24.post_attention_norm.weight (size = 4096 bytes) -- ignoring
+0.01.436.265 W model has unused tensor blk.24.attn_q.weight (size = 2359296 bytes) -- ignoring
+0.01.436.276 W model has unused tensor blk.24.attn_k.weight (size = 294912 bytes) -- ignoring
+0.01.436.285 W model has unused tensor blk.24.attn_v.weight (size = 430080 bytes) -- ignoring
+0.01.436.309 W model has unused tensor blk.24.attn_output.weight (size = 1179648 bytes) -- ignoring
+0.01.436.316 W model has unused tensor blk.24.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+0.01.436.324 W model has unused tensor blk.24.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+0.01.436.331 W model has unused tensor blk.24.ffn_gate.weight (size = 2064384 bytes) -- ignoring
+0.01.436.338 W model has unused tensor blk.24.ffn_down.weight (size = 3010560 bytes) -- ignoring
+0.01.436.345 W model has unused tensor blk.24.ffn_up.weight (size = 2064384 bytes) -- ignoring
+0.01.436.355 W model has unused tensor blk.24.nextn.eh_proj.weight (size = 2228224 bytes) -- ignoring
+0.01.436.364 W model has unused tensor blk.24.nextn.enorm.weight (size = 4096 bytes) -- ignoring
+0.01.436.382 W model has unused tensor blk.24.nextn.hnorm.weight (size = 4096 bytes) -- ignoring
+0.01.436.406 W model has unused tensor blk.24.nextn.shared_head_norm.weight (size = 4096 bytes) -- ignoring
+0.02.225.529 I cmn          init: llama threadpool init, n_threads = 8
+0.02.226.376 W load_hparams: Qwen-VL models require at minimum 1024 image tokens to function correctly on grounding tasks
+0.02.226.380 W load_hparams: if you encounter problems with accuracy, try adding --image-min-tokens 1024
+0.02.226.382 W load_hparams: more info: https://github.com/ggml-org/llama.cpp/issues/16842
+
+0.02.462.381 I mtmd_cli_context: chat template example:
+<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+
+0.02.462.390 I main: loading model: <models>\Qwen3.5-0.8B-MTP\Qwen3.5-0.8B-UD-Q4_K_XL.gguf
+0.02.462.408 W 

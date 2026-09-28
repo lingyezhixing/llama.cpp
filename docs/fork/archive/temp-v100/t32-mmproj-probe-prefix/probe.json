@@ -1,0 +1,20 @@
+﻿[
+    {
+        "tag":  "media",
+        "status":  0,
+        "alive":  false,
+        "body":  "CONNECTION FAILED: The underlying connection was closed: A connection that was expected to be kept alive was closed by the server."
+    },
+    {
+        "tag":  "media+n_cache_reuse",
+        "status":  0,
+        "alive":  false,
+        "body":  "CONNECTION FAILED: Unable to connect to the remote server"
+    },
+    {
+        "tag":  "text-only-final",
+        "status":  0,
+        "alive":  false,
+        "body":  "CONNECTION FAILED: Unable to connect to the remote server"
+    }
+]

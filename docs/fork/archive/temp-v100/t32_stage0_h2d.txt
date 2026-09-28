@@ -1,0 +1,26 @@
+﻿test-t32-range.exe : 0.01.020.307 W model has unused tensor blk.64.attn_norm.weight (size = 20480 bytes) -- ignoring
+At line:1 char:30
++ ... _DEVICES=1; & 'D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (0.01.020.307 W ...es) -- ignoring:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+0.01.020.319 W model has unused tensor blk.64.post_attention_norm.weight (size = 20480 bytes) -- ignoring
+0.01.020.336 W model has unused tensor blk.64.attn_q.weight (size = 51609600 bytes) -- ignoring
+0.01.020.341 W model has unused tensor blk.64.attn_k.weight (size = 5570560 bytes) -- ignoring
+0.01.020.347 W model has unused tensor blk.64.attn_v.weight (size = 5570560 bytes) -- ignoring
+0.01.020.368 W model has unused tensor blk.64.attn_output.weight (size = 25804800 bytes) -- ignoring
+0.01.020.374 W model has unused tensor blk.64.attn_q_norm.weight (size = 1024 bytes) -- ignoring
+0.01.020.380 W model has unused tensor blk.64.attn_k_norm.weight (size = 1024 bytes) -- ignoring
+0.01.020.386 W model has unused tensor blk.64.ffn_gate.weight (size = 73113600 bytes) -- ignoring
+0.01.020.392 W model has unused tensor blk.64.ffn_down.weight (size = 73113600 bytes) -- ignoring
+0.01.020.398 W model has unused tensor blk.64.ffn_up.weight (size = 73113600 bytes) -- ignoring
+0.01.020.405 W model has unused tensor blk.64.nextn.eh_proj.weight (size = 43008000 bytes) -- ignoring
+0.01.020.412 W model has unused tensor blk.64.nextn.enorm.weight (size = 20480 bytes) -- ignoring
+0.01.020.418 W model has unused tensor blk.64.nextn.hnorm.weight (size = 20480 bytes) -- ignoring
+0.01.020.436 W model has unused tensor blk.64.nextn.shared_head_norm.weight (size = 20480 bytes) -- ignoring
+0.18.039.467 I cmn          init: llama threadpool init, n_threads = 8
+[t32-h2d] fill: 32000 tokens in 40.2 s (796.0 t/s)
+[t32-h2d] size: 2150.4 MiB
+[t32-h2d] D2H:  0.81 s (2.60 GiB/s) [2254815072 bytes]
+[t32-h2d] H2D:  0.89 s (2.37 GiB/s) [2254815072 bytes]
