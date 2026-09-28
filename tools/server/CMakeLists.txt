@@ -19,6 +19,8 @@ add_library(${TARGET} STATIC
     server-context.h
     server-realtime.cpp
     server-realtime.h
+    server-kv-tree.cpp
+    server-kv-tree.h
     server-stream.cpp
     server-stream.h
     server-tools.cpp
@@ -35,6 +37,7 @@ endif()
 
 target_include_directories(${TARGET} PRIVATE ../mtmd)
 target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR})
+target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR}/vendor)
 target_link_libraries(${TARGET} PUBLIC llama-common mtmd ${CMAKE_THREAD_LIBS_INIT})
 
 # llama-server-impl: server logic, reusable by app
