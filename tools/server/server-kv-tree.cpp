@@ -269,8 +269,8 @@ kv_tree::kv_tree(const kv_tree_config & cfg) : cfg(cfg) {
         // the tree is not persistent: drop the leftovers of a previous run
         std::error_code ec;
 
-        const size_t n_stale = std::filesystem::remove_all(cfg.disk_dir + "/blocks", ec) +
-                               std::filesystem::remove_all(cfg.disk_dir + "/anchors", ec);
+        const size_t n_stale = std::filesystem::remove_all(std::filesystem::u8path(cfg.disk_dir + "/blocks"), ec) +
+                               std::filesystem::remove_all(std::filesystem::u8path(cfg.disk_dir + "/anchors"), ec);
 
         SRV_INF("cleared %zu stale files from %s\n", n_stale, cfg.disk_dir.c_str());
     }
@@ -397,7 +397,7 @@ void kv_tree::remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anc
 
     if (a.on_disk) {
         std::error_code ec;
-        std::filesystem::remove(a.path, ec);
+        std::filesystem::remove(std::filesystem::u8path(a.path), ec);
         st.bytes_disk -= (int64_t) a.bytes;
         st.anchors_disk--;
     } else {
@@ -601,17 +601,18 @@ std::string kv_tree::anchor_path(uint64_t blk_hash, llama_pos pos) const {
 
 bool kv_tree::write_disk(const std::string & path, const std::vector<uint8_t> & buf) {
     const std::string tmp = path + ".tmp";
+    std::error_code ec;
 
     {
-        std::error_code ec;   // the tier subdirectories are created on demand
-        std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
+        // the tier subdirectories are created on demand
+        std::filesystem::create_directories(std::filesystem::u8path(path).parent_path(), ec);
         if (ec) {
             SRV_WRN("failed to create the directory for %s: %s\n", tmp.c_str(), ec.message().c_str());
             return false;
         }
     }
 
-    std::FILE * f = fopen(tmp.c_str(), "wb");
+    std::FILE * f = ggml_fopen(tmp.c_str(), "wb");
     if (f == nullptr) {
         SRV_WRN("failed to open %s for writing\n", tmp.c_str());
         return false;
@@ -621,18 +622,17 @@ bool kv_tree::write_disk(const std::string & path, const std::vector<uint8_t> & 
     const bool ok = fclose(f) == 0 && n == buf.size();
 
     if (!ok) {
-        remove(tmp.c_str());
+        std::filesystem::remove(std::filesystem::u8path(tmp), ec);
         return false;
     }
 
-    std::error_code ec;
-    std::filesystem::rename(tmp, path, ec);
+    std::filesystem::rename(std::filesystem::u8path(tmp), std::filesystem::u8path(path), ec);
     if (ec) {
-        std::filesystem::remove(path, ec);
-        std::filesystem::rename(tmp, path, ec);
+        std::filesystem::remove(std::filesystem::u8path(path), ec);
+        std::filesystem::rename(std::filesystem::u8path(tmp), std::filesystem::u8path(path), ec);
     }
     if (ec) {
-        remove(tmp.c_str());
+        std::filesystem::remove(std::filesystem::u8path(tmp), ec);
         return false;
     }
 
@@ -640,7 +640,7 @@ bool kv_tree::write_disk(const std::string & path, const std::vector<uint8_t> & 
 }
 
 bool kv_tree::read_disk(const std::string & path, std::vector<uint8_t> & out) {
-    std::FILE * f = fopen(path.c_str(), "rb");
+    std::FILE * f = ggml_fopen(path.c_str(), "rb");
     if (f == nullptr) {
         return false;
     }
@@ -823,7 +823,7 @@ void kv_tree::settle() {
 
         if ((size_t) st.bytes_ram <= cfg.ram_limit) {
             std::error_code ec;
-            std::filesystem::remove(b.path, ec);
+            std::filesystem::remove(std::filesystem::u8path(b.path), ec);
 
             st.bytes_disk -= (int64_t) b.data.size();
             st.blocks_disk--;
@@ -848,7 +848,7 @@ void kv_tree::settle() {
 
         if ((size_t) st.bytes_ram <= cfg.ram_limit) {
             std::error_code ec;
-            std::filesystem::remove(a.path, ec);
+            std::filesystem::remove(std::filesystem::u8path(a.path), ec);
 
             st.bytes_disk -= (int64_t) size;
             st.anchors_disk--;
@@ -1102,7 +1102,7 @@ void kv_tree::remove_block(std::unordered_map<uint64_t, kv_tree_block>::iterator
 
     if (b.on_disk) {
         std::error_code ec;
-        std::filesystem::remove(b.path, ec);
+        std::filesystem::remove(std::filesystem::u8path(b.path), ec);
         st.bytes_disk -= (int64_t) b.bytes;
         st.blocks_disk--;
     } else {
