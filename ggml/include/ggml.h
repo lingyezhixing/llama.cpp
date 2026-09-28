@@ -2649,6 +2649,19 @@ extern "C" {
     // the output packs the attention scores [S_v, H_v, n_tokens, n_seqs] followed by K state
     // snapshots, most-recent first (slot 0 = final state, slot s = state s tokens back). K == 1
     // keeps only the final state; when n_tokens < K only slots 0..n_tokens-1 are written.
+    //
+    // ReplaySSM (optional): when `rec` and `fold` are given, the kernel writes the raw inputs of this
+    // batch into the record bank of each sequence and first replays the accepted records of its previous
+    // batch, starting from the state input and committing the result to the state slot. No per-token
+    // snapshots are written then, the state input is the single committed plane per cell.
+    //   rec  : [k | v | g | beta, 2*T_cap, banks] view of the per-layer record cache (F32), one bank
+    //          per sequence of the memory
+    //   fold : [_, p_i, read half_i, write half_i, bank_i, check, skip] (I32), 4*n_seq_max + 3 slots,
+    //          one entry per sequence of the ubatch: p_i records to replay, the record half to read and
+    //          the half this batch writes, the record bank of the sequence and the self-check counter
+    //   diag : [n_embd_s, n_seqs] view of the per-cell committed states (F32, may be NULL) receives the
+    //          state committed by this call, so the next call can verify its fold against it (adds to
+    //          `check` on mismatch; skipped for the batch that carries a restored state)
     GGML_API struct ggml_tensor * ggml_gated_delta_net(
             struct ggml_context * ctx,
             struct ggml_tensor  * q,
@@ -2657,7 +2670,10 @@ extern "C" {
             struct ggml_tensor  * g,
             struct ggml_tensor  * beta,
             struct ggml_tensor  * state,
-            int64_t               K);
+            int64_t               K,
+            struct ggml_tensor  * rec,
+            struct ggml_tensor  * fold,
+            struct ggml_tensor  * diag);
 
     // DSA lightning indexer
     //

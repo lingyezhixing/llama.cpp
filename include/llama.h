@@ -46,7 +46,7 @@
 #define LLAMA_SESSION_VERSION 11
 
 #define LLAMA_STATE_SEQ_MAGIC   LLAMA_FILE_MAGIC_GGSQ
-#define LLAMA_STATE_SEQ_VERSION 4
+#define LLAMA_STATE_SEQ_VERSION 7
 
 #ifdef __cplusplus
 extern "C" {
