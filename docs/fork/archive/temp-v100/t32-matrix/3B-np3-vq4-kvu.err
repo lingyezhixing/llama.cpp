@@ -1,0 +1,35 @@
+0.00.526.609 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.01.187.155 I cmn          init: llama threadpool init, n_threads = 8
+[t32] hybrid=0 full=1513080 partial=1513080 range=1513080
+[t32] full state size > 0                                                      PASS
+[t32] range state size > 0                                                     PASS
+[t32] attn: range(0,L) size == full size                                       PASS
+[t32] payload reads returned the expected sizes                                PASS
+[t32] attn: range(0,L) payload == full payload                                 PASS
+[t32] range(0,L/2) size is between header and full range                       PASS
+[t32] read chunk 0                                                             PASS
+[t32] read chunk 1                                                             PASS
+[t32] read full state                                                          PASS
+[t32] baseline generation (seq 0, no restore)                                  PASS
+[t32] restore chunk 0 (append=false)                                           PASS
+[t32] restore chunk 1 (append=true)                                            PASS
+[t32] restore full state into seq 2                                            PASS
+[t32] logit max|diff|: seq1-seq2=0.421846 seq1-seq0=0.702199 seq2-seq0=0.702199
+[t32] chunked restore generates the same tokens as no restore                  SKIP (unified: cell layout differs)
+[t32] full restore generates the same tokens as no restore                     SKIP (unified: cell layout differs)
+[t32] chunked restore generates the same tokens as a full restore              SKIP (unified: cell layout differs)
+0.01.525.311 E state_read_meta: position 0 is already present in seq 1
+0.01.525.374 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+[t32] append with overlapping positions is rejected                            PASS
+[t32] rejected append left the existing state intact                           SKIP (unified: cell layout differs)
+[t32] rebuild chunk 0 on seq 2                                                 PASS
+[t32] truncated append blob is rejected                                        PASS
+0.01.686.021 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+[t32] destination is clean after the failed append                             PASS
+[t32] destination still generates like seq 1 after the failed append           SKIP (unified: cell layout differs)
+[t32] range with p1 <= p0 is rejected                                          PASS
+0.01.765.477 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+0.01.765.568 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+[t32] range with p0 < 0 is rejected                                            PASS
+[t32] range with unsupported flags is rejected                                 PASS
+0.01.766.280 E state_seq_get_size_range: error getting range state size: range state write supports flags == 0 only

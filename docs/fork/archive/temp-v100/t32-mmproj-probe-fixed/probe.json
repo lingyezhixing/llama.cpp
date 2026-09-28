@@ -1,0 +1,20 @@
+﻿[
+    {
+        "tag":  "media",
+        "status":  200,
+        "alive":  true,
+        "body":  "{\"choices\":[{\"finish_reason\":\"length\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"The user wants a one-sentence description of the image. The image is a\"}}],\"created\":1790523431,\"model\":\"E:\\\\models\\\\LLM\\\\GGUF\\\\"
+    },
+    {
+        "tag":  "media+n_cache_reuse",
+        "status":  200,
+        "alive":  true,
+        "body":  "{\"choices\":[{\"finish_reason\":\"length\",\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\",\"reasoning_content\":\"The user wants a one-sentence description of the image. The image is a\"}}],\"created\":1790523431,\"model\":\"E:\\\\models\\\\LLM\\\\GGUF\\\\"
+    },
+    {
+        "tag":  "text-only-final",
+        "status":  200,
+        "alive":  true,
+        "body":  "{\"index\":0,\"content\":\"\\n\\n\u003cthink\u003e\\nThe\",\"tokens\":[],\"id_slot\":0,\"stop\":true,\"model\":\"E:\\\\models\\\\LLM\\\\GGUF\\\\Qwen3.8-27B\\\\Qwen3.8-27B-UD-Q6_K.gguf\",\"tokens_predicted\":4,\"tokens_evaluated\":11,\"generation_settings\":{\"seed\":42,\"temperature\":0.0"
+    }
+]

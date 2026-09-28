@@ -1,0 +1,67 @@
+# Review package: 2575f41f0..569f05669
+
+## Commits
+569f05669 server : fix kv tree anchor payload double load
+
+## Files changed
+ tests/test-t32-tree.cpp         | 4 ++++
+ tools/server/server-kv-tree.cpp | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index a40b605ed..c4442787d 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -939,20 +939,24 @@ static int scenario_restore_anchors(llama_context * ctx, const kv_tree_config &
+         if (prefill(ctx, 0, tokens, 2048, 512) != 0) {
+             return 1;
+         }
+ 
+         check(tree.park(io, nullptr, tokens, { ck }), "restore-anchors: park with a small ram budget");
+         check(tree.stats().anchors_disk + tree.stats().blocks_disk > 0, "restore-anchors: data went to disk");
+ 
+         const kv_tree_restore r = tree.restore(io, nullptr, tokens);
+         check_eq(r.C, 3072, "restore-anchors: restore at the tip (ssd)");
+ 
++        const int64_t bytes_ram_after_first = tree.stats().bytes_ram;
++        tree.restore(io, nullptr, tokens);
++        check_eq(tree.stats().bytes_ram, bytes_ram_after_first, "restore-anchors: repeated disk restores do not inflate ram accounting");
++
+         bool found = false;
+         for (const auto & a : r.anchors) {
+             if (a.pos == 2048) {
+                 found = true;
+                 check(a.data_tgt == ck.data_tgt, "restore-anchors: the disk payload matches the parked checkpoint");
+             }
+         }
+         check(found, "restore-anchors: the disk anchor is returned");
+ 
+         std::filesystem::remove_all(cfg2.disk_dir, ec);
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index f9144b73d..ac1e2fb20 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -635,21 +635,21 @@ bool kv_tree::load_payload(kv_tree_block & b) {
+     st.bytes_load += (int64_t) b.data.size();
+     b.transient = true;
+ 
+     st.bytes_ram += (int64_t) b.data.size();
+     st.blocks_ram++;
+ 
+     return true;
+ }
+ 
+ bool kv_tree::load_payload(kv_tree_anchor & a) {
+-    if (!a.on_disk) {
++    if (!a.on_disk || a.transient) {
+         return true;
+     }
+ 
+     std::vector<uint8_t> buf;
+     if (!read_disk(a.path, buf)) {
+         fprintf(stderr, "[kv-tree] failed to read anchor %016" PRIx64 "@%d from disk\n", a.blk_hash, a.pos);
+         st.disk_errors++;
+         return false;
+     }
+ 

@@ -1,0 +1,425 @@
+# Review package: ce03a50f8..2575f41f0
+
+## Commits
+2575f41f0 server : rebuild context checkpoints after a tree restore
+d7d02b908 server : return kv tree anchor payloads on restore
+
+## Files changed
+ tests/test-t32-tree.cpp         | 91 +++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-context.cpp | 40 ++++++++++++++++--
+ tools/server/server-kv-tree.cpp | 26 +++++++++---
+ tools/server/server-kv-tree.h   |  8 +++-
+ 4 files changed, 156 insertions(+), 9 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index b0e3feefa..a40b605ed 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -864,20 +864,110 @@ static int scenario_unaligned(llama_context * ctx, const kv_tree_config & cfg_in
+         check_eq(r.res.C, 1300, "unaligned: full length restores at the non-aligned tip");
+         check_eq(r.res.heal, -1, "unaligned: no heal for the full length");
+         check(r.gen == base, "unaligned: full length tokens match the matched baseline");
+     }
+ 
+     tree.dump();
+ 
+     return n_fail == 0 ? 0 : 1;
+ }
+ 
++static int scenario_restore_anchors(llama_context * ctx, const kv_tree_config & cfg) {
++    fprintf(stderr, "[t32-tree] scenario: restore anchors\n");
++
++    const auto tokens = make_tokens(3072, 7);
++
++    // park with a checkpoint candidate at 2048
++    {
++        kv_tree tree(cfg);
++        kv_tree_io_llama io(ctx, 0);
++
++        llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++        if (prefill(ctx, 0, std::vector<llama_token>(tokens.begin(), tokens.begin() + 2048), 0, 512) != 0) {
++            return 1;
++        }
++
++        const kv_tree_anchor_in ck = capture_partial(ctx, 0, 2048);
++        check(!ck.data_tgt.empty(), "restore-anchors: capture the partial state at 2048");
++
++        if (prefill(ctx, 0, tokens, 2048, 512) != 0) {
++            return 1;
++        }
++
++        check(tree.park(io, nullptr, tokens, { ck }), "restore-anchors: park with the checkpoint");
++
++        const kv_tree_restore r = tree.restore(io, nullptr, tokens);
++        check_eq(r.C, 3072, "restore-anchors: restore at the tip");
++        check_eq((long long) r.anchors.size(), 2, "restore-anchors: two anchors on the path");
++
++        bool found = false;
++        bool sorted = true;
++        llama_pos prev = -1;
++        for (const auto & a : r.anchors) {
++            if (a.pos <= prev) {
++                sorted = false;
++            }
++            prev = a.pos;
++            if (a.pos == 2048) {
++                found = true;
++                check(a.data_tgt == ck.data_tgt, "restore-anchors: the payload matches the parked checkpoint");
++            }
++        }
++        check(found, "restore-anchors: the checkpoint anchor is returned");
++        check(sorted, "restore-anchors: anchors are sorted by position");
++    }
++
++    // same with the payloads on disk
++    {
++        kv_tree_config cfg2 = cfg;
++        cfg2.disk_dir   = (std::filesystem::temp_directory_path() / "t32-tree-anchors").string();
++        cfg2.ram_limit  = 8 * 1024;    // force demotion
++        cfg2.disk_limit = 1ull << 30;  // the real 2B KV for 3072 tokens is ~150 MB
++
++        std::error_code ec;
++        std::filesystem::remove_all(cfg2.disk_dir, ec);
++
++        kv_tree tree(cfg2);
++        kv_tree_io_llama io(ctx, 0);
++
++        llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++        if (prefill(ctx, 0, std::vector<llama_token>(tokens.begin(), tokens.begin() + 2048), 0, 512) != 0) {
++            return 1;
++        }
++
++        const kv_tree_anchor_in ck = capture_partial(ctx, 0, 2048);
++
++        if (prefill(ctx, 0, tokens, 2048, 512) != 0) {
++            return 1;
++        }
++
++        check(tree.park(io, nullptr, tokens, { ck }), "restore-anchors: park with a small ram budget");
++        check(tree.stats().anchors_disk + tree.stats().blocks_disk > 0, "restore-anchors: data went to disk");
++
++        const kv_tree_restore r = tree.restore(io, nullptr, tokens);
++        check_eq(r.C, 3072, "restore-anchors: restore at the tip (ssd)");
++
++        bool found = false;
++        for (const auto & a : r.anchors) {
++            if (a.pos == 2048) {
++                found = true;
++                check(a.data_tgt == ck.data_tgt, "restore-anchors: the disk payload matches the parked checkpoint");
++            }
++        }
++        check(found, "restore-anchors: the disk anchor is returned");
++
++        std::filesystem::remove_all(cfg2.disk_dir, ec);
++    }
++
++    return 0;
++}
++
+ static int run_accept(llama_context * ctx, const kv_tree_config & cfg) {
+     fprintf(stderr, "[t32-tree] mode accept\n");
+ 
+     kv_tree tree(cfg);
+     kv_tree_io_llama io(ctx, 0);
+ 
+     // A-mini: two 4096-token sequences sharing 3072 tokens, six alternating restores
+     const auto tok_a = make_fork_tokens(3072, 1024, 0);
+     const auto tok_b = make_fork_tokens(3072, 1024, 1);
+ 
+@@ -1018,20 +1108,21 @@ int main(int argc, char ** argv) {
+     cfg.ram_limit   = (size_t) ram_mib << 20;
+     cfg.disk_limit  = (size_t) disk_mib << 20;
+     cfg.disk_dir    = disk;
+ 
+     if (mode == "model") {
+         int ret = 0;
+         ret |= scenario_tip(ctx, cfg);
+         ret |= scenario_fork(ctx, cfg);
+         ret |= scenario_sparsify(ctx, cfg);
+         ret |= scenario_ssd(ctx, cfg);
++        ret |= scenario_restore_anchors(ctx, cfg);
+         ret |= scenario_unaligned(ctx, cfg);
+         return ret;
+     }
+ 
+     if (mode == "accept") {
+         return run_accept(ctx, cfg);
+     }
+ 
+     fprintf(stderr, "unknown mode %s\n", mode.c_str());
+     return 1;
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 19243e0e7..e8f8fffbe 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -338,41 +338,69 @@ struct server_slot {
+         if (ok) {
+             SLT_INF(*this, "kv tree: parked %d tokens, %zu checkpoint candidates, ram = %lld B, disk = %lld B\n",
+                     (int) prompt.tokens.size(), cks.size(),
+                     (long long) tree.stats().bytes_ram, (long long) tree.stats().bytes_disk);
+         } else {
+             SLT_TRC(*this, "%s", "kv tree: park did not store (see module log)\n");
+         }
+         return ok;
+     }
+ 
+-    bool prompt_restore_tree(kv_tree & tree, const server_tokens & tokens) {
++    bool prompt_restore_tree(kv_tree & tree, const server_tokens & tokens, int n_ckpt_max) {
+         if (!lora.empty() || tokens.empty() || tokens.has_mtmd) {
+             return false;
+         }
+ 
+         kv_tree_io_llama io_tgt(ctx_tgt, id);
+         std::unique_ptr<kv_tree_io_llama> io_dft;
+         kv_tree_io * io_dft_ptr = nullptr;
+         if (ctx_dft != nullptr) {
+             io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
+             io_dft_ptr = io_dft.get();
+         }
+ 
+-        const kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens());
++        kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens());
+         if (res.C <= 0) {
+             SLT_INF(*this, "kv tree: restore miss for %zu tokens, full prefill\n", tokens.size());
+             return false;
+         }
+ 
+         prompt.tokens = server_tokens(llama_tokens(tokens.get_tokens().begin(), tokens.get_tokens().begin() + res.C), false);
+         prompt.checkpoints.clear();
++
++        if (n_ckpt_max > 0) {
++            std::list<common_prompt_checkpoint> cks;
++
++            for (auto & a : res.anchors) {
++                if (a.pos <= 0 || a.pos >= res.C) {
++                    continue;
++                }
++
++                common_prompt_checkpoint ck;
++                ck.id_task = -1;
++                ck.update_pos(a.pos, 0, a.pos - 1);
++                ck.data_tgt = std::move(a.data_tgt);
++                ck.data_dft = std::move(a.data_dft);
++                cks.push_back(std::move(ck));
++            }
++
++            while ((int) cks.size() > n_ckpt_max) {
++                cks.pop_front();
++            }
++
++            prompt.checkpoints = std::move(cks);
++
++            if (!prompt.checkpoints.empty()) {
++                SLT_INF(*this, "kv tree: rebuilt %zu context checkpoints\n", prompt.checkpoints.size());
++            }
++        }
++
+         tree_heal = res.heal > res.C ? res.heal : -1;
+ 
+         SLT_INF(*this, "kv tree: restored %d tokens (heal = %d)\n", (int) res.C, (int) tree_heal);
+         return true;
+     }
+ 
+     bool prompt_save(server_prompt_cache & prompt_cache) const {
+         if (prompt.tokens.size() == 0) {
+             return false;
+         }
+@@ -986,20 +1014,22 @@ private:
+ 
+     int trace = 0;        // env: LLAMA_TRACE
+     int slots_debug = 0;  // env: LLAMA_SERVER_SLOTS_DEBUG
+     int slots_n_diff = 0; // env: LLAMA_SERVER_SLOTS_N_DIFF
+ 
+     int n_empty_consecutive = 0;
+ 
+     std::unique_ptr<server_prompt_cache> prompt_cache;
+     std::unique_ptr<kv_tree> tree;
+ 
++    int64_t tree_ops = 0;
++
+     server_metrics metrics;
+ 
+     // queued prompt stats - llama_decode() is async, so the timing is only valid after a sync
+     // note: kept out of server_metrics, which is copied as-is into the task result
+     int64_t  t_decode_start  = 0; // start of the last submitted decode
+     int64_t  t_prompt_start  = 0; // start of the oldest queued prompt decode
+     uint64_t n_prompt_queued = 0;
+ 
+     json json_ui_settings = json::object();
+ 
+@@ -1755,35 +1785,39 @@ private:
+ 
+             if (update_cache) {
+                 SRV_TRC("%s", "updating prompt cache\n");
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+                 if (tree) {
+                     ret->prompt_park(*tree);
+ 
+                     // no point restoring when the request will not reuse the prompt
+-                    if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens)) {
++                    if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens, params_base.n_ctx_checkpoints)) {
+                         ret->prompt_clear();
+                     }
+                 } else {
+                     ret->prompt_save(*prompt_cache);
+ 
+                     if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+                         ret->prompt_clear();
+                     }
+ 
+                     prompt_cache->update();
+                 }
+ 
+                 SRV_TRC("prompt cache update took %.2f ms\n", (ggml_time_us() - t_start) / 1000.0);
+             }
++
++            if (tree && ++tree_ops % 64 == 0) {
++                SRV_INF("kv tree stats: %s\n", tree->stats_line().c_str());
++            }
+         }
+ 
+         return ret;
+     }
+ 
+     // return true if at least one slot has been cleared
+     // TODO: improve logic
+     //       - smarter decision which slot to clear (LRU or longest prompt?)
+     //       - move slot to level 2 cache instead of removing?
+     //       - instead of purging, try to store and resume later?
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 00ffde593..f9144b73d 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -1309,27 +1309,27 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+         return res;
+     }
+ 
+     std::vector<uint64_t> cand = m.path;
+     if (m.n_part > 0) {
+         cand.push_back(m.part_hash);
+     }
+ 
+     llama_pos C = -1;
+     uint64_t  c_hash = 0;
+-    std::vector<llama_pos> path_anchors;
++    std::vector<std::pair<uint64_t, llama_pos>> path_anchors;
+ 
+     for (const uint64_t hash : cand) {
+         for (auto it = anchors.lower_bound(std::make_pair(hash, 0));
+              it != anchors.end() && it->first.first == hash; ++it) {
+             if (it->second.pos <= m.deep) {
+-                path_anchors.push_back(it->second.pos);
++                path_anchors.emplace_back(hash, it->second.pos);
+                 if (it->second.pos > C) {
+                     C = it->second.pos;
+                     c_hash = hash;
+                 }
+             }
+         }
+     }
+ 
+     if (C < 0) {
+         st.restore_miss++;
+@@ -1386,20 +1386,36 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+                 ok = false;
+             } else if (io_dft != nullptr && !a.data_dft.empty()) {
+                 if (!io_dft->set_partial(a.data_dft.data(), a.data_dft.size())) {
+                     fprintf(stderr, "[kv-tree] restore failed: cannot load the draft state at %d\n", C);
+                     ok = false;
+                 }
+             }
+         }
+     }
+ 
++    std::vector<kv_tree_restore_anchor> out_anchors;
++    if (ok) {
++        for (const auto & key : path_anchors) {
++            kv_tree_anchor & a = anchors.at(key);
++            if (!load_payload(a)) {
++                continue;   // payload unavailable: fewer rebuilt checkpoints
++            }
++
++            kv_tree_restore_anchor ra;
++            ra.pos      = a.pos;
++            ra.data_tgt = a.data_tgt;
++            ra.data_dft = a.data_dft;
++            out_anchors.push_back(std::move(ra));
++        }
++    }
++
+     for (const uint64_t hash : cand) {
+         auto it = blocks.find(hash);
+         if (it != blocks.end()) {
+             it->second.pinned = false;
+         }
+     }
+     for (auto & kv : anchors) {
+         if (kv.second.pos <= C && std::find(cand.begin(), cand.end(), kv.first.first) != cand.end()) {
+             kv.second.pinned = false;
+         }
+@@ -1413,23 +1429,23 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+         return res;
+     }
+ 
+     kv_tree_anchor & ca = anchors.at(std::make_pair(c_hash, C));
+     ca.heat++;
+     ca.last_used = ++now;
+ 
+     st.restore_hits++;
+     st.tokens_reused += C;
+ 
+-    res.C      = C;
+-    res.heal   = m.deep > C ? m.deep : -1;
+-    res.anchors = path_anchors;
++    res.C       = C;
++    res.heal    = m.deep > C ? m.deep : -1;
++    res.anchors = std::move(out_anchors);
+ 
+     if (cfg.debug) {
+         dump();
+     }
+ 
+     return res;
+ }
+ 
+ std::string kv_tree::stats_line() const {
+     char buf[512];
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index 20b8d464c..a2ab80efb 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -133,24 +133,30 @@ struct kv_tree_seq {
+ 
+ // verified prefix of a request against the stored blocks
+ struct kv_tree_match {
+     std::vector<uint64_t> path;    // hashes of fully matched blocks
+     size_t      n_full    = 0;     // number of fully matched blocks
+     size_t      n_part    = 0;     // tokens verified inside the last partial block
+     uint64_t    part_hash = 0;     // hash of the partially matched block
+     llama_pos   deep      = 0;     // deepest verified position
+ };
+ 
++struct kv_tree_restore_anchor {
++    llama_pos pos = 0;
++    std::vector<uint8_t> data_tgt;
++    std::vector<uint8_t> data_dft;
++};
++
+ struct kv_tree_restore {
+     llama_pos C = -1;              // restore point, -1 = caller must do a full prefill
+     llama_pos heal = -1;           // capture an anchor when the prefill crosses this pos
+-    std::vector<llama_pos> anchors; // reserved for the stage-4 checkpoint-table rebuild (D12)
++    std::vector<kv_tree_restore_anchor> anchors; // path anchors up to C, ascending (D12)
+ };
+ 
+ class kv_tree {
+ public:
+     explicit kv_tree(const kv_tree_config & cfg);
+ 
+     // store the sequence tokens[0, L); the io state must end exactly at L
+     bool park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+               const std::vector<kv_tree_anchor_in> & checkpoints);
+ 

@@ -1,0 +1,8 @@
+0.19.582.800 I model: hybrid = 1, recurrent = 0, n_embd = 5120
+0.19.630.111 I probe context: n_rs_seq = 8, n_ctx = 8192
+0.20.070.098 I budget: n_branches = 4, prefix = 206 tokens, model size = 20954.8 MiB
+0.20.070.130 I   seq 0: state = 189.825 MiB, pos_min = 205, pos_max = 205
+0.20.070.145 I   seq 1: state = 189.825 MiB, pos_min = 205, pos_max = 205
+0.20.070.165 I   seq 2: state = 189.825 MiB, pos_min = 205, pos_max = 205
+0.20.070.191 I   seq 3: state = 189.825 MiB, pos_min = 205, pos_max = 205
+0.20.070.192 I holding for 15 s (for external VRAM sampling)

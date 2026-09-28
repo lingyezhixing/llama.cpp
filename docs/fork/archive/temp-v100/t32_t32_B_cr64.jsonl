@@ -1,0 +1,8 @@
+﻿{"tag":"t32_B_cr64","step":"A-round0","req":1,"prompt_n":5467,"prompt_ms":6915.8,"gen_n":1,"gen_ms":0.0,"wall_s":6.98}
+{"tag":"t32_B_cr64","step":"B-round0","req":2,"prompt_n":5433,"prompt_ms":6728.1,"gen_n":1,"gen_ms":0.0,"wall_s":6.75}
+{"tag":"t32_B_cr64","step":"A-round1","req":3,"prompt_n":5480,"prompt_ms":6710.1,"gen_n":1,"gen_ms":0.0,"wall_s":6.73}
+{"tag":"t32_B_cr64","step":"B-round1","req":4,"prompt_n":5500,"prompt_ms":6739.9,"gen_n":1,"gen_ms":0.0,"wall_s":6.76}
+{"tag":"t32_B_cr64","step":"A-round2","req":5,"prompt_n":5547,"prompt_ms":6772.9,"gen_n":1,"gen_ms":0.0,"wall_s":6.8}
+{"tag":"t32_B_cr64","step":"B-round2","req":6,"prompt_n":5567,"prompt_ms":6808.6,"gen_n":1,"gen_ms":0.0,"wall_s":6.84}
+{"tag":"t32_B_cr64","step":"A-final","req":7,"prompt_n":5547,"prompt_ms":6788.5,"gen_n":1,"gen_ms":0.0,"wall_s":6.82}
+{"tag":"t32_B_cr64","step":"B-final","req":8,"prompt_n":5567,"prompt_ms":6788.7,"gen_n":1,"gen_ms":0.0,"wall_s":6.81}

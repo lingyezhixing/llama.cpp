@@ -1,0 +1,41 @@
+"""small utilities for record processing."""
+
+import os
+import json
+
+
+class Record:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def as_dict(self):
+        return {"name": self.name, "value": self.value}
+
+
+def load_records(path):
+    """Load records from a jsonl file."""
+    out = []
+    with open(path, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            out.append(Record(**json.loads(line)))
+    return out
+
+
+def save_records(path, records):
+    """Save records to a jsonl file."""
+    with open(path, "w", encoding="utf-8") as f:
+        for rec in records:
+            f.write(json.dumps(rec.as_dict()) + "\n")
+
+
+def summarize(records):
+    """Return a summary dict for a list of records."""
+    total = 0
+    for rec in records:
+        total += rec.value
+    return {"count": len(records), "total": total}
+

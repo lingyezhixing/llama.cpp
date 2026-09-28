@@ -1,0 +1,67 @@
+# Review package: 7b59bb340..a2ebafb65
+
+## Commits
+a2ebafb65 server : report draft state failures in kv tree park and restore
+
+## Files changed
+ tools/server/server-kv-tree.cpp | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index c95d4acb6..0938daf4c 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -215,22 +215,24 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+ 
+     // tip anchor: the io state is exactly at L
+     std::vector<uint8_t> part_tgt;
+     std::vector<uint8_t> part_dft;
+ 
+     if (!io_tgt.get_partial(part_tgt)) {
+         fprintf(stderr, "[kv-tree] park refused: failed to capture the tip state\n");
+         st.park_refused++;
+         return false;
+     }
+-    if (io_dft != nullptr) {
+-        io_dft->get_partial(part_dft);
++    if (io_dft != nullptr && !io_dft->get_partial(part_dft)) {
++        fprintf(stderr, "[kv-tree] park refused: failed to capture the tip draft state\n");
++        st.park_refused++;
++        return false;
+     }
+ 
+     size_t need = part_tgt.size() + part_dft.size();
+     for (const auto & p : blobs) {
+         need += p.second.size();
+     }
+ 
+     if (!make_room(need)) {
+         fprintf(stderr, "[kv-tree] park refused: no room for %zu bytes\n", need);
+         st.park_refused++;
+@@ -371,21 +373,24 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+ 
+         const auto it = anchors.find(std::make_pair(c_hash, C));
+         if (it == anchors.end()) {
+             ok = false;
+         } else {
+             const kv_tree_anchor & a = it->second;
+             if (!io_tgt.set_partial(a.data_tgt.data(), a.data_tgt.size())) {
+                 fprintf(stderr, "[kv-tree] restore failed: cannot load the state at %d\n", C);
+                 ok = false;
+             } else if (io_dft != nullptr && !a.data_dft.empty()) {
+-                io_dft->set_partial(a.data_dft.data(), a.data_dft.size());
++                if (!io_dft->set_partial(a.data_dft.data(), a.data_dft.size())) {
++                    fprintf(stderr, "[kv-tree] restore failed: cannot load the draft state at %d\n", C);
++                    ok = false;
++                }
+             }
+         }
+     }
+ 
+     for (const uint64_t hash : cand) {
+         auto it = blocks.find(hash);
+         if (it != blocks.end()) {
+             it->second.pinned = false;
+         }
+     }

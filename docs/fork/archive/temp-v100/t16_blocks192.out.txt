@@ -1,0 +1,7 @@
+WARNING: CPU context switches trace requires administrative privileges, disabling.
+WARNING: CPU sampling requires administrative privileges, disabling.
+Collecting data...
+Generating '<user>\AppData\Local\Temp\nsys-report-a57b.qdstrm'
+[1/1] [0%                          ] t16_blocks192.nsys-rep[1/1] [0%                          ] t16_blocks192.nsys-rep[1/1] [8%                          ] t16_blocks192.nsys-rep[1/1] [7%                          ] t16_blocks192.nsys-rep[1/1] [6%                          ] t16_blocks192.nsys-rep[1/1] [12%                         ] t16_blocks192.nsys-rep[1/1] [==18%                       ] t16_blocks192.nsys-rep[1/1] [===24%                      ] t16_blocks192.nsys-rep[1/1] [=====30%                    ] t16_blocks192.nsys-rep[1/1] [=======36%                  ] t16_blocks192.nsys-rep[1/1] [========42%                 ] t16_blocks192.nsys-rep[1/1] [==========49%               ] t16_blocks192.nsys-rep[1/1] [============55%             ] t16_blocks192.nsys-rep[1/1] [==============61%           ] t16_blocks192.nsys-rep[1/1] [===============67%          ] t16_blocks192.nsys-rep[1/1] [=================73%        ] t16_blocks192.nsys-rep[1/1] [==================76%       ] t16_blocks192.nsys-rep[1/1] [========================100%] t16_blocks192.nsys-rep[1/1] [========================100%] t16_blocks192.nsys-rep
+Generated:
+	<TEMP>\v100\t16_blocks192.nsys-rep

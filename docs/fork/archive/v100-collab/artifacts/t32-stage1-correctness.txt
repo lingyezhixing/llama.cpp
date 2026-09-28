@@ -1,0 +1,119 @@
+T32 阶段 1: range state API 正确性回归 (最终复审修复后重跑)
+
+日期: 2026-09-27
+工具: tests/test-t32-range.cpp (--mode correctness), 私有 fork t32-stage1
+基线: HEAD dfd8a7035 + 最终复审修复 (mirrored 读保护 / state_clear_append head 复位 / 新检查)
+构建: <TEMP>\v100\build_test_t32.cmd test-t32-range
+环境: CUDA_VISIBLE_DEVICES=1 (V100), -ngl 99 -fa on; stdout 全为空, 退出码全部 0
+说明: 计划 Task 2 Step 2 的三条命令原样重跑 (同一参数), 本文件为完整输出。
+      E 日志为负路径的预期日志 (重叠拒绝 / 截断 blob 拒绝 / 非法参数拒绝), 不代表失败。
+
+命令行 (运行 1/2/3):
+  $env:CUDA_VISIBLE_DEVICES=1
+  & D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test-t32-range.exe -m <models>\Qwen3.5-2B-UD-Q4_K_XL.gguf -ngl 99 -fa on -np 3 -c 512 --mode correctness
+  & D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test-t32-range.exe -m <models>\Qwen2.5-Coder-3B-IQ4_XS.gguf -ngl 99 -fa on -np 3 -c 512 --mode correctness
+  & D:\LLM\Backend\src\llama.cpp-my\build\bin\Release\test-t32-range.exe -m <models>\Qwen3.5-2B-UD-Q4_K_XL.gguf -ngl 99 -fa on -np 3 -c 512 -kvu --mode correctness
+
+===== 运行 1: 2B hybrid, 非 unified (退出码 0, 23 PASS / 0 FAIL) =====
+完整输出:
+  0.01.566.794 W llama_context: n_ctx is not divisible by n_seq_max - rounding down to 768
+  0.01.577.611 I cmn          init: llama threadpool init, n_threads = 8
+  [t32] hybrid=1 full=20990228 partial=20202092 range=788144
+  [t32] full state size > 0                                                      PASS
+  [t32] range state size > 0                                                     PASS
+  [t32] hybrid: range(0,L) size == full - partial + 8                            PASS
+  [t32] range(0,L/2) size is between header and full range                       PASS
+  [t32] read chunk 0                                                             PASS
+  [t32] read chunk 1                                                             PASS
+  [t32] read recurrent state                                                     PASS
+  [t32] restore recurrent state into seq 1                                       PASS
+  [t32] restore chunk 0 (append=false)                                           PASS
+  [t32] restore chunk 1 (append=true)                                            PASS
+  [t32] read full state                                                          PASS
+  [t32] restore full state into seq 2                                            PASS
+  [t32] chunked restore generates the same tokens as a full restore              PASS
+  0.01.882.439 E state_read_meta: position 0 is already present in seq 1
+  [t32] append with overlapping positions is rejected                            PASS
+  0.01.882.499 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+  [t32] rejected append left the existing state intact                           PASS
+  [t32] rebuild chunk 0 on seq 2                                                 PASS
+  [t32] truncated append blob is rejected                                        PASS
+  0.01.995.074 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+  [t32] destination is clean after the failed append                             PASS
+  [t32] restore recurrent state into seq 2 after the failed append               PASS
+  [t32] destination still generates like seq 1 after the failed append           PASS
+  [t32] range with p1 <= p0 is rejected                                          PASS
+  0.02.054.416 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+  [t32] range with p0 < 0 is rejected                                            PASS
+  0.02.054.429 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+  0.02.054.462 E state_seq_get_size_range: error getting range state size: range state write supports flags == 0 only
+  [t32] range with unsupported flags is rejected                                 PASS
+
+===== 运行 2: 2B hybrid, -kvu unified (退出码 0, 23 PASS / 0 FAIL) =====
+完整输出:
+  0.01.556.056 I cmn          init: llama threadpool init, n_threads = 8
+  [t32] hybrid=1 full=20990220 partial=20202092 range=788136
+  [t32] full state size > 0                                                      PASS
+  [t32] range state size > 0                                                     PASS
+  [t32] hybrid: range(0,L) size == full - partial + 8                            PASS
+  [t32] range(0,L/2) size is between header and full range                       PASS
+  [t32] read chunk 0                                                             PASS
+  [t32] read chunk 1                                                             PASS
+  [t32] read recurrent state                                                     PASS
+  [t32] restore recurrent state into seq 1                                       PASS
+  [t32] restore chunk 0 (append=false)                                           PASS
+  [t32] restore chunk 1 (append=true)                                            PASS
+  [t32] read full state                                                          PASS
+  [t32] restore full state into seq 2                                            PASS
+  [t32] chunked restore generates the same tokens as a full restore              PASS
+  0.01.853.744 E state_read_meta: position 0 is already present in seq 1
+  [t32] append with overlapping positions is rejected                            PASS
+  0.01.853.793 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+  [t32] rejected append left the existing state intact                           PASS
+  [t32] rebuild chunk 0 on seq 2                                                 PASS
+  [t32] truncated append blob is rejected                                        PASS
+  0.01.968.054 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+  [t32] destination is clean after the failed append                             PASS
+  [t32] restore recurrent state into seq 2 after the failed append               PASS
+  [t32] destination still generates like seq 1 after the failed append           PASS
+  [t32] range with p1 <= p0 is rejected                                          PASS
+  [t32] range with p0 < 0 is rejected                                            PASS
+  0.02.031.918 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+  0.02.031.932 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+  [t32] range with unsupported flags is rejected                                 PASS
+  0.02.031.938 E state_seq_get_size_range: error getting range state size: range state write supports flags == 0 only
+
+===== 运行 3: 3B 纯 attention (退出码 0, 22 PASS / 0 FAIL) =====
+完整输出:
+  0.00.491.893 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+  0.01.397.448 W llama_context: n_ctx is not divisible by n_seq_max - rounding down to 768
+  0.01.405.732 I cmn          init: llama threadpool init, n_threads = 8
+  [t32] hybrid=0 full=2360960 partial=2360960 range=2360960
+  [t32] full state size > 0                                                      PASS
+  [t32] range state size > 0                                                     PASS
+  [t32] attn: range(0,L) size == full size                                       PASS
+  [t32] payload reads returned the expected sizes                                PASS
+  [t32] attn: range(0,L) payload == full payload                                 PASS
+  [t32] range(0,L/2) size is between header and full range                       PASS
+  [t32] read chunk 0                                                             PASS
+  [t32] read chunk 1                                                             PASS
+  [t32] restore chunk 0 (append=false)                                           PASS
+  [t32] restore chunk 1 (append=true)                                            PASS
+  [t32] read full state                                                          PASS
+  [t32] restore full state into seq 2                                            PASS
+  [t32] chunked restore generates the same tokens as a full restore              PASS
+  0.01.698.146 E state_read_meta: position 0 is already present in seq 1
+  [t32] append with overlapping positions is rejected                            PASS
+  0.01.698.197 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+  [t32] rejected append left the existing state intact                           PASS
+  [t32] rebuild chunk 0 on seq 2                                                 PASS
+  [t32] truncated append blob is rejected                                        PASS
+  0.01.816.914 E state_seq_set_data_range: error loading range state: failed to restore kv cache
+  [t32] destination is clean after the failed append                             PASS
+  [t32] destination still generates like seq 1 after the failed append           PASS
+  [t32] range with p1 <= p0 is rejected                                          PASS
+  0.01.869.893 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+  [t32] range with p0 < 0 is rejected                                            PASS
+  0.01.869.908 E state_seq_get_size_range: error getting range state size: invalid sequence id or position range
+  0.01.869.932 E state_seq_get_size_range: error getting range state size: range state write supports flags == 0 only
+  [t32] range with unsupported flags is rejected                                 PASS

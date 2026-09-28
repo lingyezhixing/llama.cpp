@@ -1,0 +1,7 @@
+server : drop draft KV from context checkpoints
+
+A pure-attention draft KV is a function of the prefix, so it is rebuilt by
+trimming on restore instead of being snapshotted. While parking a prompt,
+keep only the oldest checkpoint and the 2 most recent ones.
+
+Assisted-by: opencode

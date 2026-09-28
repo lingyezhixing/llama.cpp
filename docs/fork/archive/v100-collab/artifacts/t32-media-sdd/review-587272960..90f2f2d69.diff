@@ -1,0 +1,100 @@
+# Review package: 587272960..90f2f2d69
+
+## Commits
+90f2f2d69 server : fix kv tree review nits
+
+## Files changed
+ tools/server/server-common.cpp  | 5 ++++-
+ tools/server/server-context.cpp | 6 +++---
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-common.cpp b/tools/server/server-common.cpp
+index 679c5800d..ab27b35eb 100644
+--- a/tools/server/server-common.cpp
++++ b/tools/server/server-common.cpp
+@@ -689,21 +689,24 @@ void server_tokens::keep_first(size_t n) {
+         // n  1   2   3   4   5   6      7      8      9      10
+         // allowed to resize      ^                    ^
+         // disallowed to resize          ^      ^             ^
+         if (n > 0) {
+             // make sure we never remove tokens in the middle of an image
+             // note that keeping a full image at the end is allowed:
+             //   tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] != LLAMA_TOKEN_NULL
+             // and so is the boundary between two adjacent images (a chunk starting at n)
+             if (tokens[n - 1] == LLAMA_TOKEN_NULL && tokens[n] == LLAMA_TOKEN_NULL &&
+                     map_idx_to_media.find(n) == map_idx_to_media.end()) {
+-                find_chunk(n - 1); // will throw an error if the token is not begin-of-chunk
++                const mtmd::input_chunk_ptr & chunk = find_chunk(n - 1); // will throw an error if the token is not begin-of-chunk
++                if (n - 1 + mtmd_input_chunk_get_n_tokens(chunk.get()) > n) {
++                    throw std::runtime_error("Cannot resize in the middle of a media chunk");
++                }
+             }
+         }
+         // remove all image chunks that are not used anymore
+         for (auto it = map_idx_to_media.begin(); it != map_idx_to_media.end(); ) {
+             size_t idx = it->first;
+             if (idx >= n) {
+                 it = map_idx_to_media.erase(it);
+             } else {
+                 ++it;
+             }
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 42777030e..bfd268dbf 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -47,21 +47,21 @@ static common_speculative_output_limits server_output_limits(const common_params
+ 
+     auto result = common_speculative_get_output_limits(
+             params.n_batch, params.n_parallel, common_speculative_n_max(&params.speculative));
+ 
+     result.total   = std::max<int32_t>(1, result.total);
+     result.per_seq = std::max<int32_t>(1, result.per_seq);
+     return result;
+ }
+ 
+ static uint64_t fnv1a64(const char * s) {
+-    uint64_t h = 1469598103934665603ull;
++    uint64_t h = 14695981039346656037ull;
+     for (; s != nullptr && *s != '\0'; ++s) {
+         h ^= (uint8_t) *s;
+         h *= 1099511628211ull;
+     }
+     return h;
+ }
+ 
+ static std::vector<kv_tree_media> tree_media_spans(const server_tokens & tokens) {
+     std::vector<kv_tree_media> out;
+     for (const auto & e : tokens.media_map()) {
+@@ -393,29 +393,29 @@ struct server_slot {
+ 
+         if (n_ckpt_max > 0 && !prompt.tokens.has_media()) {
+             std::list<common_prompt_checkpoint> cks;
+ 
+             // the tree budget is enforced gradually, but a rebuilt checkpoint is an extra in-RAM
+             // copy, so cap the burst by bytes too; drop the shallowest (oldest) first
+             const size_t ck_bytes_max = 256ull << 20;
+             size_t ck_bytes = 0;
+ 
+             for (auto & a : res.anchors) {
+-                if (a.pos <= 0 || a.pos >= res.C) {
++                if (a.tok <= 0 || a.tok >= res.C) {
+                     continue;
+                 }
+ 
+                 common_prompt_checkpoint ck;
+                 ck.id_task = -1;
+                 // stock checkpoints for recurrent contexts record the tail; the rollback filter
+                 // relies on it, so a partial seq_rm is never attempted for them
+-                ck.update_pos(a.pos, ckpt_tail ? a.pos - 1 : 0, a.pos - 1);
++                ck.update_pos(a.tok, ckpt_tail ? a.tok - 1 : 0, a.tok - 1);
+                 ck_bytes += a.data_tgt.size() + a.data_dft.size();
+                 ck.data_tgt = std::move(a.data_tgt);
+                 ck.data_dft = std::move(a.data_dft);
+                 cks.push_back(std::move(ck));
+             }
+ 
+             while ((int) cks.size() > n_ckpt_max) {
+                 ck_bytes -= cks.front().data_tgt.size() + cks.front().data_dft.size();
+                 cks.pop_front();
+             }

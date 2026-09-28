@@ -1,0 +1,18 @@
+diff --git a/ggml/src/ggml-cuda/ggml-cuda.cu b/ggml/src/ggml-cuda/ggml-cuda.cu
+index a9038f1f4..f20adfe14 100644
+--- a/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -4324,6 +4324,13 @@ static void ggml_cuda_graph_evaluate_and_capture(ggml_backend_cuda_context * cud
+ 
+                 int nodes_to_skip = ggml_cuda_try_fuse(cuda_ctx, cgraph, i);
+ 
++                static const bool trace_ops = getenv("GGML_CUDA_TRACE_OPS") != nullptr;
++                if (trace_ops) {
++                    fprintf(stderr, "NODE %4d %-40s %-18s %-8s ne=%lld%s\n", i, node->name, ggml_op_name(node->op),
++                            ggml_type_name(node->type), (long long) ggml_nelements(node),
++                            nodes_to_skip != 0 ? " FUSED" : "");
++                }
++
+                 if (nodes_to_skip != 0) {
+ #ifdef GGML_CUDA_DEBUG
+                     const int last_fused = i + nodes_to_skip;

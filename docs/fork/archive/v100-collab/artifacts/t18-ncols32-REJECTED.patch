@@ -1,0 +1,30 @@
+diff --git a/ggml/src/ggml-cuda/fattn-mma-f16.cuh b/ggml/src/ggml-cuda/fattn-mma-f16.cuh
+index cee8b4417..45fd828ce 100644
+--- a/ggml/src/ggml-cuda/fattn-mma-f16.cuh
++++ b/ggml/src/ggml-cuda/fattn-mma-f16.cuh
+@@ -122,6 +122,8 @@ static constexpr __host__ __device__ fattn_mma_config ggml_cuda_fattn_mma_get_co
+ 
+     GGML_CUDA_FATTN_MMA_CONFIG_CASE(128, 128, 64, 128, 2,  64,  64,  64,  64, 2, false);
+     GGML_CUDA_FATTN_MMA_CONFIG_CASE(256, 256, 64, 128, 2,  32, 128, 128, 128, 2, false);
++    // 32-column tile: 35072 B smem -> 2 blocks/SM, 1.10-1.22x faster (D256 only).
++    GGML_CUDA_FATTN_MMA_CONFIG_CASE(256, 256, 32, 128, 2,  32, 128, 128,  32, 2, false);
+ 
+     // TODO tune specifically for Volta
+     return ggml_cuda_fattn_mma_get_config_ampere(DKQ, DV, ncols);
+diff --git a/ggml/src/ggml-cuda/fattn.cu b/ggml/src/ggml-cuda/fattn.cu
+index 7098c8b4c..e2016f543 100644
+--- a/ggml/src/ggml-cuda/fattn.cu
++++ b/ggml/src/ggml-cuda/fattn.cu
+@@ -169,7 +169,11 @@ static void ggml_cuda_flash_attn_ext_mma_f16_switch_ncols1(ggml_backend_cuda_con
+         }
+     }
+ 
+-    if (Q->ne[1] <= 32/ncols2 || (GGML_CUDA_CC_IS_NVIDIA(cc) && ggml_cuda_highest_compiled_arch(cc) == GGML_CUDA_CC_TURING) ||
++    // Volta D256: the 32-column tile fits 2 blocks per SM (8 warps) and is faster than the 64-column tile.
++    const bool prefer_32col = GGML_CUDA_CC_IS_NVIDIA(cc) && ggml_cuda_highest_compiled_arch(cc) == GGML_CUDA_CC_VOLTA &&
++        DKQ == 256 && DV == 256 && ncols2 == 2;
++
++    if (Q->ne[1] <= 32/ncols2 || prefer_32col || (GGML_CUDA_CC_IS_NVIDIA(cc) && ggml_cuda_highest_compiled_arch(cc) == GGML_CUDA_CC_TURING) ||
+             (GGML_CUDA_CC_IS_AMD(cc) && DKQ > 256)) {
+         ggml_cuda_flash_attn_ext_mma_f16_case<DKQ, DV, 32/ncols2, ncols2>(ctx, dst);
+         return;

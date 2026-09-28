@@ -1,0 +1,651 @@
+# Review package: 42ee7a6f7..04954b468
+
+## Commits
+04954b468 server : seed fork anchors when a tree restore misses
+9e7784270 server : add fork anchor spacing and miss heal to the kv tree
+ad81d0efc common : rename kv tree checkpoint options and add the fork step
+
+## Files changed
+ common/arg.cpp                  |  20 +++++--
+ common/common.h                 |   3 +-
+ tests/test-t32-tree.cpp         | 120 ++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-context.cpp |  10 +++-
+ tools/server/server-kv-tree.cpp |  43 +++-----------
+ tools/server/server-kv-tree.h   |   4 +-
+ 6 files changed, 155 insertions(+), 45 deletions(-)
+
+## Diff
+diff --git a/common/arg.cpp b/common/arg.cpp
+index 904487bc8..9545ccaac 100644
+--- a/common/arg.cpp
++++ b/common/arg.cpp
+@@ -1745,29 +1745,39 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+         {"--tree-chunk"}, "N",
+         string_format("kv tree block size in tokens (default: %d)", params.tree_chunk),
+         [](common_params & params, int value) {
+             if (value <= 0) {
+                 throw std::invalid_argument("tree-chunk must be positive");
+             }
+             params.tree_chunk = value;
+         }
+     ).set_env("LLAMA_ARG_TREE_CHUNK").set_examples({LLAMA_EXAMPLE_SERVER}));
+     add_opt(common_arg(
+-        {"--tree-anchor-step"}, "N",
+-        string_format("minimum spacing between kv tree anchors in tokens (default: %d)", params.tree_anchor_step),
++        {"--tree-checkpoint-anchor-step"}, "N",
++        string_format("minimum spacing between kv tree checkpoint anchors in tokens (default: %d)", params.tree_checkpoint_anchor_step),
+         [](common_params & params, int value) {
+             if (value < 0) {
+-                throw std::invalid_argument("tree-anchor-step must be non-negative");
++                throw std::invalid_argument("tree-checkpoint-anchor-step must be non-negative");
+             }
+-            params.tree_anchor_step = value;
++            params.tree_checkpoint_anchor_step = value;
+         }
+-    ).set_env("LLAMA_ARG_TREE_ANCHOR_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
++    ).set_env("LLAMA_ARG_TREE_CHECKPOINT_ANCHOR_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-checkpoint-fork-step"}, "N",
++        string_format("minimum spacing between kv tree fork anchors in tokens (default: %d)", params.tree_checkpoint_fork_step),
++        [](common_params & params, int value) {
++            if (value < 0) {
++                throw std::invalid_argument("tree-checkpoint-fork-step must be non-negative");
++            }
++            params.tree_checkpoint_fork_step = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_CHECKPOINT_FORK_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
+     add_opt(common_arg(
+         {"--tree-ram"}, "N",
+         string_format("kv tree RAM tier limit in MiB (default: %d)", params.tree_ram_mib),
+         [](common_params & params, int value) {
+             if (value < 0) {
+                 throw std::invalid_argument("tree-ram must be non-negative");
+             }
+             params.tree_ram_mib = value;
+         }
+     ).set_env("LLAMA_ARG_TREE_RAM").set_examples({LLAMA_EXAMPLE_SERVER}));
+diff --git a/common/common.h b/common/common.h
+index 3fb472146..f51a69c50 100644
+--- a/common/common.h
++++ b/common/common.h
+@@ -628,21 +628,22 @@ struct common_params {
+     bool    cache_prompt        = true;  // whether to enable prompt caching
+     bool    cache_idle_slots    = true;  // save and clear idle slots upon starting a new task
+     int32_t n_ctx_checkpoints   = 32;    // max number of context checkpoints per slot
+     int32_t kv_unified_per_slot = 0;     // max context per parallel slot; 0 = unset
+     int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
+     int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
+ 
+     // kv tree params (T32)
+     bool        kv_tree         = false;    // use the kv tree for cross-session KV storage
+     int32_t     tree_chunk      = 512;      // KV tree block size in tokens
+-    int32_t     tree_anchor_step = 32768;   // min spacing between kv tree anchors
++    int32_t     tree_checkpoint_anchor_step = 32768;   // min spacing between kv tree checkpoint anchors
++    int32_t     tree_checkpoint_fork_step   = 8192;    // min spacing between kv tree fork anchors
+     int32_t     tree_ram_mib    = 8192;     // kv tree RAM tier limit in MiB
+     int32_t     tree_disk_mib   = 65536;    // kv tree SSD tier limit in MiB
+     std::string tree_disk_dir   = "";       // kv tree SSD tier directory (empty = no SSD tier)
+     bool        tree_debug      = false;    // dump the kv tree after each park/restore
+ 
+     std::string public_path   = "";                                                                         // NOLINT
+     std::string api_prefix    = "";                                                                         // NOLINT
+     std::string chat_template = "";                                                                         // NOLINT
+     std::vector<std::string> hostnames = {"127.0.0.1"};
+     bool use_jinja = true;                                                                                  // NOLINT
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index c4442787d..ee6970b4a 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -386,20 +386,90 @@ static void run_logic_fixes() {
+         io.max_pos = 1023;
+         check(tree.park(io, nullptr, make_tokens(1024, 0), {}), "fixes: park for the stats line");
+ 
+         const std::string s = tree.stats_line();
+         check(s.find("parks=1") != std::string::npos, "fixes: stats line has parks");
+         check(s.find("anchors=1") != std::string::npos, "fixes: stats line has anchors");
+         check(s.find("disk_err=0") != std::string::npos, "fixes: stats line has disk_err");
+     }
+ }
+ 
++static void run_logic_fork() {
++    fprintf(stderr, "[t32-tree] logic: fork spacing and miss heal\n");
++
++    // fork anchors use fork_step, guesses keep anchor_step
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 32768;
++        cfg.fork_step   = 8192;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++        const auto tok = make_tokens(10240, 0);
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 10239;
++            check(tree.park(io, nullptr, tok, {}), "fork: park the chain");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 1023;
++            check(tree.capture_anchor(io, nullptr, tok, 1024), "fork: the first capture is free");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 5119;
++            check(!tree.capture_anchor(io, nullptr, tok, 5120), "fork: within fork_step is refused");
++        }
++        check_eq(tree.stats().anchors_skipped_step, 1, "fork: the spacing skip is counted");
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 9215;
++            check(tree.capture_anchor(io, nullptr, tok, 9216), "fork: at fork_step it is stored");
++        }
++        check_eq(tree.stats().anchors_added, 3, "fork: tip + two fork anchors");
++        check(tree.stats_line().find("step_skips=1") != std::string::npos, "fork: stats line has step_skips");
++    }
++
++    // a restore miss reports the divergence point
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 32768;
++        cfg.fork_step   = 8192;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++
++        const auto tok_a = make_tokens(4096, 0);
++        auto tok_b = make_tokens(4096, 1);
++        for (int i = 0; i < 2048; ++i) {
++            tok_b[i] = tok_a[i];
++        }
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 4095;
++            check(tree.park(io, nullptr, tok_a, {}), "fork: park A");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 4095;
++            const kv_tree_restore r = tree.restore(io, nullptr, tok_b);
++            check_eq(r.C, -1, "fork: B misses (no anchor on the shared path)");
++            check_eq(r.heal, 2048, "fork: the miss reports the divergence point");
++        }
++    }
++}
++
+ static void run_logic_wipe() {
+     fprintf(stderr, "[t32-tree] logic: startup wipe\n");
+ 
+     const auto dir = std::filesystem::temp_directory_path() / "t32-tree-wipe";
+ 
+     std::error_code ec;
+     std::filesystem::remove_all(dir, ec);
+     std::filesystem::create_directories(dir / "blocks", ec);
+     std::filesystem::create_directories(dir / "anchors", ec);
+ 
+@@ -438,20 +508,21 @@ static void run_logic_wipe() {
+ 
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
+     run_logic_evict();
+     run_logic_drop();
+     run_logic_stream();
+     run_logic_capture();
+     run_logic_fixes();
+     run_logic_wipe();
++    run_logic_fork();
+ 
+     kv_tree_config cfg;
+     cfg.chunk = 512;
+     cfg.ram_limit = 64ull << 20;
+ 
+     kv_tree tree(cfg);
+ 
+     const auto tok_a = make_tokens(1536, 0);   // 3 full chunks
+     const auto tok_b = make_tokens(1024, 0);   // shares the first 2 chunks with tok_a, then diverges
+     auto tok_b2 = tok_b;
+@@ -637,20 +708,21 @@ static std::vector<llama_token> make_fork_tokens(int n_shared, int n_tail, int s
+         t.push_back(10 + (i * 13 + salt) % 1000);
+     }
+     return t;
+ }
+ 
+ static int scenario_fork(llama_context * ctx, const kv_tree_config & cfg_in) {
+     fprintf(stderr, "[t32-tree] scenario: fork\n");
+ 
+     kv_tree_config cfg = cfg_in;
+     cfg.anchor_step = 512;
++    cfg.fork_step   = 512;   // allow the heal capture 512 tokens after the anchor at 512
+ 
+     kv_tree tree(cfg);
+     kv_tree_io_llama io(ctx, 0);
+ 
+     const auto tok_a  = make_fork_tokens(1024, 1024, 0);
+     const auto tok_b  = make_fork_tokens(1024, 1024, 1);
+     const auto tok_a2 = make_fork_tokens(1024, 512,  2);
+ 
+     llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
+     prefill(ctx, 0, std::vector<llama_token>(tok_a.begin(), tok_a.begin() + 512), 0, 512);
+@@ -958,20 +1030,67 @@ static int scenario_restore_anchors(llama_context * ctx, const kv_tree_config &
+             }
+         }
+         check(found, "restore-anchors: the disk anchor is returned");
+ 
+         std::filesystem::remove_all(cfg2.disk_dir, ec);
+     }
+ 
+     return 0;
+ }
+ 
++static int scenario_fork_miss(llama_context * ctx, const kv_tree_config & cfg) {
++    fprintf(stderr, "[t32-tree] scenario: fork miss\n");
++
++    kv_tree tree(cfg);
++    kv_tree_io_llama io(ctx, 0);
++
++    const auto tok_a = make_tokens(4096, 3);
++    auto tok_b = make_tokens(4096, 4);
++    for (int i = 0; i < 2048; ++i) {
++        tok_b[i] = tok_a[i];
++    }
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    if (prefill(ctx, 0, tok_a, 0, 512) != 0) {
++        return 1;
++    }
++    check(tree.park(io, nullptr, tok_a, {}), "fork-miss: park A");
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    const kv_tree_restore r1 = tree.restore(io, nullptr, tok_b);
++    check_eq(r1.C, -1, "fork-miss: the first visit misses");
++    check_eq(r1.heal, 2048, "fork-miss: the miss reports the divergence point");
++
++    // the server prefills to the heal position and captures there
++    if (prefill(ctx, 0, std::vector<llama_token>(tok_b.begin(), tok_b.begin() + 2048), 0, 512) != 0) {
++        return 1;
++    }
++    check(tree.capture_anchor(io, nullptr, tok_b, 2048), "fork-miss: capture at the divergence point");
++    if (prefill(ctx, 0, tok_b, 2048, 512) != 0) {
++        return 1;
++    }
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    const kv_tree_restore r2 = tree.restore(io, nullptr, tok_b);
++    check_eq(r2.C, 2048, "fork-miss: the second visit restores at the fork");
++    check_eq(r2.heal, -1, "fork-miss: no heal on a full match");
++
++    const auto base = run_baseline(ctx, tok_b, 42, 8);
++    const auto r = run_tree_path(ctx, tree, io, tok_b, 42, 8);
++    check_eq(r.res.C, 2048, "fork-miss: the tree path restores at the fork");
++    check(r.gen == base, "fork-miss: tokens match the baseline");
++
++    tree.dump();
++
++    return 0;
++}
++
+ static int run_accept(llama_context * ctx, const kv_tree_config & cfg) {
+     fprintf(stderr, "[t32-tree] mode accept\n");
+ 
+     kv_tree tree(cfg);
+     kv_tree_io_llama io(ctx, 0);
+ 
+     // A-mini: two 4096-token sequences sharing 3072 tokens, six alternating restores
+     const auto tok_a = make_fork_tokens(3072, 1024, 0);
+     const auto tok_b = make_fork_tokens(3072, 1024, 1);
+ 
+@@ -1113,20 +1232,21 @@ int main(int argc, char ** argv) {
+     cfg.disk_limit  = (size_t) disk_mib << 20;
+     cfg.disk_dir    = disk;
+ 
+     if (mode == "model") {
+         int ret = 0;
+         ret |= scenario_tip(ctx, cfg);
+         ret |= scenario_fork(ctx, cfg);
+         ret |= scenario_sparsify(ctx, cfg);
+         ret |= scenario_ssd(ctx, cfg);
+         ret |= scenario_restore_anchors(ctx, cfg);
++        ret |= scenario_fork_miss(ctx, cfg);
+         ret |= scenario_unaligned(ctx, cfg);
+         return ret;
+     }
+ 
+     if (mode == "accept") {
+         return run_accept(ctx, cfg);
+     }
+ 
+     fprintf(stderr, "unknown mode %s\n", mode.c_str());
+     return 1;
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index d64416833..a41d4ddfc 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -354,20 +354,21 @@ struct server_slot {
+         std::unique_ptr<kv_tree_io_llama> io_dft;
+         kv_tree_io * io_dft_ptr = nullptr;
+         if (ctx_dft != nullptr) {
+             io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
+             io_dft_ptr = io_dft.get();
+         }
+ 
+         kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens());
+         if (res.C <= 0) {
+             SLT_INF(*this, "kv tree: restore miss for %zu tokens, full prefill\n", tokens.size());
++            tree_heal = res.heal;   // seed a fork anchor while the prompt is re-prefilled
+             return false;
+         }
+ 
+         prompt.tokens = server_tokens(llama_tokens(tokens.get_tokens().begin(), tokens.get_tokens().begin() + res.C), false);
+         prompt.checkpoints.clear();
+ 
+         if (n_ckpt_max > 0) {
+             std::list<common_prompt_checkpoint> cks;
+ 
+             // the tree budget is enforced gradually, but a rebuilt checkpoint is an extra in-RAM
+@@ -1488,40 +1489,41 @@ private:
+         if (params_base.kv_tree) {
+             if (params_base.kv_unified) {
+                 SRV_WRN("%s", "--kv-tree is not supported with --kv-unified, disabling kv tree\n");
+                 params_base.kv_tree = false;
+             }
+         }
+ 
+         if (params_base.kv_tree) {
+             kv_tree_config cfg;
+             cfg.chunk       = params_base.tree_chunk;
+-            cfg.anchor_step = params_base.tree_anchor_step;
++            cfg.anchor_step = params_base.tree_checkpoint_anchor_step;
++            cfg.fork_step   = params_base.tree_checkpoint_fork_step;
+             cfg.ram_limit   = (size_t) params_base.tree_ram_mib << 20;
+             cfg.disk_limit  = (size_t) params_base.tree_disk_mib << 20;
+             cfg.disk_dir    = params_base.tree_disk_dir;
+             cfg.debug       = params_base.tree_debug;
+ 
+             if (!cfg.disk_dir.empty()) {
+                 std::error_code ec;
+                 std::filesystem::create_directories(cfg.disk_dir, ec);
+                 if (ec) {
+                     SRV_WRN("failed to create kv tree disk directory '%s': %s, disabling the SSD tier\n",
+                             cfg.disk_dir.c_str(), ec.message().c_str());
+                     cfg.disk_dir.clear();
+                 }
+             }
+ 
+             tree = std::make_unique<kv_tree>(cfg);
+ 
+-            SRV_INF("kv tree enabled: chunk = %d, anchor_step = %d, ram = %d MiB, disk = %s (%d MiB)\n",
+-                    cfg.chunk, cfg.anchor_step, params_base.tree_ram_mib,
++            SRV_INF("kv tree enabled: chunk = %d, anchor_step = %d, fork_step = %d, ram = %d MiB, disk = %s (%d MiB)\n",
++                    cfg.chunk, cfg.anchor_step, cfg.fork_step, params_base.tree_ram_mib,
+                     cfg.disk_dir.empty() ? "off" : cfg.disk_dir.c_str(), params_base.tree_disk_mib);
+         }
+ 
+         if (params_base.n_ctx_checkpoints > 0) {
+             SRV_TRC("context checkpoints enabled, max = %d, min spacing = %d\n",
+                     params_base.n_ctx_checkpoints, params_base.checkpoint_min_step);
+         } else {
+             SRV_TRC("%s", "context checkpoints disabled\n");
+         }
+ 
+@@ -1802,21 +1804,23 @@ private:
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+                 if (tree) {
+                     ret->prompt_park(*tree);
+ 
+                     // no point restoring when the request will not reuse the prompt
+                     const bool ckpt_tail = ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_FULL ||
+                                            ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS;
+                     if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens, params_base.n_ctx_checkpoints, ckpt_tail)) {
++                        const llama_pos heal = task.params.cache_prompt ? ret->tree_heal : -1;
+                         ret->prompt_clear();
++                        ret->tree_heal = heal;
+                     }
+                 } else {
+                     ret->prompt_save(*prompt_cache);
+ 
+                     if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+                         ret->prompt_clear();
+                     }
+ 
+                     prompt_cache->update();
+                 }
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index bdd03266d..ae9534a68 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -373,23 +373,24 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+     llama_pos prev = -1;
+     for (const auto & kv : anchors) {
+         if (kv.second.pos >= pos || kv.second.pos <= prev) {
+             continue;
+         }
+         if (std::find(chain.begin(), chain.end(), kv.first.first) != chain.end()) {
+             prev = kv.second.pos;
+         }
+     }
+ 
+-    if (prev >= 0 && pos - prev < cfg.anchor_step) {
+-        fprintf(stderr, "[kv-tree] capture skipped at %d: within anchor_step\n", pos);
++    if (prev >= 0 && pos - prev < cfg.fork_step) {
++        fprintf(stderr, "[kv-tree] capture skipped at %d: within fork_step\n", pos);
+         st.anchors_skipped++;
++        st.anchors_skipped_step++;
+         return false;
+     }
+ 
+     std::vector<uint8_t> tgt;
+     std::vector<uint8_t> dft;
+ 
+     if (!io_tgt.get_partial(tgt)) {
+         fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the state\n", pos);
+         st.anchors_skipped++;
+         return false;
+@@ -402,54 +403,26 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+ 
+     if (!store_anchor(blk, pos, KV_TREE_ANCHOR_ONDEMAND, std::move(tgt), std::move(dft))) {
+         return false;
+     }
+ 
+     if (!enforce_budget() || anchors.count(key) == 0) {
+         st.anchors_skipped++;
+         return false;
+     }
+ 
+-    promote_prune(chain, pos);
++    // no pruning needed here: the spacing rule keeps prev <= pos - fork_step,
++    // so no anchor can sit between prev and the new one
+ 
+     return true;
+ }
+ 
+-void kv_tree::promote_prune(const std::vector<uint64_t> & chain, llama_pos pos) {
+-    // previous anchor on this chain
+-    llama_pos prev = -1;
+-    for (const auto & kv : anchors) {
+-        const kv_tree_anchor & a = kv.second;
+-        if (a.pos >= pos || a.pos <= prev) {
+-            continue;
+-        }
+-        if (std::find(chain.begin(), chain.end(), a.blk_hash) != chain.end()) {
+-            prev = a.pos;
+-        }
+-    }
+-
+-    if (prev < 0) {
+-        return;
+-    }
+-
+-    for (auto it = anchors.begin(); it != anchors.end(); ) {
+-        kv_tree_anchor & a = it->second;
+-
+-        if (a.pos > prev && a.pos < pos && a.kind != KV_TREE_ANCHOR_TIP && a.refcount < 2 && !a.pinned &&
+-            std::find(chain.begin(), chain.end(), a.blk_hash) != chain.end()) {
+-            remove_anchor(it++);
+-        } else {
+-            ++it;
+-        }
+-    }
+-}
+-
+ uint64_t kv_tree::containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const {
+     if (pos <= 0) {
+         return 0;
+     }
+ 
+     auto it = blocks_at.lower_bound(pos);
+     if (it == blocks_at.begin()) {
+         return 0;
+     }
+     --it;
+@@ -1180,20 +1153,21 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+             }
+             if (std::find(h.begin(), h.end(), kv.first.first) != h.end()) {
+                 prev = kv.second.pos;
+             }
+         }
+ 
+         const llama_pos prev_kept = prev > last_kept ? prev : last_kept;
+ 
+         if (prev_kept >= 0 && c.pos - prev_kept < cfg.anchor_step) {
+             st.anchors_skipped++;
++            st.anchors_skipped_step++;
+             continue;
+         }
+ 
+         if (!store_anchor(blk, c.pos, KV_TREE_ANCHOR_MESSAGE, std::vector<uint8_t>(c.data_tgt), std::vector<uint8_t>(c.data_dft))) {
+             fprintf(stderr, "[kv-tree] candidate at %d skipped: anchor store failed\n", c.pos);
+             st.anchors_skipped++;
+             continue;
+         }
+ 
+         touched.emplace_back(blk, c.pos);
+@@ -1319,20 +1293,21 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+                 if (it->second.pos > C) {
+                     C = it->second.pos;
+                     c_hash = hash;
+                 }
+             }
+         }
+     }
+ 
+     if (C < 0) {
+         st.restore_miss++;
++        res.heal = m.deep;   // seed a fork anchor while the caller re-prefills
+         return res;
+     }
+ 
+     for (const uint64_t hash : cand) {
+         auto it = blocks.find(hash);
+         if (it != blocks.end()) {
+             it->second.pinned = true;
+         }
+     }
+     for (auto & kv : anchors) {
+@@ -1439,27 +1414,27 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+ 
+     return res;
+ }
+ 
+ std::string kv_tree::stats_line() const {
+     char buf[512];
+ 
+     snprintf(buf, sizeof(buf),
+              "parks=%" PRId64 " ok=%" PRId64 " refused=%" PRId64
+              " restore=%" PRId64 " hits=%" PRId64 " miss=%" PRId64
+-             " anchors=%" PRId64 " skipped=%" PRId64 " reuse_tok=%" PRId64
++             " anchors=%" PRId64 " skipped=%" PRId64 " step_skips=%" PRId64 " reuse_tok=%" PRId64
+              " store=%" PRId64 " load=%" PRId64
+              " evicted=%" PRId64 "/%" PRId64 "/%" PRId64 " evict_refused=%" PRId64
+              " disk_err=%" PRId64 " ram=%" PRId64 " disk=%" PRId64,
+              st.park_calls, st.park_ok, st.park_refused,
+              st.restore_calls, st.restore_hits, st.restore_miss,
+-             st.anchors_added, st.anchors_skipped, st.tokens_reused,
++             st.anchors_added, st.anchors_skipped, st.anchors_skipped_step, st.tokens_reused,
+              st.bytes_store, st.bytes_load,
+              st.evicted_anchors, st.evicted_blocks, st.evicted_seqs, st.evict_refused,
+              st.disk_errors, st.bytes_ram, st.bytes_disk);
+ 
+     return buf;
+ }
+ 
+ void kv_tree::dump() const {
+     fprintf(stderr, "[kv-tree] blocks: %" PRId64 " ram, %" PRId64 " disk, %" PRId64 " bytes ram, %" PRId64 " bytes disk\n",
+             st.blocks_ram, st.blocks_disk, st.bytes_ram, st.bytes_disk);
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index a2ab80efb..9ee0856ba 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -7,20 +7,21 @@
+ 
+ #include <cstdint>
+ #include <map>
+ #include <string>
+ #include <unordered_map>
+ #include <vector>
+ 
+ struct kv_tree_config {
+     int         chunk       = 512;
+     int         anchor_step = 32768;
++    int         fork_step   = 8192;
+     size_t      ram_limit   = 8ull  << 30;
+     size_t      disk_limit  = 64ull << 30;
+     std::string disk_dir;
+     bool        debug       = false;
+ };
+ 
+ enum kv_tree_anchor_kind {
+     KV_TREE_ANCHOR_TIP      = 0,
+     KV_TREE_ANCHOR_MESSAGE  = 1,
+     KV_TREE_ANCHOR_ONDEMAND = 2,
+@@ -41,20 +42,21 @@ struct kv_tree_stats {
+     int64_t bytes_ram       = 0;
+     int64_t bytes_disk      = 0;
+     int64_t park_calls      = 0;
+     int64_t park_ok         = 0;
+     int64_t park_refused    = 0;
+     int64_t restore_calls   = 0;
+     int64_t restore_hits    = 0;
+     int64_t restore_miss    = 0;
+     int64_t anchors_added   = 0;
+     int64_t anchors_skipped = 0;
++    int64_t anchors_skipped_step = 0;
+     int64_t tokens_reused   = 0;
+     int64_t bytes_store     = 0;
+     int64_t bytes_load      = 0;
+     int64_t evicted_anchors = 0;
+     int64_t evicted_blocks  = 0;
+     int64_t evicted_seqs    = 0;
+     int64_t evict_refused   = 0;
+     int64_t disk_errors     = 0;
+ };
+ 
+@@ -177,22 +179,20 @@ public:
+     void dump() const;
+ 
+ private:
+     kv_tree_match match(const std::vector<llama_token> & tokens) const;
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+     uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 
+-    void promote_prune(const std::vector<uint64_t> & chain, llama_pos pos);
+-
+     void remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it);
+ 
+     bool enforce_budget();
+ 
+     bool has_successor(const kv_tree_block & b) const;
+ 
+     bool demote_one();
+ 
+     bool evict_anchor_one();
+     bool evict_block_one();

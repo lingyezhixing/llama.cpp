@@ -1,0 +1,8 @@
+﻿{"tag":"B1100fix","step":"A-round0","req":1,"prompt_n":5718,"prompt_ms":7199.5,"gen_n":1,"gen_ms":0.0,"wall_s":7.27}
+{"tag":"B1100fix","step":"B-round0","req":2,"prompt_n":5433,"prompt_ms":6688.3,"gen_n":1,"gen_ms":0.0,"wall_s":7.22}
+{"tag":"B1100fix","step":"A-round1","req":3,"prompt_n":71,"prompt_ms":628.1,"gen_n":1,"gen_ms":0.0,"wall_s":1.31}
+{"tag":"B1100fix","step":"B-round1","req":4,"prompt_n":71,"prompt_ms":613.9,"gen_n":1,"gen_ms":0.0,"wall_s":1.3}
+{"tag":"B1100fix","step":"A-round2","req":5,"prompt_n":71,"prompt_ms":628.0,"gen_n":1,"gen_ms":0.0,"wall_s":1.32}
+{"tag":"B1100fix","step":"B-round2","req":6,"prompt_n":71,"prompt_ms":620.3,"gen_n":1,"gen_ms":0.0,"wall_s":1.27}
+{"tag":"B1100fix","step":"A-final","req":7,"prompt_n":4,"prompt_ms":234.1,"gen_n":1,"gen_ms":0.0,"wall_s":0.87}
+{"tag":"B1100fix","step":"B-final","req":8,"prompt_n":4,"prompt_ms":208.4,"gen_n":1,"gen_ms":0.0,"wall_s":0.85}

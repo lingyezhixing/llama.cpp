@@ -1,0 +1,8 @@
+﻿{"tag":"B2base","step":"A-round0","req":1,"prompt_n":5718,"prompt_ms":7188.4,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.26}
+{"tag":"B2base","step":"B-round0","req":2,"prompt_n":5433,"prompt_ms":6680.1,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":6.97}
+{"tag":"B2base","step":"A-round1","req":3,"prompt_n":5480,"prompt_ms":6686.7,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.03}
+{"tag":"B2base","step":"B-round1","req":4,"prompt_n":5500,"prompt_ms":6729.5,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.07}
+{"tag":"B2base","step":"A-round2","req":5,"prompt_n":5547,"prompt_ms":6757.4,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.09}
+{"tag":"B2base","step":"B-round2","req":6,"prompt_n":5567,"prompt_ms":6775.1,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.11}
+{"tag":"B2base","step":"A-final","req":7,"prompt_n":5547,"prompt_ms":6781.2,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.12}
+{"tag":"B2base","step":"B-final","req":8,"prompt_n":5567,"prompt_ms":6793.6,"gen_n":1,"gen_ms":0.0,"text":"","wall_s":7.13}

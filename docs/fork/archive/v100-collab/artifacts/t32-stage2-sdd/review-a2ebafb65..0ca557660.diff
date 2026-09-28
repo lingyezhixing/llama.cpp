@@ -1,0 +1,344 @@
+# Review package: a2ebafb65..0ca557660
+
+## Commits
+0ca557660 server : adopt checkpoint anchors in the kv tree
+
+## Files changed
+ tests/test-t32-tree.cpp         | 114 ++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.cpp |  98 +++++++++++++++++++++++++++++++++-
+ tools/server/server-kv-tree.h   |   4 +-
+ 3 files changed, 213 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 9bc8eb9ac..fb9102605 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -265,20 +265,132 @@ static int scenario_tip(llama_context * ctx, const kv_tree_config & cfg) {
+ 
+     // the sequence now ends at L + 8, so parking it again must be refused
+     check(!tree.park(io, nullptr, tokens, {}), "tip: park refused when the sequence ends past L");
+     check_eq(tree.stats().park_refused, 1, "tip: refusal counted");
+ 
+     tree.dump();
+ 
+     return n_fail == 0 ? 0 : 1;
+ }
+ 
++static std::vector<llama_token> make_fork_tokens(int n_shared, int n_tail, int salt) {
++    std::vector<llama_token> t = make_tokens(n_shared, 0);
++    for (int i = 0; i < n_tail; ++i) {
++        t.push_back(10 + (i * 13 + salt) % 1000);
++    }
++    return t;
++}
++
++static int scenario_fork(llama_context * ctx, const kv_tree_config & cfg_in) {
++    fprintf(stderr, "[t32-tree] scenario: fork\n");
++
++    kv_tree_config cfg = cfg_in;
++    cfg.anchor_step = 512;
++
++    kv_tree tree(cfg);
++    kv_tree_io_llama io(ctx, 0);
++
++    const auto tok_a  = make_fork_tokens(1024, 1024, 0);
++    const auto tok_b  = make_fork_tokens(1024, 1024, 1);
++    const auto tok_a2 = make_fork_tokens(1024, 512,  2);
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    prefill(ctx, 0, std::vector<llama_token>(tok_a.begin(), tok_a.begin() + 512), 0, 512);
++
++    const kv_tree_anchor_in ck = capture_partial(ctx, 0, 512);
++
++    prefill(ctx, 0, tok_a, 512, 512);
++    check(tree.park(io, nullptr, tok_a, { ck }), "fork: park A");
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    prefill(ctx, 0, tok_b, 0, 512);
++    check(tree.park(io, nullptr, tok_b, {}), "fork: park B");
++
++    {
++        const auto base = run_baseline(ctx, tok_a, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, tok_a, 42, 8);
++        check_eq(r.res.C, 2048, "fork: A restores at the tip");
++        check(r.gen == base, "fork: A tokens match the baseline");
++    }
++    {
++        const auto base = run_baseline(ctx, tok_b, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, tok_b, 42, 8);
++        check_eq(r.res.C, 2048, "fork: B restores at the tip");
++        check(r.gen == base, "fork: B tokens match the baseline");
++    }
++    {
++        const auto base = run_baseline(ctx, tok_a2, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, tok_a2, 42, 8);
++        check_eq(r.res.C, 512, "fork: A' restores at the deepest usable anchor");
++        check_eq(r.res.heal, 1024, "fork: A' asks for a heal at the fork point");
++        check(r.gen == base, "fork: A' tokens match the baseline");
++    }
++
++    tree.dump();
++
++    return n_fail == 0 ? 0 : 1;
++}
++
++static int scenario_sparsify(llama_context * ctx, const kv_tree_config & cfg_in) {
++    fprintf(stderr, "[t32-tree] scenario: sparsify\n");
++
++    kv_tree_config cfg = cfg_in;
++    cfg.anchor_step = 1024;
++
++    kv_tree tree(cfg);
++    kv_tree_io_llama io(ctx, 0);
++
++    const auto tokens = make_tokens(2048, 0);
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    prefill(ctx, 0, std::vector<llama_token>(tokens.begin(), tokens.begin() + 512), 0, 512);
++
++    const kv_tree_anchor_in ck1 = capture_partial(ctx, 0, 512);
++
++    prefill(ctx, 0, std::vector<llama_token>(tokens.begin(), tokens.begin() + 1024), 512, 512);
++
++    const kv_tree_anchor_in ck2 = capture_partial(ctx, 0, 1024);
++
++    prefill(ctx, 0, std::vector<llama_token>(tokens.begin(), tokens.begin() + 1536), 1024, 512);
++
++    const kv_tree_anchor_in ck3 = capture_partial(ctx, 0, 1536);
++
++    prefill(ctx, 0, tokens, 1536, 512);
++
++    check(tree.park(io, nullptr, tokens, { ck1, ck2, ck3 }), "sparsify: park");
++
++    {
++        const std::vector<llama_token> short1(tokens.begin(), tokens.begin() + 1024);
++        const auto base = run_baseline(ctx, short1, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, short1, 42, 8);
++        check_eq(r.res.C, 512, "sparsify: [0, 1024) restores at 512");
++        check(r.gen == base, "sparsify: [0, 1024) tokens match");
++    }
++    {
++        const std::vector<llama_token> short2(tokens.begin(), tokens.begin() + 1536);
++        const auto base = run_baseline(ctx, short2, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, short2, 42, 8);
++        check_eq(r.res.C, 1536, "sparsify: [0, 1536) restores at 1536");
++        check(r.gen == base, "sparsify: [0, 1536) tokens match");
++    }
++    {
++        const auto base = run_baseline(ctx, tokens, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, tokens, 42, 8);
++        check_eq(r.res.C, 2048, "sparsify: full length restores at the tip");
++        check(r.gen == base, "sparsify: full length tokens match");
++    }
++
++    tree.dump();
++
++    return n_fail == 0 ? 0 : 1;
++}
++
+ int main(int argc, char ** argv) {
+     std::string mode = "logic";
+ 
+     int    chunk       = 512;
+     int    anchor_step = 32768;
+     int    ram_mib     = 8192;
+     int    disk_mib    = 65536;
+     std::string disk;
+ 
+     std::vector<char *> args;
+@@ -344,16 +456,18 @@ int main(int argc, char ** argv) {
+     kv_tree_config cfg;
+     cfg.chunk       = chunk;
+     cfg.anchor_step = anchor_step;
+     cfg.ram_limit   = (size_t) ram_mib << 20;
+     cfg.disk_limit  = (size_t) disk_mib << 20;
+     cfg.disk_dir    = disk;
+ 
+     if (mode == "model") {
+         int ret = 0;
+         ret |= scenario_tip(ctx, cfg);
++        ret |= scenario_fork(ctx, cfg);
++        ret |= scenario_sparsify(ctx, cfg);
+         return ret;
+     }
+ 
+     fprintf(stderr, "unknown mode %s\n", mode.c_str());
+     return 1;
+ }
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 0938daf4c..888adf515 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -157,24 +157,43 @@ bool kv_tree::store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+     a.data_tgt  = std::move(data_tgt);
+     a.data_dft  = std::move(data_dft);
+ 
+     st.anchors_ram++;
+     st.anchors_added++;
+     st.bytes_ram += (int64_t) size;
+ 
+     return true;
+ }
+ 
++uint64_t kv_tree::containing_block(llama_pos pos) const {
++    if (pos <= 0) {
++        return 0;
++    }
++
++    auto it = blocks_at.lower_bound(pos);
++    if (it == blocks_at.begin()) {
++        return 0;
++    }
++    --it;
++
++    for (const uint64_t hash : it->second) {
++        const auto b = blocks.find(hash);
++        if (b != blocks.end() && b->second.pos0 < pos && pos <= b->second.pos1) {
++            return hash;
++        }
++    }
++
++    return 0;
++}
++
+ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+                    const std::vector<kv_tree_anchor_in> & checkpoints) {
+-    (void) checkpoints;
+-
+     st.park_calls++;
+ 
+     const llama_pos L = (llama_pos) tokens.size();
+ 
+     if (L <= 0 || io_tgt.pos_max() != L - 1) {
+         fprintf(stderr, "[kv-tree] park refused: sequence end %d, expected %d\n", io_tgt.pos_max(), L - 1);
+         st.park_refused++;
+         return false;
+     }
+ 
+@@ -272,20 +291,95 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+         b.heat++;
+         b.last_used = ++now;
+     }
+ 
+     if (!store_anchor(tip, L, KV_TREE_ANCHOR_TIP, std::move(part_tgt), std::move(part_dft))) {
+         fprintf(stderr, "[kv-tree] park refused: cannot store the tip anchor at %d\n", L);
+         st.park_refused++;
+         return false;
+     }
+ 
++    // adopt checkpoint candidates: sort by pos, greedy with anchor_step, conflict keeps the earlier one
++    std::vector<kv_tree_anchor_in> cand = checkpoints;
++    std::sort(cand.begin(), cand.end(), [](const kv_tree_anchor_in & a, const kv_tree_anchor_in & b) {
++        return a.pos < b.pos;
++    });
++
++    std::vector<std::pair<uint64_t, llama_pos>> touched;
++    touched.emplace_back(tip, L);
++
++    llama_pos last_kept = -1;
++
++    for (const kv_tree_anchor_in & c : cand) {
++        if (c.pos <= 0 || c.pos > L || c.data_tgt.empty()) {
++            continue;
++        }
++
++        const uint64_t blk = containing_block(c.pos);
++        if (blk == 0) {
++            st.anchors_skipped++;
++            continue;
++        }
++
++        llama_pos prev = -1;
++        for (const auto & kv : anchors) {
++            if (kv.second.pos < c.pos && kv.second.pos > prev) {
++                prev = kv.second.pos;
++            }
++        }
++
++        const llama_pos prev_kept = prev > last_kept ? prev : last_kept;
++
++        if (prev_kept >= 0 && c.pos - prev_kept < cfg.anchor_step) {
++            st.anchors_skipped++;
++            continue;
++        }
++
++        if (!store_anchor(blk, c.pos, KV_TREE_ANCHOR_MESSAGE, std::vector<uint8_t>(c.data_tgt), std::vector<uint8_t>(c.data_dft))) {
++            st.anchors_skipped++;
++            continue;
++        }
++
++        touched.emplace_back(blk, c.pos);
++        last_kept = c.pos;
++    }
++
++    // anchors that already cover this sequence keep their refcount in sync
++    for (auto & kv : anchors) {
++        if (kv.second.pos > L) {
++            continue;
++        }
++
++        bool in_chain = false;
++        for (const uint64_t hash : h) {
++            if (hash == kv.first.first) {
++                in_chain = true;
++                break;
++            }
++        }
++        if (!in_chain) {
++            continue;
++        }
++
++        bool was_touched = false;
++        for (const auto & t : touched) {
++            if (t.first == kv.first.first && t.second == kv.second.pos) {
++                was_touched = true;
++                break;
++            }
++        }
++        if (!was_touched) {
++            kv.second.refcount++;
++            touched.emplace_back(kv.first.first, kv.second.pos);
++        }
++    }
++
+     kv_tree_seq & s = seqs[tip];
+     s.chain     = h;
+     s.len       = L;
+     s.last_used = ++now;
+ 
+     st.park_ok++;
+     return true;
+ }
+ 
+ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens) {
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index c7ecefd0e..7f9a179d7 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -158,22 +158,24 @@ public:
+     const kv_tree_stats & stats() const { return st; }
+ 
+     void dump() const;
+ 
+ private:
+     kv_tree_match match(const std::vector<llama_token> & tokens) const;
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
++    uint64_t containing_block(llama_pos pos) const;
++
+     bool make_room(size_t need_ram);
+ 
+     kv_tree_config cfg;
+     kv_tree_stats  st;
+ 
+     std::unordered_map<uint64_t, kv_tree_block> blocks;
+-    std::unordered_map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
++    std::map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
+     std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor> anchors;
+     std::unordered_map<uint64_t, kv_tree_seq> seqs;                  // tip hash -> sequence
+ 
+     int64_t now = 0;
+ };

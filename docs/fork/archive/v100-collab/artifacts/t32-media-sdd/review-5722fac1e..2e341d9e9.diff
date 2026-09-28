@@ -1,0 +1,204 @@
+# Review package: 5722fac1e..2e341d9e9
+
+## Commits
+2e341d9e9 kv tree : walk back interleaved blocks in chain lookup
+
+## Files changed
+ tests/test-t32-tree.cpp         | 42 +++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.cpp | 36 +++++++++++++++++++----------------
+ tools/server/server-kv-tree.h   |  6 +++---
+ 3 files changed, 65 insertions(+), 19 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 2d107e7e2..56b048532 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -716,20 +716,62 @@ static void run_logic_media() {
+             io.max_pos = 2000;   // all chunk cells carry the chunk start position
+             check(tree.park(io, nullptr, tok, media, {}), "media: park guarded by the last KV cell");
+         }
+         {
+             kv_tree_io_fake io;
+             io.max_pos = pos_at(media, 3000) - 1;
+             check(!tree.park(io, nullptr, tok, media, {}), "media: park refused when the state ends past the chunk");
+             check_eq(tree.stats().park_refused, 1, "media: the refusal is counted");
+         }
+     }
++
++    // interleaved chains: the covering block of one chain is not the nearest position key of the other
++    {
++        kv_tree tree(cfg);
++
++        const auto tok_b = make_tokens(3000, 7);   // text chain with 512-aligned position keys
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 2999;
++            check(tree.park(io, nullptr, tok_b, {}, {}), "media: park the interleaved text chain");
++        }
++
++        auto tok_a = make_tokens(3000, 0);
++        std::vector<kv_tree_media> media;
++        add_media(tok_a, media, 1000, 0xAA, 1026, 32);
++
++        kv_tree_anchor_in ck;
++        ck.tok      = 2534;   // maps to pos 1540, past the text chain block that starts at 1536
++        ck.data_tgt = kv_tree_io_fake::pattern(0, 64);
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = pos_at(media, 3000) - 1;
++            check(tree.park(io, nullptr, tok_a, media, { ck }), "media: park the media chain over the text chain");
++            check_eq(tree.stats().anchors_added, 3, "media: the interleaved candidate is adopted");
++        }
++
++        {
++            kv_tree_io_fake io;
++            const kv_tree_restore r = tree.restore(io, nullptr, tok_a, media);
++            check_eq(r.C, 3000, "media: interleaved restore reaches the tip");
++            check_eq((long long) r.anchors.size(), 2, "media: both interleaved anchors are on the path");
++
++            bool found = false;
++            for (const auto & a : r.anchors) {
++                if (a.tok == 2534 && a.pos == 1540) {
++                    found = true;
++                }
++            }
++            check(found, "media: the interleaved candidate anchor is usable");
++        }
++    }
+ }
+ 
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
+     run_logic_evict();
+     run_logic_drop();
+     run_logic_stream();
+     run_logic_capture();
+     run_logic_fixes();
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index d26cdc086..6e8326765 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -431,23 +431,23 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+ 
+     std::vector<size_t> starts;
+     chain_split(media, tokens.size(), cfg.chunk, starts);
+ 
+     std::vector<uint64_t> chain;
+     chain_hashes(tokens, media, starts, chain);
+ 
+     uint64_t blk = containing_block(apos, &chain);
+     if (blk == 0) {
+         // heal can land inside a stored block when the request tail does not line up with it;
+-        // fall back to a stored block that covers tok and matches the stored prefix
+-        auto base = blocks_at.lower_bound(tok);
+-        if (base != blocks_at.begin()) {
++        // fall back to a stored block that covers tok and matches the stored prefix.
++        // block starts interleave across chains, so walk the keys back until a candidate matches
++        for (auto base = blocks_at.lower_bound(tok); base != blocks_at.begin() && blk == 0; ) {
+             --base;
+ 
+             for (const uint64_t hash : base->second) {
+                 const auto bi = blocks.find(hash);
+                 if (bi == blocks.end()) {
+                     continue;
+                 }
+ 
+                 const kv_tree_block & b = bi->second;
+                 if (b.tok0 >= tok || tok > b.tok0 + (int64_t) b.tokens.size()) {
+@@ -558,35 +558,39 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+     // no pruning needed: prev is the deepest same-chain anchor below pos, so no anchor can sit between them
+ 
+     return true;
+ }
+ 
+ uint64_t kv_tree::containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const {
+     if (pos <= 0) {
+         return 0;
+     }
+ 
+-    auto it = blocks_by_pos0.lower_bound(pos);
+-    if (it == blocks_by_pos0.begin()) {
+-        return 0;
+-    }
+-    --it;
++    // chains interleave in position space once media compresses positions: walk predecessor
++    // keys back until a block on the chain is found. The first chain block is the only
++    // possible cover, because chain blocks have increasing, disjoint spans.
++    for (auto it = blocks_by_pos0.lower_bound(pos); it != blocks_by_pos0.begin(); ) {
++        --it;
+ 
+-    for (const uint64_t hash : it->second) {
+-        const auto b = blocks.find(hash);
+-        if (b == blocks.end() || b->second.pos0 >= pos || pos > b->second.pos1) {
+-            continue;
+-        }
+-        if (chain != nullptr && std::find(chain->begin(), chain->end(), hash) == chain->end()) {
+-            continue;
++        for (const uint64_t hash : it->second) {
++            const auto b = blocks.find(hash);
++            if (b == blocks.end()) {
++                continue;
++            }
++            if (chain != nullptr && std::find(chain->begin(), chain->end(), hash) == chain->end()) {
++                continue;
++            }
++            if (b->second.pos0 < pos && pos <= b->second.pos1) {
++                return hash;
++            }
++            return 0;   // no earlier chain block can cover pos
+         }
+-        return hash;
+     }
+ 
+     return 0;
+ }
+ 
+ std::string kv_tree::block_path(uint64_t hash) const {
+     char buf[32];
+     snprintf(buf, sizeof(buf), "%016" PRIx64 ".bin", hash);
+     return cfg.disk_dir + "/blocks/" + buf;
+ }
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index cafe3b6cc..09f26ea7c 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -143,33 +143,33 @@ struct kv_tree_seq {
+     int64_t     last_used = 0;
+     bool        pinned    = false;
+ };
+ 
+ // verified prefix of a request against the stored blocks
+ struct kv_tree_match {
+     std::vector<uint64_t> path;    // hashes of fully matched blocks
+     size_t      n_full    = 0;     // number of fully matched blocks
+     size_t      n_part    = 0;     // tokens verified inside the last partial block
+     uint64_t    part_hash = 0;     // hash of the partially matched block
+-    llama_pos   deep      = 0;     // deepest verified position
++    llama_pos   deep      = 0;     // deepest verified token index
+ };
+ 
+ struct kv_tree_restore_anchor {
+     int64_t     tok = 0;
+     llama_pos   pos = 0;
+     std::vector<uint8_t> data_tgt;
+     std::vector<uint8_t> data_dft;
+ };
+ 
+ struct kv_tree_restore {
+-    llama_pos C = -1;              // restore point, -1 = caller must do a full prefill
+-    llama_pos heal = -1;           // capture an anchor when the prefill crosses this pos
++    llama_pos C = -1;              // restore point in tokens, -1 = caller must do a full prefill
++    llama_pos heal = -1;           // capture an anchor when the prefill crosses this token index
+     std::vector<kv_tree_restore_anchor> anchors; // path anchors up to C, ascending
+ };
+ 
+ class kv_tree {
+ public:
+     explicit kv_tree(const kv_tree_config & cfg);
+ 
+     // store the sequence tokens[0, L); the io state must end exactly at the last KV cell
+     bool park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+               const std::vector<kv_tree_media> & media,

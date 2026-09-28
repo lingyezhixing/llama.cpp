@@ -1,0 +1,1537 @@
+diff --git a/ggml/include/ggml.h b/ggml/include/ggml.h
+index 224bdef92..02adb0c1a 100644
+--- a/ggml/include/ggml.h
++++ b/ggml/include/ggml.h
+@@ -2649,6 +2649,19 @@ extern "C" {
+     // the output packs the attention scores [S_v, H_v, n_tokens, n_seqs] followed by K state
+     // snapshots, most-recent first (slot 0 = final state, slot s = state s tokens back). K == 1
+     // keeps only the final state; when n_tokens < K only slots 0..n_tokens-1 are written.
++    //
++    // ReplaySSM (optional): when `rec` and `fold` are given, the kernel writes the raw inputs of this
++    // batch into the record bank of each sequence and first replays the accepted records of its previous
++    // batch, starting from the state input and committing the result to the state slot. No per-token
++    // snapshots are written then, the state input is the single committed plane per cell.
++    //   rec  : [k | v | g | beta, 2*T_cap, banks] view of the per-layer record cache (F32), one bank
++    //          per sequence of the memory
++    //   fold : [_, p_i, read half_i, write half_i, bank_i, check, skip] (I32), 4*n_seq_max + 3 slots,
++    //          one entry per sequence of the ubatch: p_i records to replay, the record half to read and
++    //          the half this batch writes, the record bank of the sequence and the self-check counter
++    //   diag : [n_embd_s, n_seqs] view of the per-cell committed states (F32, may be NULL) receives the
++    //          state committed by this call, so the next call can verify its fold against it (adds to
++    //          `check` on mismatch; skipped for the batch that carries a restored state)
+     GGML_API struct ggml_tensor * ggml_gated_delta_net(
+             struct ggml_context * ctx,
+             struct ggml_tensor  * q,
+@@ -2657,7 +2670,10 @@ extern "C" {
+             struct ggml_tensor  * g,
+             struct ggml_tensor  * beta,
+             struct ggml_tensor  * state,
+-            int64_t               K);
++            int64_t               K,
++            struct ggml_tensor  * rec,
++            struct ggml_tensor  * fold,
++            struct ggml_tensor  * diag);
+ 
+     // DSA lightning indexer
+     //
+diff --git a/ggml/src/ggml-cuda/gated_delta_net.cu b/ggml/src/ggml-cuda/gated_delta_net.cu
+index 1b431a724..ce9bd0e85 100644
+--- a/ggml/src/ggml-cuda/gated_delta_net.cu
++++ b/ggml/src/ggml-cuda/gated_delta_net.cu
+@@ -1,6 +1,51 @@
+ #include "gated_delta_net.cuh"
+ #include "ggml-cuda/common.cuh"
+ 
++// ReplaySSM record layout passed to the kernel (see ggml_gated_delta_net)
++struct gdn_rec_params {
++    float * rec;          // [k | v | g | beta, 2*T_cap, banks]
++    int32_t * fold;       // [_, p_i .., read half_i .., write half_i .., bank_i .., check, skip_check]
++    float * diag;         // state committed by the previous pass, for the fold self-check (may be null)
++    int64_t nb1;          // stride over the 2*T_cap dimension, in floats
++    int64_t nb2;          // stride over banks, in floats
++    int64_t half_stride;  // T_cap * nb1
++    int64_t t_cap;
++    int     n_fold;       // number of sequences the fold block holds (n_seq_max)
++    int64_t k_off;
++    int64_t v_off;
++    int64_t g_off;
++    int64_t b_off;
++};
++
++// shared state update: the fold and the main loop must compile the exact same arithmetic
++template <bool KDA, int rows_per_lane, int warp_size>
++__device__ __forceinline__ void gdn_state_update(
++        float (&s_shard)[rows_per_lane], const float (&k_reg)[rows_per_lane],
++        const float * v_t, const float * g_t, const float beta_val, const int col, const int lane) {
++    float kv_shard = 0.0f;
++    float g_val = 0.0f;
++    if constexpr (!KDA) {
++        g_val = expf(*g_t);
++#pragma unroll
++        for (int r = 0; r < rows_per_lane; r++) {
++            kv_shard += s_shard[r] * k_reg[r];
++        }
++    } else {
++#pragma unroll
++        for (int r = 0; r < rows_per_lane; r++) {
++            const int i = r * warp_size + lane;
++            kv_shard += expf(g_t[i]) * s_shard[r] * k_reg[r];
++        }
++    }
++    const float kv_col = warp_reduce_sum<warp_size>(kv_shard);
++    const float delta_col = (!KDA ? (v_t[col] - g_val * kv_col) : (v_t[col] - kv_col)) * beta_val;
++#pragma unroll
++    for (int r = 0; r < rows_per_lane; r++) {
++        const int i = r * warp_size + lane;
++        s_shard[r] = (KDA ? expf(g_t[i]) : g_val) * s_shard[r] + k_reg[r] * delta_col;
++    }
++}
++
+ template <int S_v, bool KDA, bool keep_rs_t>
+ __global__ void __launch_bounds__((ggml_cuda_get_physical_warp_size() < S_v ? ggml_cuda_get_physical_warp_size() : S_v) * 4, 2)
+ gated_delta_net_cuda(const float * q,
+@@ -27,7 +72,8 @@ gated_delta_net_cuda(const float * q,
+                                      const uint3   rq3_magic,
+                                      float         scale,
+                                      int64_t       state_slot_stride,
+-                                     int           K) {
++                                     int           K,
++                                     const gdn_rec_params rec, const int replay) {
+     const uint32_t h_idx    = blockIdx.x;
+     const uint32_t sequence = blockIdx.y;
+     // each warp owns one column, using warp-level primitives to reduce across rows
+@@ -60,6 +106,94 @@ gated_delta_net_cuda(const float * q,
+         s_shard[r]  = curr_state[i];
+     }
+ 
++    float * rec_k = nullptr;
++    float * rec_v = nullptr;
++    float * rec_g = nullptr;
++    float * rec_b = nullptr;
++
++    int p       = 0; // records to replay
++    int tn      = 0; // token count of the batch that wrote them
++    int r_half  = 0; // record half the fold reads
++    int w_half  = 0; // record half this batch writes
++    const int skip_check = replay ? rec.fold[1 + 4 * rec.n_fold + 1] : 0;
++
++    if (replay) {
++        // records are addressed by the bank of the sequence, not by the cell of the batch
++        const int bank = rec.fold[1 + 3 * rec.n_fold + sequence];
++
++        rec_k = rec.rec + rec.k_off + bank * rec.nb2;
++        rec_v = rec.rec + rec.v_off + bank * rec.nb2;
++        rec_g = rec.rec + rec.g_off + bank * rec.nb2;
++        rec_b = rec.rec + rec.b_off + bank * rec.nb2;
++
++        const int fold_pk = rec.fold[1 + sequence];
++        p      = fold_pk & 0xff;
++        tn     = (fold_pk >> 8) & 0xff;
++        w_half = rec.fold[1 + 2 * rec.n_fold + sequence];
++        r_half = rec.fold[1 +     rec.n_fold + sequence];
++
++        if ((w_half != 0 && w_half != 1) || (r_half != 0 && r_half != 1) ||
++            bank < 0 || bank >= rec.n_fold || p > (int) rec.t_cap) {
++            w_half = 0;
++            r_half = 0;
++            p      = 0;
++        }
++    }
++
++    if (replay) {
++        // fold: replay the accepted prefix of the previous batch from the records and commit the
++        // resulting state. The committed plane never holds the state after this batch's tokens.
++        const float * rk = rec_k + r_half * rec.half_stride + iq1 * S_v;
++        const float * rv = rec_v + r_half * rec.half_stride + h_idx * S_v;
++        const float * rg = rec_g + r_half * rec.half_stride + h_idx * (KDA ? S_v : 1);
++        const float * rb = rec_b + r_half * rec.half_stride + h_idx;
++
++        for (int t = 0; t < p; t++) {
++            const float * k_t = rk + t * rec.nb1;
++            const float * v_t = rv + t * rec.nb1;
++            const float * g_t = rg + t * rec.nb1;
++            const float * b_t = rb + t * rec.nb1;
++
++            const float beta_val = *b_t;
++
++            float k_reg[rows_per_lane];
++#pragma unroll
++            for (int r = 0; r < rows_per_lane; r++) {
++                k_reg[r] = k_t[r * warp_size + lane];
++            }
++
++            gdn_state_update<KDA, rows_per_lane, warp_size>(s_shard, k_reg, v_t, g_t, beta_val, col, lane);
++        }
++
++        // when the whole previous batch was accepted, the fold must reproduce the state that pass
++        // committed; count the elements that differ (0 expected). A restored state has no committed
++        // pass to compare against, so the check is skipped for the batch that carries it
++        if (skip_check == 0 && rec.diag != nullptr && p > 0 && p == tn) {
++            const float * dg = rec.diag + state_out_offset;
++            int mism = 0;
++#pragma unroll
++            for (int r = 0; r < rows_per_lane; r++) {
++                const int i = r * warp_size + lane;
++                mism += (s_shard[r] != dg[col * S_v + i]);
++            }
++            for (int off = warp_size / 2; off > 0; off >>= 1) {
++                mism += __shfl_xor_sync(0xffffffff, mism, off);
++            }
++            if (lane == 0 && mism > 0) {
++                atomicAdd(rec.fold + 1 + 4 * rec.n_fold, mism);
++            }
++        }
++
++        // publish the replayed committed state, the copy op moves it into the cache
++#pragma unroll
++        for (int r = 0; r < rows_per_lane; r++) {
++            const int i = r * warp_size + lane;
++            state[col * S_v + i] = s_shard[r];
++        }
++    }
++
++    const bool record = replay && n_tokens <= rec.t_cap;
++
+     for (int t = 0; t < n_tokens; t++) {
+         const float * q_t = q + iq3 * sq3 + t * sq2 + iq1 * sq1;
+         const float * k_t = k + iq3 * sq3 + t * sq2 + iq1 * sq1;
+@@ -82,25 +216,12 @@ gated_delta_net_cuda(const float * q,
+         }
+ 
+         if constexpr (!KDA) {
+-            const float g_val = expf(*g_t);
+-
+-            // kv[col] = (S^T @ k)[col] = sum_i S[i][col] * k[i]
+-            float kv_shard = 0.0f;
+-#pragma unroll
+-            for (int r = 0; r < rows_per_lane; r++) {
+-                kv_shard += s_shard[r] * k_reg[r];
+-            }
+-            float kv_col = warp_reduce_sum<warp_size>(kv_shard);
+-
+-            // delta[col] = (v[col] - g * kv[col]) * beta
+-            float delta_col = (v_t[col] - g_val * kv_col) * beta_val;
++            gdn_state_update<KDA, rows_per_lane, warp_size>(s_shard, k_reg, v_t, g_t, beta_val, col, lane);
+ 
+-            // fused: S[i][col] = g * S[i][col] + k[i] * delta[col]
+             // attn[col] = (S^T @ q)[col] = sum_i S[i][col] * q[i]
+             float attn_partial = 0.0f;
+ #pragma unroll
+             for (int r = 0; r < rows_per_lane; r++) {
+-                s_shard[r]  = g_val * s_shard[r] + k_reg[r] * delta_col;
+                 attn_partial += s_shard[r] * q_reg[r];
+             }
+ 
+@@ -110,26 +231,12 @@ gated_delta_net_cuda(const float * q,
+                 attn_data[col] = attn_col * scale;
+             }
+         } else {
+-            // kv[col] = sum_i g[i] * S[i][col] * k[i]
+-            float kv_shard = 0.0f;
+-#pragma unroll
+-            for (int r = 0; r < rows_per_lane; r++) {
+-                const int i = r * warp_size + lane;
+-                kv_shard += expf(g_t[i]) * s_shard[r] * k_reg[r];
+-            }
+-
+-            float kv_col = warp_reduce_sum<warp_size>(kv_shard);
++            gdn_state_update<KDA, rows_per_lane, warp_size>(s_shard, k_reg, v_t, g_t, beta_val, col, lane);
+ 
+-            // delta[col] = (v[col] - kv[col]) * beta
+-            float delta_col = (v_t[col] - kv_col) * beta_val;
+-
+-            // fused: S[i][col] = g[i] * S[i][col] + k[i] * delta[col]
+             // attn[col] = (S^T @ q)[col] = sum_i S[i][col] * q[i]
+             float attn_partial = 0.0f;
+ #pragma unroll
+             for (int r = 0; r < rows_per_lane; r++) {
+-                const int i = r * warp_size + lane;
+-                s_shard[r]  = expf(g_t[i]) * s_shard[r] + k_reg[r] * delta_col;
+                 attn_partial += s_shard[r] * q_reg[r];
+             }
+ 
+@@ -140,13 +247,38 @@ gated_delta_net_cuda(const float * q,
+             }
+         }
+ 
++        if (record) {
++            // raw inputs of this batch; k is shared inside a GQA group, so sibling blocks store the same values
++            float * wk = rec_k + w_half * rec.half_stride + t * rec.nb1 + iq1 * S_v;
++            float * wv = rec_v + w_half * rec.half_stride + t * rec.nb1 + h_idx * S_v;
++            float * wg = rec_g + w_half * rec.half_stride + t * rec.nb1 + h_idx * (KDA ? S_v : 1);
++            float * wb = rec_b + w_half * rec.half_stride + t * rec.nb1 + h_idx;
++
++#pragma unroll
++            for (int r = 0; r < rows_per_lane; r++) {
++                const int i = r * warp_size + lane;
++                wk[i] = k_reg[r];
++                if constexpr (KDA) {
++                    wg[i] = g_t[i];
++                }
++            }
++            if (lane == 0) {
++                wv[col] = v_t[col];
++                wb[0]   = beta_val;
++                if constexpr (!KDA) {
++                    wg[0] = *g_t;
++                }
++            }
++        }
++
+         attn_data += S_v * H;
+ 
+         if constexpr (keep_rs_t) {
+             // snapshot slot mapping: slot 0 = most recent state, slot s = s tokens back.
+             // When n_tokens < K only slots 0..n_tokens-1 are written; older slots are caller-owned.
++            // Replay mode commits only the folded state, so it writes no per-token snapshots.
+             const int target_slot = (int) n_tokens - 1 - t;
+-            if (target_slot >= 0 && target_slot < K) {
++            if (!replay && target_slot >= 0 && target_slot < K) {
+                 float * curr_state = state + target_slot * state_slot_stride;
+ #pragma unroll
+                 for (int r = 0; r < rows_per_lane; r++) {
+@@ -157,13 +289,33 @@ gated_delta_net_cuda(const float * q,
+         }
+     }
+ 
+-    if constexpr (!keep_rs_t) {
++    if (!keep_rs_t && !replay) {
++#pragma unroll
++        for (int r = 0; r < rows_per_lane; r++) {
++            const int i          = r * warp_size + lane;
++            state[col * S_v + i] = s_shard[r];
++        }
++    }
++
++    if (replay && !record) {
++        // batches without records cannot be rolled back, so they commit the state after the batch;
++        // recording batches leave the plane at the replayed committed state
+ #pragma unroll
+         for (int r = 0; r < rows_per_lane; r++) {
+             const int i          = r * warp_size + lane;
+             state[col * S_v + i] = s_shard[r];
+         }
+     }
++
++    // remember the state after this pass, so the next pass can check its fold against it
++    if (rec.diag != nullptr) {
++        float * dg = rec.diag + state_out_offset;
++#pragma unroll
++        for (int r = 0; r < rows_per_lane; r++) {
++            const int i = r * warp_size + lane;
++            dg[col * S_v + i] = s_shard[r];
++        }
++    }
+ }
+ 
+ template <bool KDA, bool keep_rs_t>
+@@ -176,7 +328,7 @@ static void launch_gated_delta_net(
+         int64_t sv1,   int64_t sv2, int64_t sv3,
+         int64_t sb1,   int64_t sb2, int64_t sb3,
+         int64_t neqk1, int64_t rq3,
+-        float scale, int64_t state_slot_stride, int K, cudaStream_t stream) {
++        float scale, int64_t state_slot_stride, int K, const gdn_rec_params & rec, const int replay, cudaStream_t stream) {
+     //TODO: Add chunked kernel for even faster pre-fill
+     const int warp_size = ggml_cuda_info().devices[ggml_cuda_get_device()].warp_size;
+     const int num_warps = 4;
+@@ -192,26 +344,26 @@ static void launch_gated_delta_net(
+             ggml_cuda_kernel_launch(gated_delta_net_cuda<16, KDA, keep_rs_t>, launch_params,
+                 q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d, H,
+                 n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K);
++                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K, rec, replay);
+             break;
+         case 32:
+             ggml_cuda_kernel_launch(gated_delta_net_cuda<32, KDA, keep_rs_t>, launch_params,
+                 q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d, H,
+                 n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K);
++                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K, rec, replay);
+             break;
+         case 64: {
+             ggml_cuda_kernel_launch(gated_delta_net_cuda<64, KDA, keep_rs_t>, launch_params,
+                 q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d, H,
+                 n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K);
++                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K, rec, replay);
+             break;
+         }
+         case 128: {
+             ggml_cuda_kernel_launch(gated_delta_net_cuda<128, KDA, keep_rs_t>, launch_params,
+                 q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d, H,
+                 n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K);
++                sb1, sb2, sb3, neqk1_magic, rq3_magic, scale, state_slot_stride, K, rec, replay);
+             break;
+         }
+         default:
+@@ -282,10 +434,35 @@ static void ggml_cuda_op_gated_delta_net_impl(
+ 
+     cudaStream_t stream = ctx.stream();
+ 
++    ggml_tensor * src_rec  = dst->src[6];
++    ggml_tensor * src_fold = dst->src[7];
++    const bool replay = src_rec != nullptr;
++    GGML_ASSERT(replay == (src_fold != nullptr));
++
+     // K (snapshot slot count) is an op param; state holds s0 only [S_v, S_v, H, n_seqs].
+     const int K = ggml_get_op_params_i32(dst, 0);
+     const bool keep_rs = K > 1;
+ 
++    gdn_rec_params rec_params = {};
++    if (replay) {
++        GGML_ASSERT(K >= 1);
++        const int64_t k_w = nek0 * nek1;
++        const int64_t v_w = nev0 * nev1;
++        const int64_t g_w = kda ? nev0 * nev1 : nev1;
++        rec_params.rec         = (float *) src_rec->data;
++        rec_params.fold        = (int32_t *) src_fold->data;
++        rec_params.diag        = dst->src[8] != nullptr ? (float *) dst->src[8]->data : nullptr;
++        rec_params.nb1         = src_rec->nb[1] / sizeof(float);
++        rec_params.nb2         = src_rec->nb[2] / sizeof(float);
++        rec_params.half_stride = (src_rec->ne[1] / 2) * rec_params.nb1;
++        rec_params.t_cap       = src_rec->ne[1] / 2;
++        rec_params.n_fold      = (int) ((src_fold->ne[0] - 3) / 4);
++        rec_params.k_off       = 0;
++        rec_params.v_off       = k_w;
++        rec_params.g_off       = k_w + v_w;
++        rec_params.b_off       = k_w + v_w + g_w;
++    }
++
+     // recurrent state -> gdn_out tail (after attention scores), or the cache when fusing
+     float * state_d           = dst_d + S_v * H * n_tokens * n_seqs;
+     int64_t state_slot_stride = S_v * S_v * H * n_seqs;
+@@ -294,25 +471,27 @@ static void ggml_cuda_op_gated_delta_net_impl(
+         state_slot_stride = cache->slot_stride;
+     }
+ 
++    const int replay_i = replay ? 1 : 0;
++
+     if (kda) {
+         if (keep_rs) {
+             launch_gated_delta_net<true, true>(q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d,
+                 S_v, H, n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, stream);
++                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, rec_params, replay_i, stream);
+         } else {
+             launch_gated_delta_net<true, false>(q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d,
+                 S_v, H, n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, stream);
++                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, rec_params, replay_i, stream);
+         }
+     } else {
+         if (keep_rs) {
+             launch_gated_delta_net<false, true>(q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d,
+                 S_v, H, n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, stream);
++                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, rec_params, replay_i, stream);
+         } else {
+             launch_gated_delta_net<false, false>(q_d, k_d, v_d, g_d, b_d, s_d, dst_d, state_d,
+                 S_v, H, n_tokens, n_seqs, sq1, sq2, sq3, sv1, sv2, sv3,
+-                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, stream);
++                sb1, sb2, sb3, neqk1, rq3, scale, state_slot_stride, K, rec_params, replay_i, stream);
+         }
+     }
+ }
+diff --git a/ggml/src/ggml-cuda/ggml-cuda.cu b/ggml/src/ggml-cuda/ggml-cuda.cu
+index c8b23b2d5..30933963d 100644
+--- a/ggml/src/ggml-cuda/ggml-cuda.cu
++++ b/ggml/src/ggml-cuda/ggml-cuda.cu
+@@ -2760,6 +2760,12 @@ static int ggml_cuda_try_gdn_cache_fusion(
+         return 0;
+     }
+ 
++    // ReplaySSM: the op commits the folded state into its tail and the graph copies it to the cache,
++    // so the snapshot-copy fusion does not apply here
++    if (gdn->src[6] != nullptr) {
++        return 0;
++    }
++
+     const ggml_tensor * src_v     = gdn->src[2];
+     const int64_t       S_v       = src_v->ne[0];
+     const int64_t       H         = src_v->ne[1];
+diff --git a/ggml/src/ggml.c b/ggml/src/ggml.c
+index a286083b9..28728af0e 100644
+--- a/ggml/src/ggml.c
++++ b/ggml/src/ggml.c
+@@ -6371,7 +6371,10 @@ struct ggml_tensor * ggml_gated_delta_net(
+         struct ggml_tensor  * g,
+         struct ggml_tensor  * beta,
+         struct ggml_tensor  * state,
+-        int64_t               K) {
++        int64_t               K,
++        struct ggml_tensor  * rec,
++        struct ggml_tensor  * fold,
++        struct ggml_tensor  * diag) {
+     GGML_ASSERT(ggml_is_contiguous_rows(q));
+     GGML_ASSERT(ggml_is_contiguous_rows(k));
+     GGML_ASSERT(ggml_is_contiguous_rows(v));
+@@ -6401,6 +6404,16 @@ struct ggml_tensor * ggml_gated_delta_net(
+     GGML_ASSERT(state->ne[2] == H);
+     GGML_ASSERT(state->ne[3] == n_seqs);
+     GGML_ASSERT(K >= 1);
++    GGML_ASSERT((rec == NULL) == (fold == NULL));
++    GGML_ASSERT(diag == NULL || rec != NULL);
++    if (rec != NULL) {
++        GGML_ASSERT(rec->type == GGML_TYPE_F32);
++        // records are grouped in banks, one per sequence of the memory, which can outnumber the
++        // sequences of a single ubatch
++        GGML_ASSERT(rec->ne[2] >= n_seqs);
++        GGML_ASSERT(fold->type == GGML_TYPE_I32);
++        GGML_ASSERT(fold->ne[0] >= 8 && fold->ne[0] >= 4*rec->ne[2] + 3);
++    }
+     const int64_t state_rows = K * S_v * n_seqs;
+     const int64_t ne[4] = { S_v * H, n_tokens * n_seqs + state_rows, 1, 1 };
+     struct ggml_tensor * result = ggml_new_tensor(ctx, GGML_TYPE_F32, 4, ne);
+@@ -6414,7 +6427,9 @@ struct ggml_tensor * ggml_gated_delta_net(
+     result->src[3] = g;
+     result->src[4] = beta;
+     result->src[5] = state;
+-
++    result->src[6] = rec;
++    result->src[7] = fold;
++    result->src[8] = diag;
+     return result;
+ }
+ 
+diff --git a/include/llama.h b/include/llama.h
+index 31bbf8b0d..ac3478a94 100644
+--- a/include/llama.h
++++ b/include/llama.h
+@@ -46,7 +46,7 @@
+ #define LLAMA_SESSION_VERSION 10
+ 
+ #define LLAMA_STATE_SEQ_MAGIC   LLAMA_FILE_MAGIC_GGSQ
+-#define LLAMA_STATE_SEQ_VERSION 3
++#define LLAMA_STATE_SEQ_VERSION 5
+ 
+ #ifdef __cplusplus
+ extern "C" {
+diff --git a/src/llama-graph.cpp b/src/llama-graph.cpp
+index 07ca49ad0..0f3659a27 100644
+--- a/src/llama-graph.cpp
++++ b/src/llama-graph.cpp
+@@ -326,11 +326,73 @@ void llm_graph_input_cls::set_input(const llama_ubatch * ubatch) {
+     }
+ }
+ 
+-void llm_graph_input_rs::set_input(const llama_ubatch * ubatch) {
+-    GGML_UNUSED(ubatch);
++void llm_graph_input_rs::set_fold_input(const llama_memory_recurrent_context * mctx_cur, const llama_ubatch * ubatch) const {
++    ggml_tensor * fold_t = mctx_cur->get_rec_fold_t();
++    if (fold_t == nullptr) {
++        return;
++    }
++
++    const bool will_record = ubatch->n_seq_tokens <= mctx_cur->rec_t_cap();
++
++    // side effects must run once per ubatch: the same memory appears in several graph inputs
++    if (mctx_cur->rec_fold_take()) {
++        // fold block: [_, p_i ..., read half_i ..., write half_i ..., bank_i ..., self-check, skip check]
++        std::vector<int32_t> data(mctx_cur->rec_fold_size(), 0);
++
++        // first token position of each sequence in this ubatch
++        std::vector<int32_t> pos0(ubatch->n_seqs, -1);
++        for (uint32_t i = 0; i < ubatch->n_seqs; ++i) {
++            if (ubatch->n_tokens > 0) {
++                pos0[i] = ubatch->pos[i * ubatch->n_seq_tokens];
++            }
++        }
++
++        // replay counts (the accepted prefix of the sequence's previous batch), record halves and
++        // banks, and whether this batch must skip the fold self-check (a restored state)
++        mctx_cur->rec_fold_fill(data, ubatch->n_seqs, pos0.data());
++
++        // the op counted elements where the previous fold did not reproduce the committed state
++        if (mctx_cur->rec_check_enabled()) {
++            int32_t chk = 0;
++            ggml_backend_tensor_get(fold_t, &chk, mctx_cur->rec_fold_check_off() * (int) sizeof(int32_t), sizeof(chk));
++            if (chk != 0) {
++                LLAMA_LOG_ERROR("%s: fold did not reproduce the committed state (%d elements)\n", __func__, chk);
++            }
++        }
++
++        // the parameters go straight into the persistent device tensor; the scheduler input-copy
++        // mechanism does not deliver graph inputs consumed only by the fused gated_delta_net op
++        ggml_backend_tensor_set(fold_t, data.data(), 0, data.size() * sizeof(int32_t));
+ 
++        for (uint32_t i = 0; i < ubatch->n_seqs; ++i) {
++            if (will_record) {
++                mctx_cur->rec_commit(i, ubatch->n_seq_tokens, pos0[i]);
++            } else {
++                // a batch without records commits the state itself, nothing left to replay
++                mctx_cur->rec_forget(i);
++            }
++        }
++    }
++
++    // the conv cache keeps its own snapshot rows: its gather needs the rollback-aware indices,
++    // which the state gather in set_input below consumes and resets, so capture them here first
++    if (mctx_cur->rec_enabled()) {
++        GGML_ASSERT(s_copy_conv != nullptr);
++        GGML_ASSERT(ggml_backend_buffer_is_host(s_copy_conv->buffer));
++
++        const int64_t n_rs = mctx_cur->get_n_rs();
++        int32_t * data_conv = (int32_t *) s_copy_conv->data;
++        for (int64_t i = 0; i < n_rs; ++i) {
++            data_conv[i] = mctx_cur->s_copy(i);
++        }
++    }
++}
++
++void llm_graph_input_rs::set_input(const llama_ubatch * ubatch) {
+     const int64_t n_rs = mctx->get_n_rs();
+ 
++    set_fold_input(mctx, ubatch);
++
+     if (s_copy) {
+         GGML_ASSERT(ggml_backend_buffer_is_host(s_copy->buffer));
+         int32_t * data = (int32_t *) s_copy->data;
+@@ -354,6 +416,10 @@ bool llm_graph_input_rs::can_reuse(const llm_graph_params & params) {
+     res &= s_copy_main->ne[0]  == params.ubatch.n_seqs;
+     res &= s_copy_extra->ne[0] == mctx->get_n_rs() - params.ubatch.n_seqs;
+ 
++    res &= s_copy_conv->ne[0] == mctx->get_n_rs();
++    res &= s_copy_conv_main->ne[0]  == params.ubatch.n_seqs;
++    res &= s_copy_conv_extra->ne[0] == mctx->get_n_rs() - params.ubatch.n_seqs;
++
+     res &= head == mctx->get_head();
+     res &= rs_z == mctx->get_rs_z();
+ 
+@@ -1087,6 +1153,7 @@ void llm_graph_input_attn_cross::set_input(const llama_ubatch * ubatch) {
+ }
+ 
+ void llm_graph_input_mem_hybrid::set_input(const llama_ubatch * ubatch) {
++    inp_rs->set_fold_input(mctx->get_recr(), ubatch);
+     mctx->get_attn()->set_input_k_idxs(inp_attn->self_k_idxs, ubatch);
+     mctx->get_attn()->set_input_v_idxs(inp_attn->self_v_idxs, ubatch);
+ 
+@@ -1140,6 +1207,7 @@ bool llm_graph_input_mem_hybrid::can_reuse(const llm_graph_params & params) {
+ // Instead of creating a hybrid input, the graph can simply create 2 separate inputs.
+ // Refactoring is required in the future.
+ void llm_graph_input_mem_hybrid_k::set_input(const llama_ubatch * ubatch) {
++    inp_rs->set_fold_input(mctx->get_recr(), ubatch);
+     mctx->get_attn()->set_input_k_idxs(inp_attn->self_k_idxs, ubatch);
+ 
+     mctx->get_attn()->set_input_kq_mask(inp_attn->self_kq_mask, ubatch, cparams.causal_attn);
+@@ -1180,6 +1248,7 @@ bool llm_graph_input_mem_hybrid_k::can_reuse(const llm_graph_params & params) {
+ }
+ 
+ void llm_graph_input_mem_hybrid_iswa::set_input(const llama_ubatch * ubatch) {
++    inp_rs->set_fold_input(mctx->get_recr(), ubatch);
+     const auto * attn_ctx = mctx->get_attn();
+ 
+     // base tensors may not be allocated if there are no non-SWA attention layers
+@@ -3528,6 +3597,13 @@ static std::unique_ptr<llm_graph_input_rs> build_rs_inp_impl(
+     inp->s_copy_main  = ggml_view_1d(ctx0, inp->s_copy, n_seqs, 0);
+     inp->s_copy_extra = ggml_view_1d(ctx0, inp->s_copy, n_rs - n_seqs, n_seqs * inp->s_copy->nb[0]);
+ 
++    inp->s_copy_conv = ggml_new_tensor_1d(ctx0, GGML_TYPE_I32, n_rs);
++    ggml_set_input(inp->s_copy_conv);
++    ggml_set_name(inp->s_copy_conv, "rs_s_copy_conv");
++
++    inp->s_copy_conv_main  = ggml_view_1d(ctx0, inp->s_copy_conv, n_seqs, 0);
++    inp->s_copy_conv_extra = ggml_view_1d(ctx0, inp->s_copy_conv, n_rs - n_seqs, n_seqs * inp->s_copy_conv->nb[0]);
++
+     inp->head = mctx_cur->get_head();
+     inp->rs_z = mctx_cur->get_rs_z();
+ 
+@@ -3547,10 +3623,14 @@ ggml_tensor * llm_graph_context::build_rs(
+         ggml_tensor * s,
+             int32_t   state_size,
+             int32_t   n_seqs,
+-        const llm_graph_get_rows_fn & get_state_rows) const {
++        const llm_graph_get_rows_fn & get_state_rows,
++            bool      conv) const {
+     const auto * kv_state = inp->mctx;
+ 
+-    return build_rs(s, inp->s_copy_main, inp->s_copy_extra, state_size, n_seqs,
++    ggml_tensor * copy_main  = conv ? inp->s_copy_conv_main  : inp->s_copy_main;
++    ggml_tensor * copy_extra = conv ? inp->s_copy_conv_extra : inp->s_copy_extra;
++
++    return build_rs(s, copy_main, copy_extra, state_size, n_seqs,
+                     kv_state->get_n_rs(), kv_state->get_head(), kv_state->get_size(), kv_state->get_rs_z(),
+                     get_state_rows);
+ }
+diff --git a/src/llama-graph.h b/src/llama-graph.h
+index cc4110639..4d5e5046d 100644
+--- a/src/llama-graph.h
++++ b/src/llama-graph.h
+@@ -266,6 +266,10 @@ public:
+ 
+     void set_input(const llama_ubatch * ubatch) override;
+ 
++    // ReplaySSM: set the fold parameters in the recurrent memory before the s_copy loop consumes the
++    // rollback indices. The context is passed in because the hybrid input keeps a stale mctx.
++    void set_fold_input(const llama_memory_recurrent_context * mctx_cur, const llama_ubatch * ubatch) const;
++
+     bool can_reuse(const llm_graph_params & params) override;
+ 
+     ggml_tensor * s_copy;  // I32 [n_rs]
+@@ -275,6 +279,11 @@ public:
+     ggml_tensor * s_copy_main;   // I32 [n_seqs]
+     ggml_tensor * s_copy_extra;  // I32 [n_rs - n_seqs]
+ 
++    // ReplaySSM: rollback indices for the conv cache, which still uses snapshot rows
++    ggml_tensor * s_copy_conv;
++    ggml_tensor * s_copy_conv_main;
++    ggml_tensor * s_copy_conv_extra;
++
+     const llama_memory_recurrent_context * mctx;
+ 
+     // used in view offsets, need to match for valid graph reuse
+@@ -1339,7 +1348,8 @@ struct llm_graph_context {
+             ggml_tensor * s,
+                 int32_t   state_size,
+                 int32_t   n_seqs,
+-            const llm_graph_get_rows_fn & get_state_rows = ggml_get_rows) const;
++            const llm_graph_get_rows_fn & get_state_rows = ggml_get_rows,
++            bool      conv = false) const;
+ 
+     ggml_tensor * build_rwkv_token_shift_load(
+         llm_graph_input_rs * inp,
+diff --git a/src/llama-memory-recurrent.cpp b/src/llama-memory-recurrent.cpp
+index 57919accf..d776f6d16 100644
+--- a/src/llama-memory-recurrent.cpp
++++ b/src/llama-memory-recurrent.cpp
+@@ -35,6 +35,34 @@ llama_memory_recurrent::llama_memory_recurrent(
+     this->n_rs_seq = n_rs_seq;
+     rs_idx.assign(n_seq_max, 0);
+ 
++    rec_n.assign(n_seq_max, 0);
++    rec_pos0.assign(n_seq_max, INT32_MIN);
++    rec_p_pending.assign(n_seq_max, INT32_MIN);
++    rec_half_of.assign(n_seq_max, 0);
++    rec_have_rec.assign(n_seq_max, 0);
++    rec_check_bad.assign(n_seq_max, 1);
++
++    // ReplaySSM record block widths (GDN-style recurrent models)
++    {
++        const char * env = getenv("GGML_CUDA_GDN_REPLAY");
++        rec_replay = env != nullptr && atoi(env) == 1;
++
++        const char * envc = getenv("GGML_CUDA_GDN_REPLAY_CHECK");
++        rec_check = rec_replay && envc != nullptr && atoi(envc) == 1;
++    }
++    if (rec_replay && n_rs_seq > 0) {
++        const uint32_t d   = hparams.ssm_d_state;
++        const uint32_t hv  = d > 0 ? hparams.ssm_d_inner / d : 0;
++        const uint32_t hq  = hparams.ssm_n_group;
++        const bool     kda = hparams.n_embd_head_kda != 0;
++        if (d > 0 && hv > 0 && hq > 0 && hparams.ssm_d_conv > 0) {
++            rec_floats_k = hq * d;
++            rec_floats_v = hv * d;
++            rec_floats_g = kda ? hv * d : hv;
++            rec_floats_b = hv;
++        }
++    }
++
+     cells.clear();
+     cells.resize(mem_size);
+ 
+@@ -51,8 +79,9 @@ llama_memory_recurrent::llama_memory_recurrent(
+         auto it = ctx_map.find(buft);
+         if (it == ctx_map.end()) {
+             ggml_init_params params = {
+-                // r and s per layer, plus the separate PLE conv row where the model has one
+-                /*.mem_size   =*/ size_t((hparams.ple_conv_state() > 0 ? 3u : 2u)*n_layer*ggml_tensor_overhead()),
++                // r and s per layer, plus the separate PLE conv row where the model has one, plus
++                // the record, record-check and fold tensors in replay mode
++                /*.mem_size   =*/ size_t(((hparams.ple_conv_state() > 0 ? 3u : 2u) + (rec_enabled() ? 3u : 0u))*n_layer*ggml_tensor_overhead()),
+                 /*.mem_buffer =*/ NULL,
+                 /*.no_alloc   =*/ true,
+             };
+@@ -73,6 +102,8 @@ llama_memory_recurrent::llama_memory_recurrent(
+     r_l.resize(n_layer);
+     s_l.resize(n_layer);
+     p_l.resize(n_layer);
++    rec_l.resize(n_layer);
++    rec_diag.resize(n_layer);
+ 
+     for (int i = 0; i < n_layer; i++) {
+         if (filter && !filter(i)) {
+@@ -98,9 +129,11 @@ llama_memory_recurrent::llama_memory_recurrent(
+             throw std::runtime_error("failed to create ggml context for rs cache");
+         }
+ 
+-        const uint32_t n_rows = mem_size * (1 + n_rs_seq);
++        // S keeps a single committed state in replay mode, records carry the rollback information
++        const uint32_t n_rows   = mem_size * (1 + n_rs_seq);
++        const uint32_t n_rows_s = rec_replay ? mem_size : n_rows;
+         ggml_tensor * r = ggml_new_tensor_2d(ctx, type_r, hparams.n_embd_r(), n_rows);
+-        ggml_tensor * s = ggml_new_tensor_2d(ctx, type_s, hparams.n_embd_s(), n_rows);
++        ggml_tensor * s = ggml_new_tensor_2d(ctx, type_s, hparams.n_embd_s(), n_rows_s);
+         ggml_format_name(r, "cache_r_l%d", i);
+         ggml_format_name(s, "cache_s_l%d", i);
+         r_l[i] = r;
+@@ -112,6 +145,29 @@ llama_memory_recurrent::llama_memory_recurrent(
+             ggml_format_name(p, "cache_ple_r_l%d", i);
+             p_l[i] = p;
+         }
++
++        if (rec_enabled()) {
++            const int64_t n_slots = 2*rec_t_cap();
++            const int64_t n_rec   = rec_floats_k + rec_floats_v + rec_floats_g + rec_floats_b;
++            rec_l[i] = ggml_new_tensor_3d(ctx, GGML_TYPE_F32, n_rec, n_slots, mem_size);
++            ggml_format_name(rec_l[i], "cache_rec_l%d", i);
++
++            // opt-in: state committed by the last forward pass of this layer, used by the fold self-check
++            if (rec_check) {
++                const int64_t n_state = hparams.n_embd_s();
++                rec_diag[i] = ggml_new_tensor_2d(ctx, GGML_TYPE_F32, n_state, mem_size);
++                ggml_format_name(rec_diag[i], "cache_recdiag_l%d", i);
++            }
++
++            if (rec_fold_t == nullptr) {
++                // one tensor per memory (single-device assumption, matches the offloaded layer device);
++                // the block holds the write half, the replay count, record half and bank per sequence,
++                // and the self-check counter and skip flag
++                const int64_t fold_n = std::max<int64_t>(4*(int64_t) n_seq_max + 3, 8);
++                rec_fold_t = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, fold_n);
++                ggml_format_name(rec_fold_t, "cache_rec_fold");
++            }
++        }
+     }
+ 
+     // allocate tensors and initialize the buffers to avoid NaNs in the padding
+@@ -129,12 +185,14 @@ llama_memory_recurrent::llama_memory_recurrent(
+         const size_t memory_size_r = size_r_bytes();
+         const size_t memory_size_s = size_s_bytes();
+         const size_t memory_size_p = size_p_bytes();
++        const size_t memory_size_rec = size_rec_bytes();
+ 
+-        LLAMA_LOG_INFO("%s: size = %7.2f MiB (%6u cells, %3d layers, %2u seqs %2u rs_seq), R (%s): %7.2f MiB, S (%s): %7.2f MiB, P (%s): %7.2f MiB\n", __func__,
+-                (float)(memory_size_r + memory_size_s + memory_size_p) / (1024.0f * 1024.0f), mem_size, n_layer, n_seq_max, n_rs_seq,
++        LLAMA_LOG_INFO("%s: size = %7.2f MiB (%6u cells, %3d layers, %2u seqs %2u rs_seq), R (%s): %7.2f MiB, S (%s): %7.2f MiB, P (%s): %7.2f MiB, REC: %7.2f MiB\n", __func__,
++                (float)(memory_size_r + memory_size_s + memory_size_p + memory_size_rec) / (1024.0f * 1024.0f), mem_size, n_layer, n_seq_max, n_rs_seq,
+                 ggml_type_name(type_r), (float)memory_size_r / (1024.0f * 1024.0f),
+                 ggml_type_name(type_s), (float)memory_size_s / (1024.0f * 1024.0f),
+-                ggml_type_name(type_r), (float)memory_size_p / (1024.0f * 1024.0f));
++                ggml_type_name(type_r), (float)memory_size_p / (1024.0f * 1024.0f),
++                (float)memory_size_rec / (1024.0f * 1024.0f));
+     }
+ }
+ 
+@@ -156,6 +214,12 @@ void llama_memory_recurrent::clear(bool data) {
+     }
+ 
+     std::fill(rs_idx.begin(), rs_idx.end(), 0);
++    std::fill(rec_half_of.begin(), rec_half_of.end(), 0);
++    std::fill(rec_have_rec.begin(), rec_have_rec.end(), 0);
++    std::fill(rec_n.begin(), rec_n.end(), 0);
++    std::fill(rec_pos0.begin(), rec_pos0.end(), INT32_MIN);
++    std::fill(rec_p_pending.begin(), rec_p_pending.end(), INT32_MIN);
++    std::fill(rec_check_bad.begin(), rec_check_bad.end(), 1);
+ }
+ 
+ bool llama_memory_recurrent::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
+@@ -177,6 +241,9 @@ bool llama_memory_recurrent::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos
+     const bool rm_all = p0 == 0 && p1 == std::numeric_limits<llama_pos>::max();
+     if (rm_all) {
+         set_rs_idx(seq_id, 0);
++        rec_have_rec[seq_id]  = 0;
++        rec_p_pending[seq_id] = INT32_MIN;
++        rec_check_bad[seq_id] = 1;
+     }
+ 
+     // models like Mamba or RWKV can't have a state partially erased at the end
+@@ -195,7 +262,20 @@ bool llama_memory_recurrent::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos
+                 const llama_pos rollback = cell.pos - (p0 - 1);
+                 // pending rollback is single-use
+                 const bool pending = rs_idx[seq_id] != 0;
+-                if (!pending && rollback >= 1 && rollback <= (llama_pos) n_rs_seq) {
++                // replay keeps no per-token snapshots: a rollback can only reach back into the
++                // records of the last recording batch, or into the accepted prefix of a restored state
++                llama_pos avail = n_rs_seq;
++                if (rec_replay) {
++                    if (rec_p_pending[seq_id] != INT32_MIN) {
++                        avail = rec_p_pending[seq_id];
++                    } else if (rec_have_rec[seq_id]) {
++                        avail = rec_n[seq_id];
++                    } else {
++                        avail = 0;
++                    }
++                    avail = std::min(avail, (llama_pos) n_rs_seq);
++                }
++                if (!pending && rollback >= 1 && rollback <= avail) {
+                     set_rs_idx(seq_id, (uint32_t) rollback);
+                     cell.pos = p0 - 1;
+                     return true;
+@@ -281,6 +361,38 @@ void llama_memory_recurrent::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id
+             tail_dst.tail = tail_src.tail;
+         }
+     }
++
++    // ReplaySSM: the destination shares the cell (and therefore the committed state) of the source,
++    // so it must also inherit the records the next fold of that state replays
++    if (rec_replay && rec_enabled() &&
++            (uint32_t) seq_id_src < size && (uint32_t) seq_id_dst < size &&
++            (rec_have_rec[seq_id_src] || rec_p_pending[seq_id_src] != INT32_MIN)) {
++        std::vector<char> tmp;
++
++        const int n_layer = (int) hparams.n_layer();
++
++        for (int i = 0; i < n_layer; i++) {
++            if (rec_l[i] == nullptr) {
++                continue;
++            }
++
++            const size_t slice = rec_l[i]->ne[0]*rec_l[i]->ne[1]*ggml_element_size(rec_l[i]);
++
++            if (tmp.size() < slice) {
++                tmp.resize(slice);
++            }
++
++            ggml_backend_tensor_get(rec_l[i], tmp.data(), (size_t) seq_id_src*rec_l[i]->nb[2], slice);
++            ggml_backend_tensor_set(rec_l[i], tmp.data(), (size_t) seq_id_dst*rec_l[i]->nb[2], slice);
++        }
++
++        rec_half_of  [seq_id_dst] = rec_half_of  [seq_id_src];
++        rec_have_rec [seq_id_dst] = rec_have_rec [seq_id_src];
++        rec_n        [seq_id_dst] = rec_n        [seq_id_src];
++        rec_pos0     [seq_id_dst] = rec_pos0     [seq_id_src];
++        rec_p_pending[seq_id_dst] = rec_p_pending[seq_id_src];
++        rec_check_bad[seq_id_dst] = 1;
++    }
+ }
+ 
+ void llama_memory_recurrent::seq_keep(llama_seq_id seq_id) {
+@@ -342,6 +454,11 @@ void llama_memory_recurrent::seq_add(llama_seq_id seq_id, llama_pos p0, llama_po
+                 cell.pos += shift;
+             }
+         }
++
++        // the recorded batch positions shift with the sequence
++        if (rec_replay && rec_pos0[seq_id] != INT32_MIN) {
++            rec_pos0[seq_id] += shift;
++        }
+     }
+ }
+ 
+@@ -763,6 +880,18 @@ size_t llama_memory_recurrent::size_p_bytes() const {
+     return size_p_bytes;
+ }
+ 
++size_t llama_memory_recurrent::size_rec_bytes() const {
++    size_t size_rec_bytes = 0;
++
++    for (const auto & r : rec_l) {
++        if (r != nullptr) {
++            size_rec_bytes += ggml_nbytes(r);
++        }
++    }
++
++    return size_rec_bytes;
++}
++
+ void llama_memory_recurrent::state_write(llama_io_write_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) const {
+     GGML_UNUSED(flags);
+ 
+@@ -840,8 +969,16 @@ void llama_memory_recurrent::state_write(llama_io_write_i & io, llama_seq_id seq
+ 
+     io.write(&cell_count, sizeof(cell_count));
+ 
++    // ReplaySSM keeps a single committed state row per cell: the rollback is applied by the fold
++    // after a restore, so its S data travels through the plain cell rows instead of the snapshot
++    // rows selected by the rollback index
++    const auto & cell_ranges_s = rec_replay ? cell_ranges : cell_ranges_data;
++
+     state_write_meta(io, cell_ranges, seq_id);
+-    state_write_data(io, cell_ranges_data);
++    state_write_data(io, cell_ranges_data, cell_ranges_s);
++
++    // the records and the replay bookkeeping are needed to reconstruct the committed state
++    state_write_replay(io, seq_id);
+ }
+ 
+ void llama_memory_recurrent::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) {
+@@ -856,6 +993,7 @@ void llama_memory_recurrent::state_read(llama_io_read_i & io, llama_seq_id seq_i
+ 
+     try {
+         res = res && state_read_data(io, cell_count);
++        res = res && state_read_replay(io, seq_id);
+     } catch (...) {
+         res = false;
+     }
+@@ -894,7 +1032,7 @@ void llama_memory_recurrent::state_write_meta(llama_io_write_i & io, const std::
+     }
+ }
+ 
+-void llama_memory_recurrent::state_write_data(llama_io_write_i & io, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges) const {
++void llama_memory_recurrent::state_write_data(llama_io_write_i & io, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges_s) const {
+     const uint32_t s_trans = 0;
+     const uint32_t n_layer = hparams.n_layer();
+ 
+@@ -950,7 +1088,7 @@ void llama_memory_recurrent::state_write_data(llama_io_write_i & io, const std::
+ 
+             // Write each logical cell row range. With pending recurrent rollback,
+             // the logical current state may live in a rollback snapshot plane.
+-            for (const auto & range : cell_ranges) {
++            for (const auto & range : cell_ranges_s) {
+                 const size_t range_size = range.second - range.first;
+                 const size_t buf_size = range_size * s_size_row;
+                 io.write_tensor(s_l[il], range.first * s_size_row, buf_size);
+@@ -978,7 +1116,7 @@ void llama_memory_recurrent::state_write_data(llama_io_write_i & io, const std::
+ 
+             // For each row, we get the element values of each logical cell
+             for (uint32_t j = 0; j < n_embd_s; ++j) {
+-                for (const auto & range : cell_ranges) {
++                for (const auto & range : cell_ranges_s) {
+                     const size_t range_size = range.second - range.first;
+                     const size_t src_offset = (range.first + j * mem_size) * s_size_el;
+                     const size_t buf_size = range_size * s_size_el;
+@@ -989,6 +1127,74 @@ void llama_memory_recurrent::state_write_data(llama_io_write_i & io, const std::
+     }
+ }
+ 
++// replay state block marker ("RSPL")
++static const uint32_t LLAMA_STATE_REC_MAGIC = 0x4C505352;
++
++void llama_memory_recurrent::state_write_replay(llama_io_write_i & io, llama_seq_id seq_id) const {
++    io.write(&LLAMA_STATE_REC_MAGIC, sizeof(LLAMA_STATE_REC_MAGIC));
++
++    const uint32_t replay = rec_replay ? 1u : 0u;
++    io.write(&replay, sizeof(replay));
++
++    const uint32_t n_seq = n_seq_max;
++    io.write(&n_seq, sizeof(n_seq));
++
++    for (uint32_t s = 0; s < n_seq_max; ++s) {
++        io.write(&rec_half_of[s], sizeof(rec_half_of[s]));
++        io.write(&rec_n[s], sizeof(rec_n[s]));
++        io.write(&rec_pos0[s], sizeof(rec_pos0[s]));
++
++        // the next fold replays the accepted prefix of the last recording ubatch: its token count
++        // minus the pending rollback
++        int32_t p = rec_have_rec[s] ? (int32_t) rec_n[s] - (int32_t) rs_idx[s] : 0;
++        if (rec_p_pending[s] != INT32_MIN) {
++            // restored state saved again before any fold: the history still ends at the pending prefix
++            p = rec_p_pending[s];
++        }
++        io.write(&p, sizeof(p));
++    }
++
++    const uint32_t n_layer = hparams.n_layer();
++    io.write(&n_layer, sizeof(n_layer));
++
++    // a single sequence is saved with its own record bank; the whole memory keeps all banks
++    std::vector<uint32_t> banks;
++    if (seq_id == -1) {
++        for (uint32_t s = 0; s < n_seq_max; ++s) {
++            banks.push_back(s);
++        }
++    } else {
++        banks.push_back((uint32_t) seq_id);
++    }
++
++    for (uint32_t il = 0; il < n_layer; ++il) {
++        const uint32_t has_rec = rec_l[il] != nullptr ? 1u : 0u;
++        io.write(&has_rec, sizeof(has_rec));
++        if (!has_rec) {
++            continue;
++        }
++
++        const int32_t  rec_type = (int32_t) rec_l[il]->type;
++        const uint64_t ne0 = rec_l[il]->ne[0];
++        const uint64_t ne1 = rec_l[il]->ne[1];
++        const uint64_t ne2 = rec_l[il]->ne[2];
++
++        io.write(&rec_type, sizeof(rec_type));
++        io.write(&ne0,      sizeof(ne0));
++        io.write(&ne1,      sizeof(ne1));
++        io.write(&ne2,      sizeof(ne2));
++
++        const uint32_t n_bank = (uint32_t) banks.size();
++        io.write(&n_bank, sizeof(n_bank));
++
++        const size_t slice = ne0*ne1*ggml_element_size(rec_l[il]);
++        for (uint32_t b = 0; b < n_bank; ++b) {
++            io.write(&banks[b], sizeof(banks[b]));
++            io.write_tensor(rec_l[il], banks[b]*(size_t) rec_l[il]->nb[2], slice);
++        }
++    }
++}
++
+ bool llama_memory_recurrent::state_read_meta(llama_io_read_i & io, uint32_t cell_count, llama_seq_id dest_seq_id) {
+     if (dest_seq_id != -1) {
+         // single sequence
+@@ -1223,6 +1429,104 @@ bool llama_memory_recurrent::state_read_data(llama_io_read_i & io, uint32_t cell
+     return true;
+ }
+ 
++bool llama_memory_recurrent::state_read_replay(llama_io_read_i & io, llama_seq_id dest_seq_id) {
++    uint32_t magic = 0;
++    io.read(&magic, sizeof(magic));
++    if (magic != LLAMA_STATE_REC_MAGIC) {
++        LLAMA_LOG_ERROR("%s: invalid replay state block\n", __func__);
++        return false;
++    }
++
++    uint32_t replay = 0;
++    io.read(&replay, sizeof(replay));
++
++    uint32_t n_seq = 0;
++    io.read(&n_seq, sizeof(n_seq));
++    if (n_seq != n_seq_max) {
++        LLAMA_LOG_ERROR("%s: mismatched sequence count (%u != %u)\n", __func__, n_seq, n_seq_max);
++        return false;
++    }
++
++    const bool apply_all = dest_seq_id == -1;
++
++    for (uint32_t s = 0; s < n_seq_max; ++s) {
++        uint32_t half_of = 0;
++        uint32_t n       = 0;
++        int32_t  pos0    = 0;
++        int32_t  p       = 0;
++        io.read(&half_of, sizeof(half_of));
++        io.read(&n,       sizeof(n));
++        io.read(&pos0,    sizeof(pos0));
++        io.read(&p,       sizeof(p));
++
++        if (!apply_all && (llama_seq_id) s != dest_seq_id) {
++            continue;
++        }
++
++        rec_half_of[s] = half_of;
++        rec_n[s]       = n;
++        rec_pos0[s]    = pos0;
++
++        // only a state that was saved with the records can be rebuilt by a fold
++        rec_p_pending[s] = replay ? p : INT32_MIN;
++
++        // the diag belongs to the state that was saved, not to the restored one
++        rec_check_bad[s] = 1;
++    }
++
++    uint32_t n_layer = 0;
++    io.read(&n_layer, sizeof(n_layer));
++    if (n_layer != hparams.n_layer()) {
++        LLAMA_LOG_ERROR("%s: mismatched layer count (%u != %u)\n", __func__, n_layer, hparams.n_layer());
++        return false;
++    }
++
++    for (uint32_t il = 0; il < n_layer; ++il) {
++        uint32_t has_rec = 0;
++        io.read(&has_rec, sizeof(has_rec));
++        if (!has_rec) {
++            continue;
++        }
++
++        if (rec_l[il] == nullptr) {
++            LLAMA_LOG_ERROR("%s: saved state has replay records but they are disabled (layer %u)\n", __func__, il);
++            return false;
++        }
++
++        int32_t  rec_type = 0;
++        uint64_t ne0 = 0, ne1 = 0, ne2 = 0;
++        io.read(&rec_type, sizeof(rec_type));
++        io.read(&ne0,      sizeof(ne0));
++        io.read(&ne1,      sizeof(ne1));
++        io.read(&ne2,      sizeof(ne2));
++
++        if (rec_type != (int32_t) rec_l[il]->type || ne0 != rec_l[il]->ne[0] ||
++            ne1 != rec_l[il]->ne[1] || ne2 != rec_l[il]->ne[2]) {
++            LLAMA_LOG_ERROR("%s: mismatched replay record shape (layer %u)\n", __func__, il);
++            return false;
++        }
++
++        uint32_t n_bank = 0;
++        io.read(&n_bank, sizeof(n_bank));
++
++        const size_t slice = ne0*ne1*ggml_element_size(rec_l[il]);
++        for (uint32_t b = 0; b < n_bank; ++b) {
++            uint32_t bank = 0;
++            io.read(&bank, sizeof(bank));
++
++            // banks of other sequences stay as they are
++            if (apply_all || (llama_seq_id) bank == dest_seq_id) {
++                io.read_tensor(rec_l[il], bank*(size_t) rec_l[il]->nb[2], slice);
++            } else {
++                std::vector<char> skip(slice);
++                io.read(skip.data(), slice);
++            }
++        }
++    }
++
++    return true;
++}
++
+ //
+ // llama_memory_recurrent_context
+ //
+@@ -1303,6 +1607,151 @@ ggml_tensor * llama_memory_recurrent_context::get_p_l(int32_t il) const {
+     return mem->p_l[il];
+ }
+ 
++ggml_tensor * llama_memory_recurrent_context::get_rec_l(int32_t il) const {
++    return mem->rec_l[il];
++}
++
++ggml_tensor * llama_memory_recurrent_context::get_rec_diag(int32_t il) const {
++    return mem->rec_diag[il];
++}
++
++ggml_tensor * llama_memory_recurrent_context::get_rec_fold_t() const {
++    return mem->rec_fold_t;
++}
++
++llama_seq_id llama_memory_recurrent_context::get_rec_seq(int i) const {
++    const uint32_t cell_idx = i + mem->head;
++    if (cell_idx >= mem->size || mem->cells[cell_idx].seq_id.empty()) {
++        return -1;
++    }
++    return *mem->cells[cell_idx].seq_id.begin();
++}
++
++uint32_t llama_memory_recurrent_context::get_rec_p(int i, int32_t pos0) const {
++    if (!mem->rec_replay) {
++        return 0;
++    }
++    const llama_seq_id seq = get_rec_seq(i);
++    if (seq < 0 || (size_t) seq >= mem->rec_have_rec.size()) {
++        return 0;
++    }
++    int32_t p = 0;
++    if (mem->rec_p_pending[seq] != INT32_MIN) {
++        // a restored state carries the accepted prefix of the ubatch that was current at save time;
++        // a rollback applied after the restore is relative to that prefix
++        p = mem->rec_p_pending[seq] - (int32_t) mem->rs_idx[seq];
++        mem->rec_p_pending[seq] = INT32_MIN;
++        if (p < 0) {
++            // seq_rm bounds the rollback by the pending prefix, so this cannot happen
++            LLAMA_LOG_ERROR("%s: rollback %u exceeds the restored prefix %d for seq %d\n",
++                    __func__, mem->rs_idx[seq], p + (int32_t) mem->rs_idx[seq], seq);
++            p = 0;
++        }
++    } else {
++        // only the records of the immediately preceding batch of this sequence are replayable
++        if (!mem->rec_have_rec[seq]) {
++            if (mem->rs_idx[seq] != 0) {
++                LLAMA_LOG_ERROR("%s: rollback %u requested but records for seq %d are stale\n",
++                        __func__, mem->rs_idx[seq], seq);
++            }
++            return 0;
++        }
++        const uint32_t rollback = mem->rs_idx[seq];
++        p = rollback < mem->rec_n[seq] ? (int32_t) (mem->rec_n[seq] - rollback) : 0;
++    }
++    // the fold is only valid when this batch continues right after the previous accepted prefix:
++    // a batch that re-processes (or restarts at) an earlier position must not replay the records
++    if (pos0 != mem->rec_pos0[seq] + p) {
++        p = 0;
++    }
++    // the high byte carries the previous batch's token count, for the fold self-check
++    return (uint32_t) p | ((mem->rec_n[seq] & 0xff) << 8);
++}
++
++uint32_t llama_memory_recurrent_context::rec_fold_size() const {
++    return std::max<uint32_t>(4*(uint32_t) mem->rec_have_rec.size() + 3, 8);
++}
++
++uint32_t llama_memory_recurrent_context::rec_fold_check_off() const {
++    return 1 + 4*(uint32_t) mem->rec_have_rec.size();
++}
++
++void llama_memory_recurrent_context::rec_fold_fill(std::vector<int32_t> & fold, uint32_t n_seqs, const int32_t * pos0) const {
++    GGML_ASSERT(fold.size() == rec_fold_size());
++
++    const uint32_t n = (uint32_t) mem->rec_have_rec.size();
++
++    int32_t * rhalf = fold.data() + 1 +     n;
++    int32_t * whalf = fold.data() + 1 + 2 * n;
++    int32_t * bank  = fold.data() + 1 + 3 * n;
++
++    bool skip = false;
++
++    for (uint32_t i = 0; i < n_seqs; ++i) {
++        const llama_seq_id seq = get_rec_seq(i);
++
++        fold[1 + i] = (int32_t) get_rec_p(i, pos0[i]);
++
++        if (seq < 0 || (size_t) seq >= mem->rec_have_rec.size()) {
++            continue;
++        }
++
++        // each sequence alternates its own halves: the records it must read and the records it
++        // writes can never collide, no matter how the batches of the other sequences interleave
++        rhalf[i] = (int32_t) mem->rec_half_of[seq];
++        whalf[i] = (int32_t) (1 - mem->rec_half_of[seq]);
++        bank [i] = (int32_t) seq;
++
++        if (mem->rec_check_bad[seq]) {
++            skip = true;
++            mem->rec_check_bad[seq] = 0;
++        }
++    }
++
++    // the kernel fills the counter, the host resets it before every batch
++    fold[rec_fold_check_off()]     = 0;
++    fold[rec_fold_check_off() + 1] = skip ? 1 : 0;
++}
++
++void llama_memory_recurrent_context::rec_forget(int i) const {
++    const llama_seq_id seq = get_rec_seq(i);
++    if (seq >= 0 && (size_t) seq < mem->rec_have_rec.size()) {
++        mem->rec_have_rec[seq] = 0;
++    }
++}
++
++bool llama_memory_recurrent_context::rec_fold_take() const {
++    if (rec_fold_done == i_next) {
++        return false;
++    }
++    rec_fold_done = i_next;
++    return true;
++}
++
++bool llama_memory_recurrent_context::rec_enabled() const {
++    return mem->rec_enabled();
++}
++
++bool llama_memory_recurrent_context::rec_check_enabled() const {
++    return mem->rec_check;
++}
++
++uint32_t llama_memory_recurrent_context::rec_t_cap() const {
++    return mem->rec_t_cap();
++}
++
++void llama_memory_recurrent_context::rec_commit(int i, uint32_t n_tokens, int32_t pos0) const {
++    const llama_seq_id seq = get_rec_seq(i);
++    if (seq < 0 || (size_t) seq >= mem->rec_have_rec.size()) {
++        return;
++    }
++    // the batch wrote to the other half of this sequence
++    mem->rec_half_of[seq] = 1 - mem->rec_half_of[seq];
++    mem->rec_have_rec[seq] = 1;
++    mem->rec_n[seq]       = n_tokens;
++    mem->rec_pos0[seq]    = pos0;
++}
++
+ int32_t llama_memory_recurrent_context::s_copy(int i) const {
+     const uint32_t cell_idx = i + mem->head;
+     const int32_t  src0     = mem->cells[cell_idx].src0;
+diff --git a/src/llama-memory-recurrent.h b/src/llama-memory-recurrent.h
+index 4abb3f5cf..b1d2ad315 100644
+--- a/src/llama-memory-recurrent.h
++++ b/src/llama-memory-recurrent.h
+@@ -114,6 +114,37 @@ public:
+     // a second conv history that must stay replicated across devices, so it cannot share the r row
+     std::vector<ggml_tensor *> p_l;
+ 
++    // ReplaySSM: per-token raw-input records for GDN speculative rollback.
++    // One packed tensor per layer, [k | v | g | beta, 2*T_cap, mem_size] F32; the 2*T_cap dimension is
++    // double-buffered so a fold reads the previous batch while the current batch writes new records.
++    std::vector<ggml_tensor *> rec_l;
++
++    // optional per-layer copy of the state committed by the last pass, used by the fold self-check
++    std::vector<ggml_tensor *> rec_diag;
++
++    // device tensor with the fold parameters, I32: [half, p_0, ..., p_{n_seq_max-1}, _, _, check];
++    // written directly by the graph input with ggml_backend_tensor_set
++    ggml_tensor * rec_fold_t = nullptr;
++
++    // record block widths in floats per token per layer; 0 when the model has no records
++    uint32_t rec_floats_k = 0;
++    uint32_t rec_floats_v = 0;
++    uint32_t rec_floats_g = 0;
++    uint32_t rec_floats_b = 0;
++
++    bool rec_enabled() const { return rec_floats_k > 0; }
++    uint32_t rec_t_cap() const { return n_rs_seq + 1; }
++
++    // replay state: tracking of the batches that write records, per sequence
++    bool     rec_replay = false; // GGML_CUDA_GDN_REPLAY
++    bool     rec_check  = false; // GGML_CUDA_GDN_REPLAY_CHECK
++    std::vector<uint32_t> rec_half_of;   // the seq's last record half; the next recording batch uses the other
++    std::vector<uint8_t>  rec_have_rec;  // the seq's last batch was a recording batch, its records can be replayed
++    std::vector<uint32_t> rec_n;         // that batch's token count
++    std::vector<int32_t>  rec_pos0;      // that batch's first token position (INT32_MIN = never)
++    std::vector<int32_t>  rec_p_pending; // replay count to apply once after a state restore (INT32_MIN = none)
++    std::vector<uint8_t>  rec_check_bad; // the seq's diag does not match the committed state yet, skip the fold check
++
+ private:
+     //const llama_model & model;
+     const llama_hparams & hparams;
+@@ -128,12 +159,15 @@ private:
+     size_t size_r_bytes() const;
+     size_t size_s_bytes() const;
+     size_t size_p_bytes() const;
++    size_t size_rec_bytes() const;
+ 
+     void state_write_meta(llama_io_write_i & io, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges, llama_seq_id seq_id = -1) const;
+-    void state_write_data(llama_io_write_i & io, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges) const;
++    void state_write_data(llama_io_write_i & io, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges, const std::vector<std::pair<uint32_t, uint32_t>> & cell_ranges_s) const;
++    void state_write_replay(llama_io_write_i & io, llama_seq_id seq_id) const;
+ 
+     bool state_read_meta(llama_io_read_i & io, uint32_t cell_count, llama_seq_id dest_seq_id = -1);
+     bool state_read_data(llama_io_read_i & io, uint32_t cell_count);
++    bool state_read_replay(llama_io_read_i & io, llama_seq_id dest_seq_id);
+ };
+ 
+ class llama_memory_recurrent_context : public llama_memory_context_i {
+@@ -174,6 +208,27 @@ public:
+     ggml_tensor * get_r_l(int32_t il) const;
+     ggml_tensor * get_s_l(int32_t il) const;
+     ggml_tensor * get_p_l(int32_t il) const;
++    ggml_tensor * get_rec_l(int32_t il) const;
++    ggml_tensor * get_rec_fold_t() const;
++    ggml_tensor * get_rec_diag(int32_t il) const;
++
++    // records the current batch replays for batch-local seq i, packed as p | (previous token count << 8);
++    // the sequence owning the cell at position i of the ubatch (-1 if unassigned)
++    llama_seq_id get_rec_seq(int i) const;
++    // the packed count lets the op verify a fold that replayed the whole previous batch
++    uint32_t get_rec_p(int i, int32_t pos0) const;
++    // true once per ubatch, for the call that owns the fold parameters of that ubatch
++    bool rec_fold_take() const;
++    void rec_commit(int i, uint32_t n_tokens, int32_t pos0) const;
++    bool rec_enabled() const;
++    bool rec_check_enabled() const;
++    uint32_t rec_t_cap() const;
++
++    // fold parameter block: [_, p_i .., read half_i .., write half_i .., bank_i .., self-check, skip check]
++    uint32_t rec_fold_size() const;
++    uint32_t rec_fold_check_off() const;
++    void rec_fold_fill(std::vector<int32_t> & fold, uint32_t n_seqs, const int32_t * pos0) const;
++    void rec_forget(int i) const;
+ 
+     int32_t s_copy(int i) const;
+ 
+@@ -184,6 +239,10 @@ private:
+ 
+     size_t i_next = 0;
+ 
++    // the fold parameters of this context belong to its current ubatch, and the side effects that
++    // produce them run once per ubatch even though the memory appears in several graph inputs
++    mutable size_t rec_fold_done = (size_t) -1;
++
+     std::vector<llama_ubatch> ubatches;
+ 
+     //
+diff --git a/src/models/delta-net-base.cpp b/src/models/delta-net-base.cpp
+index ad6612647..e17dc023a 100644
+--- a/src/models/delta-net-base.cpp
++++ b/src/models/delta-net-base.cpp
+@@ -399,7 +399,7 @@ std::pair<ggml_tensor *, ggml_tensor *> llm_build_delta_net_base::build_delta_ne
+     GGML_ASSERT(s->ne[0] == S_v && s->ne[1] == S_v && s->ne[2] == H_v      && s->ne[3] == n_seqs);
+ 
+     // K=1: output carries the final state only. state s is 4D [S_v, S_v, H_v, n_seqs].
+-    ggml_tensor * result = ggml_gated_delta_net(ctx0, q, k, v, g, b, s, /*K=*/1);
++    ggml_tensor * result = ggml_gated_delta_net(ctx0, q, k, v, g, b, s, /*K=*/1, nullptr, nullptr, nullptr);
+     if (n_tokens == 1) {
+         res->add_fused_node({LLM_FUSED_OP_GDN_AR, result, il});
+     } else {
+@@ -460,7 +460,9 @@ ggml_tensor * llm_build_delta_net_base::build_conv_state(
+ 
+     const int64_t n_seqs = ubatch.n_seqs;
+ 
+-    ggml_tensor * conv_states = build_rs(inp, conv_states_all, hparams.n_embd_r(), n_seqs);
++    // in replay mode the conv cache uses its own rollback indices, the state gather consumes the
++    // regular ones (see build_rs)
++    ggml_tensor * conv_states = build_rs(inp, conv_states_all, hparams.n_embd_r(), n_seqs, ggml_get_rows, mctx_cur->rec_enabled());
+     cb(conv_states, "conv_states", il);
+ 
+     conv_states = ggml_reshape_3d(ctx0, conv_states, conv_kernel_size - 1, conv_channels, n_seqs);
+@@ -543,9 +545,10 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
+     const int64_t n_seqs       = s->ne[3];
+     const int64_t n_seq_tokens = q->ne[2];
+ 
+-    const bool keep = cparams.n_rs_seq > 0;
++    const bool keep   = cparams.n_rs_seq > 0;
++    const bool replay = mctx_cur->rec_enabled();
+ 
+-    if (!keep) {
++    if (!replay && !keep) {
+         auto attn_out = build_delta_net(q, k, v, g, b, s, il);
+         ggml_tensor * output    = attn_out.first;
+         ggml_tensor * new_state = attn_out.second;
+@@ -563,16 +566,44 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
+     const int64_t D = S_v * S_v * H_v;
+     const int64_t K = cparams.n_rs_seq + 1;
+ 
+-    // state s is 4D [S_v, S_v, H_v, n_seqs]; K snapshot slots are written into the output.
+-    ggml_tensor * gdn_out = ggml_gated_delta_net(ctx0, q, k, v, g, b, s, K);
++    // ReplaySSM: the op replays the accepted records of the previous ubatch, records this one and
++    // commits the replayed state into its tail, which the cpy below moves into the cache
++    ggml_tensor * rec_view = nullptr;
++    ggml_tensor * rec_fold = nullptr;
++    ggml_tensor * rec_diag = nullptr;
++    if (replay) {
++        ggml_tensor * rec_all = mctx_cur->get_rec_l(il);
++        GGML_ASSERT(rec_all != nullptr);
++        rec_fold = mctx_cur->get_rec_fold_t();
++        GGML_ASSERT(rec_fold != nullptr);
++
++        // the op addresses the record bank of each sequence (not the cell), so the view covers all
++        // of them; the rows of the diag are per cell, so its view starts at this batch's cells
++        rec_view = ggml_view_3d(ctx0, rec_all,
++                rec_all->ne[0], rec_all->ne[1], mem_size,
++                rec_all->nb[1], rec_all->nb[2], 0);
++        cb(rec_view, "rec_view", il);
++
++        ggml_tensor * rec_diag_all = mctx_cur->get_rec_diag(il);
++        if (rec_diag_all != nullptr) {
++            rec_diag = ggml_view_2d(ctx0, rec_diag_all,
++                    rec_diag_all->ne[0], n_seqs,
++                    rec_diag_all->nb[1], (size_t) kv_head * rec_diag_all->nb[1]);
++            cb(rec_diag, "rec_diag", il);
++        }
++    }
++
++    // state s is 4D [S_v, S_v, H_v, n_seqs]; the op writes state slots into the output tail: one
++    // committed state in replay mode, otherwise the last min(n_seq_tokens, K) snapshots
++    ggml_tensor * gdn_out = ggml_gated_delta_net(ctx0, q, k, v, g, b, s, K, rec_view, rec_fold, rec_diag);
+     if (n_seq_tokens > 1) {
+         res->add_fused_node({LLM_FUSED_OP_GDN_CH, gdn_out, il});
+     } else {
+         res->add_fused_node({LLM_FUSED_OP_GDN_AR, gdn_out, il});
+     }
+ 
+-    const int64_t attn_score_elems    = S_v * H_v * n_seq_tokens * n_seqs;
+-    const int64_t state_size_per_snap = S_v * S_v * H_v * n_seqs;
++    const int64_t attn_score_elems = S_v * H_v * n_seq_tokens * n_seqs;
++    const int64_t n_written        = replay ? 1 : std::min<int64_t>(n_seq_tokens, K);
+ 
+     ggml_tensor * output = ggml_view_4d(ctx0, gdn_out,
+         S_v, H_v, n_seq_tokens, n_seqs,
+@@ -584,14 +615,11 @@ ggml_tensor * llm_build_delta_net_base::build_recurrent_attn(
+ 
+     const size_t row_size = hparams.n_embd_s() * ggml_element_size(ssm_states_all);
+ 
+-    // op writes the last min(n_seq_tokens, K) snapshots; trailing slots are left unwritten
+-    const int64_t n_written = std::min<int64_t>(n_seq_tokens, K);
+-
+-    // write the produced snapshots into the recurrent cache (snapshot slot i -> rollback group i)
++    // write the produced states into the recurrent cache (snapshot slot i -> rollback group i)
+     ggml_tensor * src = ggml_view_3d(ctx0, gdn_out,
+         D, n_seqs, n_written,
+         ggml_row_size(gdn_out->type, D),
+-        ggml_row_size(gdn_out->type, state_size_per_snap),
++        ggml_row_size(gdn_out->type, D * n_seqs),
+         ggml_row_size(gdn_out->type, attn_score_elems));
+ 
+     ggml_tensor * dst = ggml_view_3d(ctx0, ssm_states_all,
+diff --git a/tests/test-backend-ops.cpp b/tests/test-backend-ops.cpp
+index 505112f6b..bae4a09e5 100644
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -4713,7 +4713,7 @@ struct test_gated_delta_net : public test_case {
+         // q/k are L2-normalised in qwen35/kimi-linear before delta_net
+         q = ggml_l2_norm(ctx, q, 1e-6f);
+         k = ggml_l2_norm(ctx, k, 1e-6f);
+-        ggml_tensor * out   = ggml_gated_delta_net(ctx, q, k, v, g, beta, state, K);
++        ggml_tensor * out   = ggml_gated_delta_net(ctx, q, k, v, g, beta, state, K, nullptr, nullptr, nullptr);
+         return out;
+     }
+ 
+@@ -4777,7 +4777,7 @@ struct test_gated_delta_net_cache_fusion : public test_case {
+         q = ggml_l2_norm(ctx, q, 1e-6f);
+         k = ggml_l2_norm(ctx, k, 1e-6f);
+ 
+-        ggml_tensor * gdn_out = ggml_gated_delta_net(ctx, q, k, v, g, beta, state, K);
++        ggml_tensor * gdn_out = ggml_gated_delta_net(ctx, q, k, v, g, beta, state, K, nullptr, nullptr, nullptr);
+         ggml_set_name(gdn_out, "gdn_out");
+ 
+         // attn scores view (first part of the gdn output)

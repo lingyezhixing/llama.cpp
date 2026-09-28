@@ -1,0 +1,165 @@
+# Review package: 42ee7a6f7..ad81d0efc
+
+## Commits
+ad81d0efc common : rename kv tree checkpoint options and add the fork step
+
+## Files changed
+ common/arg.cpp                  | 20 +++++++++++++++-----
+ common/common.h                 |  3 ++-
+ tools/server/server-context.cpp |  7 ++++---
+ tools/server/server-kv-tree.h   |  1 +
+ 4 files changed, 22 insertions(+), 9 deletions(-)
+
+## Diff
+diff --git a/common/arg.cpp b/common/arg.cpp
+index 904487bc8..9545ccaac 100644
+--- a/common/arg.cpp
++++ b/common/arg.cpp
+@@ -1745,29 +1745,39 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
+         {"--tree-chunk"}, "N",
+         string_format("kv tree block size in tokens (default: %d)", params.tree_chunk),
+         [](common_params & params, int value) {
+             if (value <= 0) {
+                 throw std::invalid_argument("tree-chunk must be positive");
+             }
+             params.tree_chunk = value;
+         }
+     ).set_env("LLAMA_ARG_TREE_CHUNK").set_examples({LLAMA_EXAMPLE_SERVER}));
+     add_opt(common_arg(
+-        {"--tree-anchor-step"}, "N",
+-        string_format("minimum spacing between kv tree anchors in tokens (default: %d)", params.tree_anchor_step),
++        {"--tree-checkpoint-anchor-step"}, "N",
++        string_format("minimum spacing between kv tree checkpoint anchors in tokens (default: %d)", params.tree_checkpoint_anchor_step),
+         [](common_params & params, int value) {
+             if (value < 0) {
+-                throw std::invalid_argument("tree-anchor-step must be non-negative");
++                throw std::invalid_argument("tree-checkpoint-anchor-step must be non-negative");
+             }
+-            params.tree_anchor_step = value;
++            params.tree_checkpoint_anchor_step = value;
+         }
+-    ).set_env("LLAMA_ARG_TREE_ANCHOR_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
++    ).set_env("LLAMA_ARG_TREE_CHECKPOINT_ANCHOR_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
++    add_opt(common_arg(
++        {"--tree-checkpoint-fork-step"}, "N",
++        string_format("minimum spacing between kv tree fork anchors in tokens (default: %d)", params.tree_checkpoint_fork_step),
++        [](common_params & params, int value) {
++            if (value < 0) {
++                throw std::invalid_argument("tree-checkpoint-fork-step must be non-negative");
++            }
++            params.tree_checkpoint_fork_step = value;
++        }
++    ).set_env("LLAMA_ARG_TREE_CHECKPOINT_FORK_STEP").set_examples({LLAMA_EXAMPLE_SERVER}));
+     add_opt(common_arg(
+         {"--tree-ram"}, "N",
+         string_format("kv tree RAM tier limit in MiB (default: %d)", params.tree_ram_mib),
+         [](common_params & params, int value) {
+             if (value < 0) {
+                 throw std::invalid_argument("tree-ram must be non-negative");
+             }
+             params.tree_ram_mib = value;
+         }
+     ).set_env("LLAMA_ARG_TREE_RAM").set_examples({LLAMA_EXAMPLE_SERVER}));
+diff --git a/common/common.h b/common/common.h
+index 3fb472146..f51a69c50 100644
+--- a/common/common.h
++++ b/common/common.h
+@@ -628,21 +628,22 @@ struct common_params {
+     bool    cache_prompt        = true;  // whether to enable prompt caching
+     bool    cache_idle_slots    = true;  // save and clear idle slots upon starting a new task
+     int32_t n_ctx_checkpoints   = 32;    // max number of context checkpoints per slot
+     int32_t kv_unified_per_slot = 0;     // max context per parallel slot; 0 = unset
+     int32_t checkpoint_min_step = 8192;  // minimum spacing between context checkpoints
+     int32_t cache_ram_mib       = 8192;  // -1 = no limit, 0 - disable, 1 = 1 MiB, etc.
+ 
+     // kv tree params (T32)
+     bool        kv_tree         = false;    // use the kv tree for cross-session KV storage
+     int32_t     tree_chunk      = 512;      // KV tree block size in tokens
+-    int32_t     tree_anchor_step = 32768;   // min spacing between kv tree anchors
++    int32_t     tree_checkpoint_anchor_step = 32768;   // min spacing between kv tree checkpoint anchors
++    int32_t     tree_checkpoint_fork_step   = 8192;    // min spacing between kv tree fork anchors
+     int32_t     tree_ram_mib    = 8192;     // kv tree RAM tier limit in MiB
+     int32_t     tree_disk_mib   = 65536;    // kv tree SSD tier limit in MiB
+     std::string tree_disk_dir   = "";       // kv tree SSD tier directory (empty = no SSD tier)
+     bool        tree_debug      = false;    // dump the kv tree after each park/restore
+ 
+     std::string public_path   = "";                                                                         // NOLINT
+     std::string api_prefix    = "";                                                                         // NOLINT
+     std::string chat_template = "";                                                                         // NOLINT
+     std::vector<std::string> hostnames = {"127.0.0.1"};
+     bool use_jinja = true;                                                                                  // NOLINT
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index d64416833..b2d2d2498 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -1488,40 +1488,41 @@ private:
+         if (params_base.kv_tree) {
+             if (params_base.kv_unified) {
+                 SRV_WRN("%s", "--kv-tree is not supported with --kv-unified, disabling kv tree\n");
+                 params_base.kv_tree = false;
+             }
+         }
+ 
+         if (params_base.kv_tree) {
+             kv_tree_config cfg;
+             cfg.chunk       = params_base.tree_chunk;
+-            cfg.anchor_step = params_base.tree_anchor_step;
++            cfg.anchor_step = params_base.tree_checkpoint_anchor_step;
++            cfg.fork_step   = params_base.tree_checkpoint_fork_step;
+             cfg.ram_limit   = (size_t) params_base.tree_ram_mib << 20;
+             cfg.disk_limit  = (size_t) params_base.tree_disk_mib << 20;
+             cfg.disk_dir    = params_base.tree_disk_dir;
+             cfg.debug       = params_base.tree_debug;
+ 
+             if (!cfg.disk_dir.empty()) {
+                 std::error_code ec;
+                 std::filesystem::create_directories(cfg.disk_dir, ec);
+                 if (ec) {
+                     SRV_WRN("failed to create kv tree disk directory '%s': %s, disabling the SSD tier\n",
+                             cfg.disk_dir.c_str(), ec.message().c_str());
+                     cfg.disk_dir.clear();
+                 }
+             }
+ 
+             tree = std::make_unique<kv_tree>(cfg);
+ 
+-            SRV_INF("kv tree enabled: chunk = %d, anchor_step = %d, ram = %d MiB, disk = %s (%d MiB)\n",
+-                    cfg.chunk, cfg.anchor_step, params_base.tree_ram_mib,
++            SRV_INF("kv tree enabled: chunk = %d, anchor_step = %d, fork_step = %d, ram = %d MiB, disk = %s (%d MiB)\n",
++                    cfg.chunk, cfg.anchor_step, cfg.fork_step, params_base.tree_ram_mib,
+                     cfg.disk_dir.empty() ? "off" : cfg.disk_dir.c_str(), params_base.tree_disk_mib);
+         }
+ 
+         if (params_base.n_ctx_checkpoints > 0) {
+             SRV_TRC("context checkpoints enabled, max = %d, min spacing = %d\n",
+                     params_base.n_ctx_checkpoints, params_base.checkpoint_min_step);
+         } else {
+             SRV_TRC("%s", "context checkpoints disabled\n");
+         }
+ 
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index a2ab80efb..d375ff350 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -7,20 +7,21 @@
+ 
+ #include <cstdint>
+ #include <map>
+ #include <string>
+ #include <unordered_map>
+ #include <vector>
+ 
+ struct kv_tree_config {
+     int         chunk       = 512;
+     int         anchor_step = 32768;
++    int         fork_step   = 8192;
+     size_t      ram_limit   = 8ull  << 30;
+     size_t      disk_limit  = 64ull << 30;
+     std::string disk_dir;
+     bool        debug       = false;
+ };
+ 
+ enum kv_tree_anchor_kind {
+     KV_TREE_ANCHOR_TIP      = 0,
+     KV_TREE_ANCHOR_MESSAGE  = 1,
+     KV_TREE_ANCHOR_ONDEMAND = 2,

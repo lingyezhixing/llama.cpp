@@ -1,0 +1,159 @@
+# Review package: d9a62d8ef..HEAD
+
+## Commits
+1bfb1b38a kv tree : cap the leave_one restore at the verified prefix
+
+## Files changed
+ tests/test-t32-tree.cpp         | 35 +++++++++++++++++++++++++++++++++++
+ tools/server/server-context.cpp |  9 +++++++--
+ tools/server/server-kv-tree.cpp |  4 +++-
+ 3 files changed, 45 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index f92f893ce..eb8325360 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -830,20 +830,55 @@ static void run_logic_media() {
+         }
+ 
+         auto bad = media;
+         bad[0].id = 0xBB;
+ 
+         check(!tree.drop_seq(tok, bad),        "media: a different id does not drop the sequence");
+         check(tree.drop_seq(tok, media),       "media: the same input drops the sequence");
+         check_eq(tree.stats().evicted_seqs, 1, "media: the sequence was dropped");
+         check(!tree.drop_seq(tok, media),      "media: the second drop is a no-op");
+     }
++
++    // leave_one must never select an anchor beyond the verified prefix
++    {
++        kv_tree_config cfg2 = cfg;
++        cfg2.chunk       = 128;
++        cfg2.anchor_step = 1;
++
++        kv_tree tree(cfg2);
++
++        auto tok = make_tokens(700, 6);
++
++        kv_tree_anchor_in ck1;
++        ck1.tok = 650;
++        ck1.data_tgt = { 1, 2, 3 };
++
++        kv_tree_anchor_in ck2;
++        ck2.tok = 680;
++        ck2.data_tgt = { 4, 5, 6 };
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 699;
++            check(tree.park(io, nullptr, tok, {}, { ck1, ck2 }), "media: park for the leave_one check");
++        }
++
++        auto req = tok;
++        req[650] = 99999;   // the request diverges inside the last block
++
++        const kv_tree_match m = tree.match(req, {});
++        check_eq(m.deep, 650, "media: leave_one match stops at the divergence");
++
++        kv_tree_io_fake io;
++        const kv_tree_restore r = tree.restore(io, nullptr, req, {}, true);
++        check_eq(r.C, 650, "media: leave_one restore stays within the verified prefix");
++    }
+ }
+ 
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
+     run_logic_evict();
+     run_logic_drop();
+     run_logic_stream();
+     run_logic_capture();
+     run_logic_fixes();
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index e9110676b..983c7937f 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -479,20 +479,21 @@ struct server_slot {
+     }
+ 
+     void prompt_clear() {
+         SLT_TRC(*this, "clearing prompt with %zu tokens\n", prompt.tokens.size());
+ 
+         mem.seq_rm(id, -1, -1);
+ 
+         prompt.clear();
+ 
+         tree_heal = -1;
++        tree_restore_point = -1;
+     }
+ 
+     std::vector<common_adapter_lora_info> lora;
+     int32_t alora_invocation_start = -1;
+ 
+     // sampling
+     json json_schema;
+ 
+     common_sampler_ptr smpl;
+ 
+@@ -1832,22 +1833,26 @@ private:
+                 SRV_TRC("%s", "updating prompt cache\n");
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+                 if (tree) {
+                     ret->prompt_park(*tree);
+ 
+                     // no point restoring when the request will not reuse the prompt
+                     const bool ckpt_tail = ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_FULL ||
+                                            ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS;
+-                    const bool can_rollback = ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_PART ||
+-                                              ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS;
++                    const bool can_rollback =
++                            (ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_PART ||
++                             ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS) &&
++                            (ctx_dft == nullptr ||
++                             ctx_dft_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_PART ||
++                             ctx_dft_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS);
+                     if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens, params_base.n_ctx_checkpoints, ckpt_tail, can_rollback)) {
+                         const llama_pos heal = task.params.cache_prompt ? ret->tree_heal : -1;
+                         ret->prompt_clear();
+                         ret->tree_heal = heal;
+                     }
+                 } else {
+                     ret->prompt_save(*prompt_cache);
+ 
+                     if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+                         ret->prompt_clear();
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 201ff26ce..c1f85a35e 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -1467,24 +1467,26 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+     std::vector<uint64_t> cand = m.path;
+     if (m.n_part > 0) {
+         cand.push_back(m.part_hash);
+     }
+ 
+     int64_t   C      = -1;   // restore point in token space
+     llama_pos c_pos  = 0;
+     uint64_t  c_hash = 0;
+     std::vector<std::pair<uint64_t, llama_pos>> path_anchors;
+ 
++    // leave_one keeps at least one token unprocessed, but never beyond the verified prefix
++    const int64_t cap = leave_one ? std::min<int64_t>((int64_t) m.deep, (int64_t) tokens.size() - 1) : (int64_t) m.deep;
++
+     for (const uint64_t hash : cand) {
+         for (auto it = anchors.lower_bound(std::make_pair(hash, 0));
+              it != anchors.end() && it->first.first == hash; ++it) {
+-            const int64_t cap = leave_one ? (int64_t) tokens.size() - 1 : (int64_t) m.deep;
+             if (it->second.tok <= cap) {
+                 path_anchors.emplace_back(hash, it->second.pos);
+                 if (it->second.tok > C) {
+                     C      = it->second.tok;
+                     c_pos  = it->second.pos;
+                     c_hash = hash;
+                 }
+             }
+         }
+     }

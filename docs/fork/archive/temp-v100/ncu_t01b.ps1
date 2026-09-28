@@ -1,0 +1,8 @@
+$ErrorActionPreference = "Continue"
+$env:CUDA_VISIBLE_DEVICES = "1"
+$ncu   = "C:\Program Files\NVIDIA Corporation\Nsight Compute 2025.2.1\ncu.bat"
+$bench = "D:\LLM\Backend\llama.cpp-my\llama-bench.exe"
+$model = "<models>\Qwen3.8-27B\Qwen3.8-27B-UD-Q6_K.gguf"
+$dir   = "$env:TEMP\v100"
+& $ncu --target-processes all --clock-control none --cache-control all --kernel-name regex:Kernel2 --launch-count 8 --section SpeedOfLight --section ComputeWorkloadAnalysis --section Occupancy --section LaunchStats --print-details all --log-file "$dir\ncu_t01b.log" $bench -m $model -p 512 -n 0 -ub 512 -fa on -ctv q8_0 -r 1 *> "$dir\ncu_t01b_out.txt"
+"done $(Get-Date -Format o)" | Out-File "$dir\ncu_t01b_done.txt"

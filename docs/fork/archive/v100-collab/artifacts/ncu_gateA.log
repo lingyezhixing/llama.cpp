@@ -1,0 +1,437 @@
+==WARNING== Note: Running with uncontrolled GPU caches. Profiling results may be inconsistent.
+==WARNING== Note: Running with unmodified GPU clocks. If not controlled otherwise, profiling results may be inconsistent.
+==PROF== Connected to process 3760 (<TEMP>\v100\t02_gateA_v1.exe)
+==PROF== Profiling "gateA_kernel": 0%....50%....100% - 18 passes
+==PROF== Disconnected from process 3760
+[3760] t02_gateA_v1.exe@127.0.0.1
+  gateA_kernel(const __half *, const __half *, float *, int, int, int, int) (136, 4, 1)x(32, 8, 1), Context 1, Stream 7, Device 0, CC 7.0
+    Warning: Data collection happened without fixed GPU frequencies. Profiling results may be inconsistent.
+    Section: GPU Speed Of Light Throughput
+    ----------------------- ----------- ------------
+    Metric Name             Metric Unit Metric Value
+    ----------------------- ----------- ------------
+    DRAM Frequency                  Mhz       877.49
+    SM Frequency                    Ghz         1.43
+    Elapsed Cycles                cycle    3,727,291
+    Memory Throughput                 %        39.50
+    DRAM Throughput                   %        31.92
+    Duration                         ms         2.61
+    L1/TEX Cache Throughput           %        44.01
+    Waves Per SM                                3.40
+    L2 Cache Throughput               %        21.61
+    SM Active Cycles              cycle 3,344,286.20
+    Compute (SM) Throughput           %        29.90
+    ----------------------- ----------- ------------
+
+    GPU Throughput Chart
+    Table Name : GPU Throughput
+    ---------------- ----------- ------------
+    Metric Name      Metric Unit Metric Value
+    ---------------- ----------- ------------
+    Memory [%]                 %        39.50
+    Compute (SM) [%]           %        29.90
+    ---------------- ----------- ------------
+
+    GPU Throughput Breakdown
+    Table Name : Compute Throughput Breakdown
+    -------------------------------------------- ----------- ------------
+    Metric Name                                  Metric Unit Metric Value
+    -------------------------------------------- ----------- ------------
+    SM: Pipe Shared Cycles Active                          %        29.90
+    SM: Pipe Tensor Cycles Active                          %        29.90
+    SM: Inst Executed                                      %        19.21
+    SM: Issue Active                                       %        19.21
+    SM: Mio2rf Writeback Active                            %        13.13
+    SM: Inst Executed Pipe Lsu                             %         8.04
+    SM: Mio Pq Read Cycles Active                          %         4.17
+    SM: Mio Inst Issued                                    %         4.02
+    SM: Mio Pq Write Cycles Active                         %         3.83
+    SM: Pipe Alu Cycles Active                             %         2.36
+    SM: Pipe Fma Cycles Active                             %         1.30
+    SM: Inst Executed Pipe Cbu Pred On Any                 %         0.24
+    SM: Inst Executed Pipe Adu                             %         0.01
+    IDC: Request Cycles Active                             %            0
+    SM: Inst Executed Pipe Fp16                            %            0
+    SM: Inst Executed Pipe Ipa                             %            0
+    SM: Inst Executed Pipe Tex                             %            0
+    SM: Inst Executed Pipe Xu                              %            0
+    SM: Instruction Throughput Internal Activity           %            0
+    SM: Memory Throughput Internal Activity                %            0
+    SM: Pipe Fp64 Cycles Active                            %            0
+    -------------------------------------------- ----------- ------------
+
+    Table Name : Memory Throughput Breakdown
+    -------------------------------------------------------- ----------- ------------
+    Metric Name                                              Metric Unit Metric Value
+    -------------------------------------------------------- ----------- ------------
+    L1: Data Pipe Lsu Wavefronts                                       %        39.50
+    DRAM: Cycles Active                                                %        31.92
+    L1: Lsu Writeback Active                                           %        29.27
+    L2: T Sectors                                                      %        21.61
+    DRAM: Dram Sectors                                                 %        20.67
+    L2: Lts2xbar Cycles Active                                         %        19.49
+    L1: M Xbar2l1tex Read Sectors                                      %        14.82
+    L2: Xbar2lts Cycles Active                                         %        13.67
+    L2: T Tag Requests                                                 %        11.86
+    GPU: Compute Memory Access Throughput Internal Activity            %        11.72
+    L1: M L1tex2xbar Req Cycles Active                                 %        10.38
+    L2: D Sectors Fill Device                                          %         9.78
+    L1: Data Bank Reads                                                %         9.39
+    L2: D Sectors                                                      %         8.00
+    L1: Lsuin Requests                                                 %         7.81
+    L1: Data Bank Writes                                               %         3.76
+    L1: Texin Sm2tex Req Cycles Active                                 %         0.03
+    GPU: Compute Memory Request Throughput Internal Activity           %            0
+    L1: Data Pipe Tex Wavefronts                                       %            0
+    L1: F Wavefronts                                                   %         0.00
+    L1: Tex Writeback Active                                           %            0
+    L2: D Atomic Input Cycles Active                                   %            0
+    L2: D Sectors Fill Sysmem                                          %         0.00
+    -------------------------------------------------------- ----------- ------------
+
+    OPT   This workload exhibits low compute throughput and memory bandwidth utilization relative to the peak           
+          performance of this device. Achieved compute throughput and/or memory bandwidth below 60.0% of peak           
+          typically indicate latency issues. Look at Scheduler Statistics and Warp State Statistics for potential       
+          reasons.                                                                                                      
+
+    Section: Scheduler Statistics
+    -------------------------------------- ----------- ------------
+    Metric Name                            Metric Unit Metric Value
+    -------------------------------------- ----------- ------------
+    One or More Eligible                             %        21.41
+    Issued Warp Per Scheduler                                  0.21
+    No Eligible                                      %        78.59
+    Theoretical Active Warps Per Scheduler        warp           16
+    Active Warps Per Scheduler                    warp         3.87
+    Eligible Warps Per Scheduler                  warp         0.46
+    -------------------------------------- ----------- ------------
+
+    Table Name : Warps Per Scheduler
+    ------------------------------- ----------- ------------
+    Metric Name                     Metric Unit Metric Value
+    ------------------------------- ----------- ------------
+    Issued Warp Per Scheduler                           0.21
+    Theoretical Warps Per Scheduler        warp            4
+    GPU Maximum Warps Per Scheduler        warp           16
+    Active Warps Per Scheduler             warp         3.87
+    Eligible Warps Per Scheduler           warp         0.46
+    ------------------------------- ----------- ------------
+
+    OPT   Est. Local Speedup: 60.5%                                                                                     
+          Every scheduler is capable of issuing one instruction per cycle, but for this workload each scheduler only    
+          issues an instruction every 4.7 cycles. This might leave hardware resources underutilized and may lead to     
+          less optimal performance. Out of the maximum of 16 warps per scheduler, this workload allocates an average    
+          of 3.87 active warps per scheduler, but only an average of 0.46 warps were eligible per cycle. Eligible       
+          warps are the subset of active warps that are ready to issue their next instruction. Every cycle with no      
+          eligible warp results in no instruction being issued and the issue slot remains unused. To increase the       
+          number of eligible warps, avoid possible load imbalances due to highly different execution durations per      
+          warp. Reducing stalls indicated on the Warp State Statistics and Source Counters sections can help, too.      
+
+    Section: Warp State Statistics
+    ---------------------------------------- ----------- ------------
+    Metric Name                              Metric Unit Metric Value
+    ---------------------------------------- ----------- ------------
+    Warp Cycles Per Issued Instruction             cycle        18.08
+    Warp Cycles Per Executed Instruction           cycle        18.08
+    Issued Warp Per Scheduler                                    0.21
+    Avg. Active Threads Per Warp                                   32
+    Avg. Not Predicated Off Threads Per Warp                    31.42
+    ---------------------------------------- ----------- ------------
+
+    Table Name : Warp State (All Cycles)
+    ------------------------ ----------- ------------
+    Metric Name              Metric Unit Metric Value
+    ------------------------ ----------- ------------
+    Stall MIO Throttle              inst         7.06
+    Stall Short Scoreboard          inst         1.96
+    Stall LG Throttle               inst         1.68
+    Stall Barrier                   inst         1.67
+    Stall Wait                      inst         1.44
+    Stall Math Pipe Throttle        inst         1.19
+    Stall Not Selected              inst         1.18
+    Selected                        inst         1.00
+    Stall Long Scoreboard           inst         0.73
+    Stall Dispatch Stall            inst         0.16
+    Stall Misc                      inst         0.02
+    Stall No Instruction            inst         0.02
+    Stall Branch Resolving          inst         0.01
+    Stall Drain                     inst         0.01
+    Stall IMC Miss                  inst         0.00
+    Stall Membar                    inst            0
+    Stall Sleeping                  inst            0
+    Stall Tex Throttle              inst         0.00
+    ------------------------ ----------- ------------
+
+    WRN   The optional metric smsp__pcsamp_sample_count could not be found. Collecting it as an additional metric could 
+          enable the rule to provide more guidance.                                                                     
+    ----- --------------------------------------------------------------------------------------------------------------
+    OPT   Est. Speedup: 39.03%                                                                                          
+          On average, each warp of this workload spends 7.1 cycles being stalled waiting for the MIO (memory            
+          input/output) instruction queue to be not full. This stall reason is high in cases of extreme utilization of  
+          the MIO pipelines, which include special math instructions, dynamic branches, as well as shared memory        
+          instructions. When caused by shared memory accesses, trying to use fewer but wider loads can reduce pipeline  
+          pressure. This stall type represents about 39.0% of the total average of 18.1 cycles between issuing two      
+          instructions.                                                                                                 
+    ----- --------------------------------------------------------------------------------------------------------------
+    INF   Check the Warp Stall Sampling (All Samples) table for the top stall locations in your source based on         
+          sampling data. The Profiling Guide                                                                            
+          (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-reference) provides more details    
+          on each stall reason.                                                                                         
+
+    Section: Launch Statistics
+    -------------------------------- --------------- ---------------
+    Metric Name                          Metric Unit    Metric Value
+    -------------------------------- --------------- ---------------
+    Block Size                                                   256
+    Function Cache Configuration                     CachePreferNone
+    Grid Size                                                    544
+    Registers Per Thread             register/thread             126
+    Shared Memory Configuration Size           Kbyte           98.30
+    Driver Shared Memory Per Block        byte/block               0
+    Dynamic Shared Memory Per Block       byte/block               0
+    Static Shared Memory Per Block       Kbyte/block           40.96
+    # SMs                                         SM              80
+    Stack Size                                                 1,024
+    Threads                                   thread         139,264
+    # TPCs                                                        40
+    Enabled TPC IDs                                              all
+    Uses Green Context                                             0
+    Waves Per SM                                                3.40
+    Theoretical Occupancy                          %              25
+    Achieved Occupancy                             %           24.28
+    -------------------------------- --------------- ---------------
+
+    OPT   Est. Speedup: 25%                                                                                             
+          A wave of thread blocks is defined as the maximum number of blocks that can be executed in parallel on the    
+          target GPU. The number of blocks in a wave depends on the number of multiprocessors and the theoretical       
+          occupancy of the kernel. This kernel launch results in 3 full waves and a partial wave of 64 thread blocks.   
+          Under the assumption of a uniform execution duration of all thread blocks, this partial wave may account for  
+          up to 25.0% of the total runtime of this kernel. Try launching a grid with no partial wave. The overall       
+          impact of this tail effect also lessens with the number of full waves executed for a grid. See the Hardware   
+          Model (https://docs.nvidia.com/nsight-compute/ProfilingGuide/index.html#metrics-hw-model) description for     
+          more details on launch configurations.                                                                        
+
+    Section: Occupancy
+    ------------------------------- ----------- ------------
+    Metric Name                     Metric Unit Metric Value
+    ------------------------------- ----------- ------------
+    Block Limit SM                        block           32
+    Block Limit Registers                 block            2
+    Block Limit Shared Mem                block            2
+    Block Limit Warps                     block            8
+    Theoretical Active Warps per SM        warp           16
+    Theoretical Occupancy                     %           25
+    Achieved Occupancy                        %        24.28
+    Achieved Active Warps Per SM           warp        15.54
+    Theoretical Warps Per Scheduler        warp            4
+    GPU Maximum Warps Per Scheduler        warp           16
+    ------------------------------- ----------- ------------
+
+    % Occupancy Graphs
+    Table Name : Impact of Varying Register Count Per Thread
+    ------------------------------ --------------- ------------------------------
+    Metric Name                        Metric Unit                   Metric Value
+    ------------------------------ --------------- ------------------------------
+    % Occupancy Per Register Count      %/register     4,761 (25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 25; 25;
+                                                      25; 25; 25; 25; 25; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12;
+                                                      12; 12; 12; 12; 12; 12; 12)
+    Registers Per Thread           register/thread                            126
+    ------------------------------ --------------- ------------------------------
+
+    Table Name : Impact of Varying Block Size
+    -------------------------- ----------- ------------------------------
+    Metric Name                Metric Unit                   Metric Value
+    -------------------------- ----------- ------------------------------
+    % Occupancy Per Block Size           %  527 (3; 3; 3; 6; 6; 9; 9; 12;
+                                              12; 15; 15; 18; 18; 21; 21;
+                                              25; 25; 14; 14; 15; 15; 17;
+                                              17; 18; 18; 20; 20; 21; 21;
+                                              23; 23; 25; 25; 0; 0; 0; 0;
+                                               0; 0; 0; 0; 0; 0; 0; 0; 0;
+                                               0; 0; 0; 0; 0; 0; 0; 0; 0;
+                                            0; 0; 0; 0; 0; 0; 0; 0; 0; 0)
+    Block Size                                                        256
+    -------------------------- ----------- ------------------------------
+
+    Table Name : Impact of Varying Shared Memory Usage Per Block
+    ------------------------------- ----------- ------------------------------
+    Metric Name                     Metric Unit                   Metric Value
+    ------------------------------- ----------- ------------------------------
+    % Occupancy Per Shared Mem Size     %/Kbyte  3.56 (0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.03; 0.03; 0.03;
+                                                       0.03; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01;
+                                                       0.01; 0.01; 0.01; 0.01)
+    Shared Memory Per Block         Kbyte/block                          40.96
+    ------------------------------- ----------- ------------------------------
+
+    # Warps Graphs
+    Table Name : Impact of Varying Register Count Per Thread
+    -------------------------- --------------- ------------------------------
+    Metric Name                    Metric Unit                   Metric Value
+    -------------------------- --------------- ------------------------------
+    # Warps Per Register Count                     3,088 (16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                  16; 16; 16; 16; 16; 16; 16;
+                                                 16; 16; 16; 16; 16; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                   8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                      8; 8; 8; 8; 8; 8; 8; 8)
+    Registers Per Thread       register/thread                            126
+    -------------------------- --------------- ------------------------------
+
+    Table Name : Impact of Varying Block Size
+    ---------------------- ----------- ------------------------------
+    Metric Name            Metric Unit                   Metric Value
+    ---------------------- ----------- ------------------------------
+    Block Size                                                    256
+    # Warps Per Block Size               346 (2; 2; 2; 4; 4; 6; 6; 8;
+                                           8; 10; 10; 12; 12; 14; 14;
+                                            16; 16; 9; 9; 10; 10; 11;
+                                          11; 12; 12; 13; 13; 14; 14;
+                                          15; 15; 16; 16; 0; 0; 0; 0;
+                                           0; 0; 0; 0; 0; 0; 0; 0; 0;
+                                           0; 0; 0; 0; 0; 0; 0; 0; 0;
+                                        0; 0; 0; 0; 0; 0; 0; 0; 0; 0)
+    ---------------------- ----------- ------------------------------
+
+    Table Name : Impact of Varying Shared Memory Usage Per Block
+    --------------------------- ----------- ------------------------------
+    Metric Name                 Metric Unit                   Metric Value
+    --------------------------- ----------- ------------------------------
+    # Warps Per Shared Mem Size                 2,312 (16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 16; 16; 16; 16; 16; 16;
+                                               16; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                8; 8; 8; 8; 8; 8; 8; 8; 8;
+                                                         8; 8; 8; 8; 8; 8)
+    Shared Memory Per Block     Kbyte/block                          40.96
+    --------------------------- ----------- ------------------------------
+
+    OPT   Est. Speedup: 60.5%                                                                                           
+          The 4.00 theoretical warps per scheduler this kernel can issue according to its occupancy are below the       
+          hardware maximum of 16. This kernel's theoretical occupancy (25.0%) is limited by the number of required      
+          registers, and the required amount of shared memory.                                                          
+
