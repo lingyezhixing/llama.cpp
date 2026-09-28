@@ -319,6 +319,11 @@ llama_build_and_test(test-backend-sampler.cpp   LABEL "model")
 llama_build_and_test(test-state-restore-fragmented.cpp LABEL "model" ARGS -m "${MODEL_DEST}")
 set_tests_properties(test-state-restore-fragmented PROPERTIES FIXTURES_REQUIRED test-download-model)
 
+llama_build(test-t32-range.cpp)
+
+llama_build(test-t32-tree.cpp ${PROJECT_SOURCE_DIR}/tools/server/server-kv-tree.cpp)
+target_include_directories(test-t32-tree PRIVATE ${PROJECT_SOURCE_DIR}/tools/server ${PROJECT_SOURCE_DIR}/tools/mtmd ${PROJECT_SOURCE_DIR}/vendor)
+
 if (APPLE)
     llama_build(test-rset-release.cpp)
 endif()
