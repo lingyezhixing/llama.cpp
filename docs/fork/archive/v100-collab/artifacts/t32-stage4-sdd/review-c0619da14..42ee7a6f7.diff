@@ -1,0 +1,125 @@
+# Review package: c0619da14..42ee7a6f7
+
+## Commits
+42ee7a6f7 server : cap rebuilt checkpoint payloads and fix wipe counting
+
+## Files changed
+ tools/server/server-context.cpp | 12 ++++++++++++
+ tools/server/server-kv-tree.cpp | 13 +++----------
+ 2 files changed, 15 insertions(+), 10 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 271f6f53c..d64416833 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -363,36 +363,48 @@ struct server_slot {
+             SLT_INF(*this, "kv tree: restore miss for %zu tokens, full prefill\n", tokens.size());
+             return false;
+         }
+ 
+         prompt.tokens = server_tokens(llama_tokens(tokens.get_tokens().begin(), tokens.get_tokens().begin() + res.C), false);
+         prompt.checkpoints.clear();
+ 
+         if (n_ckpt_max > 0) {
+             std::list<common_prompt_checkpoint> cks;
+ 
++            // the tree budget is enforced gradually, but a rebuilt checkpoint is an extra in-RAM
++            // copy, so cap the burst by bytes too; drop the shallowest (oldest) first
++            const size_t ck_bytes_max = 256ull << 20;
++            size_t ck_bytes = 0;
++
+             for (auto & a : res.anchors) {
+                 if (a.pos <= 0 || a.pos >= res.C) {
+                     continue;
+                 }
+ 
+                 common_prompt_checkpoint ck;
+                 ck.id_task = -1;
+                 // stock checkpoints for recurrent contexts record the tail; the rollback filter
+                 // relies on it, so a partial seq_rm is never attempted for them
+                 ck.update_pos(a.pos, ckpt_tail ? a.pos - 1 : 0, a.pos - 1);
++                ck_bytes += a.data_tgt.size() + a.data_dft.size();
+                 ck.data_tgt = std::move(a.data_tgt);
+                 ck.data_dft = std::move(a.data_dft);
+                 cks.push_back(std::move(ck));
+             }
+ 
+             while ((int) cks.size() > n_ckpt_max) {
++                ck_bytes -= cks.front().data_tgt.size() + cks.front().data_dft.size();
++                cks.pop_front();
++            }
++
++            while (ck_bytes > ck_bytes_max && !cks.empty()) {
++                ck_bytes -= cks.front().data_tgt.size() + cks.front().data_dft.size();
+                 cks.pop_front();
+             }
+ 
+             prompt.checkpoints = std::move(cks);
+ 
+             if (!prompt.checkpoints.empty()) {
+                 SLT_INF(*this, "kv tree: rebuilt %zu context checkpoints\n", prompt.checkpoints.size());
+             }
+         }
+ 
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index ac1e2fb20..bdd03266d 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -180,31 +180,24 @@ llama_pos kv_tree_io_llama::pos_max() {
+ }
+ 
+ kv_tree::kv_tree(const kv_tree_config & cfg) : cfg(cfg) {
+     if (cfg.chunk <= 0 || cfg.anchor_step < 0) {
+         fprintf(stderr, "[kv-tree] invalid config: chunk = %d, anchor_step = %d\n", cfg.chunk, cfg.anchor_step);
+         GGML_ABORT("invalid kv tree config");
+     }
+ 
+     if (!cfg.disk_dir.empty()) {
+         // the tree is not persistent: drop the leftovers of a previous run
+-        size_t n_stale = 0;
+-
+         std::error_code ec;
+-        for (const auto & entry : std::filesystem::recursive_directory_iterator(cfg.disk_dir, ec)) {
+-            if (entry.is_regular_file(ec)) {
+-                n_stale++;
+-            }
+-        }
+ 
+-        std::filesystem::remove_all(cfg.disk_dir + "/blocks", ec);
+-        std::filesystem::remove_all(cfg.disk_dir + "/anchors", ec);
++        const size_t n_stale = std::filesystem::remove_all(cfg.disk_dir + "/blocks", ec) +
++                               std::filesystem::remove_all(cfg.disk_dir + "/anchors", ec);
+ 
+         fprintf(stderr, "[kv-tree] cleared %zu stale files from %s\n", n_stale, cfg.disk_dir.c_str());
+     }
+ }
+ 
+ kv_tree_match kv_tree::match(const std::vector<llama_token> & tokens) const {
+     kv_tree_match m;
+ 
+     std::vector<uint64_t> h;
+     chain_hashes(tokens, cfg.chunk, h);
+@@ -606,21 +599,21 @@ bool kv_tree::demote_anchor(kv_tree_anchor & a) {
+     a.on_disk = true;
+     a.path    = path;
+     std::vector<uint8_t>().swap(a.data_tgt);
+     std::vector<uint8_t>().swap(a.data_dft);
+     std::vector<uint8_t>().swap(a.data_spec);
+ 
+     return true;
+ }
+ 
+ bool kv_tree::load_payload(kv_tree_block & b) {
+-    if (!b.on_disk) {
++    if (!b.on_disk || b.transient) {
+         return true;
+     }
+ 
+     std::vector<uint8_t> buf;
+     if (!read_disk(b.path, buf)) {
+         fprintf(stderr, "[kv-tree] failed to read block %016" PRIx64 " from disk\n", b.hash);
+         st.disk_errors++;
+         return false;
+     }
+ 

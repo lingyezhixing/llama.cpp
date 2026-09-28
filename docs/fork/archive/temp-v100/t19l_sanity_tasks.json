@@ -1,0 +1,4 @@
+[
+  {"tag": "mtp3", "spec_type": "draft-mtp", "n_max": 3, "prompt": "spec_doc_0.txt",  "label": "d0",  "cache": false},
+  {"tag": "mtp3", "spec_type": "draft-mtp", "n_max": 3, "prompt": "spec_doc_32k.txt", "label": "32k", "cache": false}
+]

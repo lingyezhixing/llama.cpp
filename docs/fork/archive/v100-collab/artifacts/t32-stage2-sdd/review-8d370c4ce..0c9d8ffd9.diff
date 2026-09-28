@@ -1,0 +1,914 @@
+# Review package: 8d370c4ce..0c9d8ffd9
+
+## Commits
+0c9d8ffd9 server : add ssd tier and single-copy payload moves to the kv tree
+
+## Files changed
+ tests/test-t32-tree.cpp         |  54 +++++
+ tools/server/server-kv-tree.cpp | 526 ++++++++++++++++++++++++++++++++++++++--
+ tools/server/server-kv-tree.h   |  21 +-
+ 3 files changed, 581 insertions(+), 20 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 3449683cf..41b23146b 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -1,19 +1,20 @@
+ // Harness for the T32 KV tree module (stage 2)
+ #include "arg.h"
+ #include "common.h"
+ #include "llama.h"
+ #include "server-kv-tree.h"
+ 
+ #include <algorithm>
+ #include <cstdio>
+ #include <cstring>
++#include <filesystem>
+ #include <string>
+ #include <vector>
+ 
+ static int n_fail = 0;
+ 
+ static void check(bool cond, const char * what) {
+     fprintf(stderr, "[t32-tree] %-72s %s\n", what, cond ? "PASS" : "FAIL");
+     if (!cond) {
+         n_fail++;
+     }
+@@ -395,20 +396,72 @@ static int scenario_sparsify(llama_context * ctx, const kv_tree_config & cfg_in)
+         const auto r = run_tree_path(ctx, tree, io, tokens, 42, 8);
+         check_eq(r.res.C, 2048, "sparsify: full length restores at the tip");
+         check(r.gen == base, "sparsify: full length tokens match");
+     }
+ 
+     tree.dump();
+ 
+     return n_fail == 0 ? 0 : 1;
+ }
+ 
++static int scenario_ssd(llama_context * ctx, const kv_tree_config & cfg_in) {
++    fprintf(stderr, "[t32-tree] scenario: ssd\n");
++
++    kv_tree_config cfg = cfg_in;
++    cfg.ram_limit  = 64 << 10;    // force everything to disk
++    cfg.disk_limit = 64 << 20;
++    cfg.disk_dir   = (std::filesystem::temp_directory_path() / "t32-tree-test").string();
++
++    std::error_code ec;
++    std::filesystem::remove_all(cfg.disk_dir, ec);
++    std::filesystem::create_directories(cfg.disk_dir + "/blocks", ec);
++    std::filesystem::create_directories(cfg.disk_dir + "/anchors", ec);
++
++    kv_tree tree(cfg);
++    kv_tree_io_llama io(ctx, 0);
++
++    const auto tokens = make_tokens(1536, 0);
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    prefill(ctx, 0, tokens, 0, 512);
++
++    check(tree.park(io, nullptr, tokens, {}), "ssd: park");
++    check(tree.stats().blocks_disk > 0, "ssd: blocks demoted to disk");
++    check(tree.stats().anchors_disk > 0, "ssd: tip anchor demoted to disk");
++    check_eq(tree.stats().blocks_ram, 0, "ssd: no blocks left in ram");
++
++    {
++        const auto base = run_baseline(ctx, tokens, 42, 8);
++        const auto r = run_tree_path(ctx, tree, io, tokens, 42, 8);
++        check_eq(r.res.C, 1536, "ssd: restore point is the tip");
++        check(r.gen == base, "ssd: tokens match the baseline");
++    }
++
++    for (const auto & e : std::filesystem::directory_iterator(cfg.disk_dir + "/blocks")) {
++        std::filesystem::remove(e.path());
++    }
++
++    const int64_t errors_before = tree.stats().disk_errors;
++
++    {
++        const auto r = run_tree_path(ctx, tree, io, tokens, 42, 8);
++        check_eq(r.res.C, -1, "ssd: restore misses when block files are gone");
++        check(tree.stats().disk_errors > errors_before, "ssd: disk error counted");
++    }
++
++    std::filesystem::remove_all(cfg.disk_dir, ec);
++
++    tree.dump();
++
++    return n_fail == 0 ? 0 : 1;
++}
++
+ int main(int argc, char ** argv) {
+     std::string mode = "logic";
+ 
+     int    chunk       = 512;
+     int    anchor_step = 32768;
+     int    ram_mib     = 8192;
+     int    disk_mib    = 65536;
+     std::string disk;
+ 
+     std::vector<char *> args;
+@@ -476,16 +529,17 @@ int main(int argc, char ** argv) {
+     cfg.anchor_step = anchor_step;
+     cfg.ram_limit   = (size_t) ram_mib << 20;
+     cfg.disk_limit  = (size_t) disk_mib << 20;
+     cfg.disk_dir    = disk;
+ 
+     if (mode == "model") {
+         int ret = 0;
+         ret |= scenario_tip(ctx, cfg);
+         ret |= scenario_fork(ctx, cfg);
+         ret |= scenario_sparsify(ctx, cfg);
++        ret |= scenario_ssd(ctx, cfg);
+         return ret;
+     }
+ 
+     fprintf(stderr, "unknown mode %s\n", mode.c_str());
+     return 1;
+ }
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 32de3331a..341322037 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -18,20 +18,133 @@ static void chain_hashes(const std::vector<llama_token> & tokens, int chunk, std
+ 
+     uint64_t cur = 0;
+ 
+     for (size_t a = 0; a < tokens.size(); a += (size_t) chunk) {
+         const size_t b = std::min(tokens.size(), a + (size_t) chunk);
+         cur = chunk_hash(tokens.data() + a, b - a, cur);
+         h.push_back(cur);
+     }
+ }
+ 
++static const uint32_t T32_ENV_MAGIC_BLOCK  = 0x42323354u;  // "T32B"
++static const uint32_t T32_ENV_MAGIC_ANCHOR = 0x41323354u;  // "T32A"
++static const uint32_t T32_ENV_VERSION      = 1;
++
++static void put_u32(std::vector<uint8_t> & v, uint32_t x) {
++    uint8_t b[4];
++    memcpy(b, &x, 4);
++    v.insert(v.end(), b, b + 4);
++}
++
++static void put_i32(std::vector<uint8_t> & v, int32_t x) {
++    put_u32(v, (uint32_t) x);
++}
++
++static void put_u64(std::vector<uint8_t> & v, uint64_t x) {
++    uint8_t b[8];
++    memcpy(b, &x, 8);
++    v.insert(v.end(), b, b + 8);
++}
++
++struct kv_env {
++    uint32_t magic   = 0;
++    uint64_t hash    = 0;
++    llama_pos p0     = 0;
++    llama_pos p1     = 0;
++    uint32_t n_tgt   = 0;
++    uint32_t n_dft   = 0;
++    uint32_t n_spec  = 0;
++    const uint8_t * tgt  = nullptr;
++    const uint8_t * dft  = nullptr;
++    const uint8_t * spec = nullptr;
++};
++
++static std::vector<uint8_t> envelope_make(uint32_t magic, uint64_t hash, llama_pos p0, llama_pos p1,
++                                          const std::vector<uint8_t> & tgt,
++                                          const std::vector<uint8_t> & dft,
++                                          const std::vector<uint8_t> & spec) {
++    uint64_t ph = 0;
++    if (!tgt.empty()) {
++        ph = XXH64(tgt.data(), tgt.size(), 0);
++    }
++    if (!dft.empty()) {
++        ph = XXH64(dft.data(), dft.size(), ph);
++    }
++    if (!spec.empty()) {
++        ph = XXH64(spec.data(), spec.size(), ph);
++    }
++
++    std::vector<uint8_t> v;
++    v.reserve(44 + tgt.size() + dft.size() + spec.size());
++
++    put_u32(v, magic);
++    put_u32(v, T32_ENV_VERSION);
++    put_u64(v, hash);
++    put_i32(v, (int32_t) p0);
++    put_i32(v, (int32_t) p1);
++    put_u32(v, (uint32_t) tgt.size());
++    put_u32(v, (uint32_t) dft.size());
++    put_u32(v, (uint32_t) spec.size());
++    put_u64(v, ph);
++    v.insert(v.end(), tgt.begin(), tgt.end());
++    v.insert(v.end(), dft.begin(), dft.end());
++    v.insert(v.end(), spec.begin(), spec.end());
++
++    return v;
++}
++
++static bool envelope_parse(const std::vector<uint8_t> & buf, kv_env & e) {
++    if (buf.size() < 44) {
++        return false;
++    }
++
++    const uint8_t * p = buf.data();
++    size_t off = 0;
++
++    uint32_t version = 0;
++    uint64_t ph = 0;
++
++    memcpy(&e.magic,   p + off, 4); off += 4;
++    memcpy(&version,   p + off, 4); off += 4;
++    memcpy(&e.hash,    p + off, 8); off += 8;
++    memcpy(&e.p0,      p + off, 4); off += 4;
++    memcpy(&e.p1,      p + off, 4); off += 4;
++    memcpy(&e.n_tgt,   p + off, 4); off += 4;
++    memcpy(&e.n_dft,   p + off, 4); off += 4;
++    memcpy(&e.n_spec,  p + off, 4); off += 4;
++    memcpy(&ph,        p + off, 8); off += 8;
++
++    if (version != T32_ENV_VERSION) {
++        return false;
++    }
++    if (off + e.n_tgt + e.n_dft + e.n_spec != buf.size()) {
++        return false;
++    }
++
++    e.tgt  = p + off; off += e.n_tgt;
++    e.dft  = p + off; off += e.n_dft;
++    e.spec = p + off;
++
++    uint64_t check = 0;
++    if (e.n_tgt > 0) {
++        check = XXH64(e.tgt, e.n_tgt, 0);
++    }
++    if (e.n_dft > 0) {
++        check = XXH64(e.dft, e.n_dft, check);
++    }
++    if (e.n_spec > 0) {
++        check = XXH64(e.spec, e.n_spec, check);
++    }
++
++    return check == ph;
++}
++
+ kv_tree_io_llama::kv_tree_io_llama(llama_context * ctx, llama_seq_id seq_id) : ctx(ctx), seq_id(seq_id) {
+ }
+ 
+ bool kv_tree_io_llama::get_range(llama_pos p0, llama_pos p1, std::vector<uint8_t> & out) {
+     const size_t size = llama_state_seq_get_size_range_ext(ctx, seq_id, p0, p1, 0);
+     if (size == 0) {
+         return false;
+     }
+ 
+     out.resize(size);
+@@ -118,24 +231,20 @@ kv_tree_match kv_tree::match(const std::vector<llama_token> & tokens) const {
+                 }
+             }
+         }
+ 
+         m.deep = std::max(m.deep, (llama_pos) (tail_a + m.n_part));
+     }
+ 
+     return m;
+ }
+ 
+-bool kv_tree::make_room(size_t need_ram) {
+-    return (size_t) st.bytes_ram + need_ram <= cfg.ram_limit;
+-}
+-
+ bool kv_tree::store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                            std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft) {
+     if (pos <= 0 || blk_hash == 0) {
+         return false;
+     }
+ 
+     const auto key = std::make_pair(blk_hash, pos);
+ 
+     const auto it = anchors.find(key);
+     if (it != anchors.end()) {
+@@ -240,20 +349,25 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+     if (io_dft != nullptr && !io_dft->get_partial(dft)) {
+         fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the draft state\n", pos);
+         st.anchors_skipped++;
+         return false;
+     }
+ 
+     if (!store_anchor(blk, pos, KV_TREE_ANCHOR_ONDEMAND, std::move(tgt), std::move(dft))) {
+         return false;
+     }
+ 
++    if (!enforce_budget() || anchors.count(key) == 0) {
++        st.anchors_skipped++;
++        return false;
++    }
++
+     promote_prune(pos);
+ 
+     return true;
+ }
+ 
+ void kv_tree::promote_prune(llama_pos pos) {
+     if (last_promote < 0) {
+         last_promote = pos;
+         return;
+     }
+@@ -289,20 +403,363 @@ uint64_t kv_tree::containing_block(llama_pos pos, const std::vector<uint64_t> *
+         }
+         if (chain != nullptr && std::find(chain->begin(), chain->end(), hash) == chain->end()) {
+             continue;
+         }
+         return hash;
+     }
+ 
+     return 0;
+ }
+ 
++std::string kv_tree::block_path(uint64_t hash) const {
++    char buf[32];
++    snprintf(buf, sizeof(buf), "%016" PRIx64 ".bin", hash);
++    return cfg.disk_dir + "/blocks/" + buf;
++}
++
++std::string kv_tree::anchor_path(uint64_t blk_hash, llama_pos pos) const {
++    char buf[48];
++    snprintf(buf, sizeof(buf), "%016" PRIx64 "_%d.bin", blk_hash, (int) pos);
++    return cfg.disk_dir + "/anchors/" + buf;
++}
++
++bool kv_tree::write_disk(const std::string & path, const std::vector<uint8_t> & buf) {
++    const std::string tmp = path + ".tmp";
++
++    std::FILE * f = fopen(tmp.c_str(), "wb");
++    if (f == nullptr) {
++        return false;
++    }
++
++    const size_t n = fwrite(buf.data(), 1, buf.size(), f);
++    const bool ok = fclose(f) == 0 && n == buf.size();
++
++    if (!ok) {
++        remove(tmp.c_str());
++        return false;
++    }
++
++    std::error_code ec;
++    std::filesystem::rename(tmp, path, ec);
++    if (ec) {
++        std::filesystem::remove(path, ec);
++        std::filesystem::rename(tmp, path, ec);
++    }
++    if (ec) {
++        remove(tmp.c_str());
++        return false;
++    }
++
++    return true;
++}
++
++bool kv_tree::read_disk(const std::string & path, std::vector<uint8_t> & out) {
++    std::FILE * f = fopen(path.c_str(), "rb");
++    if (f == nullptr) {
++        return false;
++    }
++
++    fseek(f, 0, SEEK_END);
++    const long size = ftell(f);
++    fseek(f, 0, SEEK_SET);
++
++    if (size <= 0) {
++        fclose(f);
++        return false;
++    }
++
++    out.resize((size_t) size);
++
++    const size_t n = fread(out.data(), 1, out.size(), f);
++    fclose(f);
++
++    return n == out.size();
++}
++
++bool kv_tree::demote_block(kv_tree_block & b) {
++    if (cfg.disk_dir.empty() || b.on_disk || b.data.empty()) {
++        return false;
++    }
++    if (st.bytes_disk + (int64_t) b.data.size() > (int64_t) cfg.disk_limit) {
++        return false;
++    }
++
++    const std::string path = block_path(b.hash);
++
++    if (!write_disk(path, envelope_make(T32_ENV_MAGIC_BLOCK, b.hash, b.pos0, b.pos1, b.data, {}, {}))) {
++        fprintf(stderr, "[kv-tree] failed to write block %016" PRIx64 " to disk\n", b.hash);
++        st.disk_errors++;
++        return false;
++    }
++
++    st.bytes_ram  -= (int64_t) b.data.size();
++    st.bytes_disk += (int64_t) b.data.size();
++    st.blocks_ram--;
++    st.blocks_disk++;
++    st.bytes_store += (int64_t) b.data.size();
++
++    b.on_disk = true;
++    b.path    = path;
++    std::vector<uint8_t>().swap(b.data);
++
++    return true;
++}
++
++bool kv_tree::demote_anchor(kv_tree_anchor & a) {
++    if (cfg.disk_dir.empty() || a.on_disk || a.data_tgt.empty()) {
++        return false;
++    }
++
++    const size_t size = anchor_bytes(a);
++    if (st.bytes_disk + (int64_t) size > (int64_t) cfg.disk_limit) {
++        return false;
++    }
++
++    const std::string path = anchor_path(a.blk_hash, a.pos);
++
++    if (!write_disk(path, envelope_make(T32_ENV_MAGIC_ANCHOR, a.blk_hash, a.pos, a.pos, a.data_tgt, a.data_dft, a.data_spec))) {
++        fprintf(stderr, "[kv-tree] failed to write anchor %016" PRIx64 "@%d to disk\n", a.blk_hash, a.pos);
++        st.disk_errors++;
++        return false;
++    }
++
++    st.bytes_ram  -= (int64_t) size;
++    st.bytes_disk += (int64_t) size;
++    st.anchors_ram--;
++    st.anchors_disk++;
++    st.bytes_store += (int64_t) size;
++
++    a.on_disk = true;
++    a.path    = path;
++    std::vector<uint8_t>().swap(a.data_tgt);
++    std::vector<uint8_t>().swap(a.data_dft);
++    std::vector<uint8_t>().swap(a.data_spec);
++
++    return true;
++}
++
++bool kv_tree::load_payload(kv_tree_block & b) {
++    if (!b.on_disk) {
++        return true;
++    }
++
++    std::vector<uint8_t> buf;
++    if (!read_disk(b.path, buf)) {
++        fprintf(stderr, "[kv-tree] failed to read block %016" PRIx64 " from disk\n", b.hash);
++        st.disk_errors++;
++        return false;
++    }
++
++    kv_env e;
++    if (!envelope_parse(buf, e) || e.magic != T32_ENV_MAGIC_BLOCK || e.hash != b.hash || e.p0 != b.pos0 || e.p1 != b.pos1 || e.n_dft != 0 || e.n_spec != 0) {
++        fprintf(stderr, "[kv-tree] block %016" PRIx64 " payload check failed, dropping it\n", b.hash);
++        st.disk_errors++;
++        return false;
++    }
++
++    b.data.assign(e.tgt, e.tgt + e.n_tgt);
++    b.transient = true;
++
++    st.bytes_ram += (int64_t) b.data.size();
++    st.blocks_ram++;
++
++    return true;
++}
++
++bool kv_tree::load_payload(kv_tree_anchor & a) {
++    if (!a.on_disk) {
++        return true;
++    }
++
++    std::vector<uint8_t> buf;
++    if (!read_disk(a.path, buf)) {
++        fprintf(stderr, "[kv-tree] failed to read anchor %016" PRIx64 "@%d from disk\n", a.blk_hash, a.pos);
++        st.disk_errors++;
++        return false;
++    }
++
++    kv_env e;
++    if (!envelope_parse(buf, e) || e.magic != T32_ENV_MAGIC_ANCHOR || e.hash != a.blk_hash || e.p0 != a.pos || e.p1 != a.pos) {
++        fprintf(stderr, "[kv-tree] anchor %016" PRIx64 "@%d payload check failed, dropping it\n", a.blk_hash, a.pos);
++        st.disk_errors++;
++        return false;
++    }
++
++    a.data_tgt.assign(e.tgt, e.tgt + e.n_tgt);
++    a.data_dft.assign(e.dft, e.dft + e.n_dft);
++    a.data_spec.assign(e.spec, e.spec + e.n_spec);
++    a.transient = true;
++
++    st.bytes_ram += (int64_t) anchor_bytes(a);
++    st.anchors_ram++;
++
++    return true;
++}
++
++void kv_tree::settle() {
++    for (auto & p : blocks) {
++        kv_tree_block & b = p.second;
++        if (!b.transient) {
++            continue;
++        }
++
++        b.transient = false;
++
++        if ((size_t) st.bytes_ram <= cfg.ram_limit) {
++            std::error_code ec;
++            std::filesystem::remove(b.path, ec);
++
++            st.bytes_disk -= (int64_t) b.data.size();
++            st.blocks_disk--;
++            b.on_disk = false;
++            b.path.clear();
++        } else {
++            st.bytes_ram -= (int64_t) b.data.size();
++            st.blocks_ram--;
++            std::vector<uint8_t>().swap(b.data);
++        }
++    }
++
++    for (auto & p : anchors) {
++        kv_tree_anchor & a = p.second;
++        if (!a.transient) {
++            continue;
++        }
++
++        a.transient = false;
++
++        const size_t size = anchor_bytes(a);
++
++        if ((size_t) st.bytes_ram <= cfg.ram_limit) {
++            std::error_code ec;
++            std::filesystem::remove(a.path, ec);
++
++            st.bytes_disk -= (int64_t) size;
++            st.anchors_disk--;
++            a.on_disk = false;
++            a.path.clear();
++        } else {
++            st.bytes_ram -= (int64_t) size;
++            st.anchors_ram--;
++            std::vector<uint8_t>().swap(a.data_tgt);
++            std::vector<uint8_t>().swap(a.data_dft);
++            std::vector<uint8_t>().swap(a.data_spec);
++        }
++    }
++}
++
++bool kv_tree::enforce_budget() {
++    for (auto & p : blocks) {
++        if ((size_t) st.bytes_ram <= cfg.ram_limit) {
++            break;
++        }
++
++        kv_tree_block & b = p.second;
++        if (b.on_disk || b.data.empty()) {
++            continue;
++        }
++
++        demote_block(b);
++    }
++
++    for (auto & p : anchors) {
++        if ((size_t) st.bytes_ram <= cfg.ram_limit) {
++            break;
++        }
++
++        kv_tree_anchor & a = p.second;
++        if (a.on_disk || a.data_tgt.empty()) {
++            continue;
++        }
++
++        demote_anchor(a);
++    }
++
++    return (size_t) st.bytes_ram <= cfg.ram_limit;
++}
++
++void kv_tree::remove_block(std::unordered_map<uint64_t, kv_tree_block>::iterator it) {
++    kv_tree_block & b = it->second;
++
++    // anchors whose containing block is gone can never be used again
++    for (auto a = anchors.begin(); a != anchors.end(); ) {
++        if (a->first.first == b.hash) {
++            remove_anchor(a++);
++        } else {
++            ++a;
++        }
++    }
++
++    if (b.transient) {
++        st.bytes_ram -= (int64_t) b.bytes;
++        st.blocks_ram--;
++    }
++
++    if (b.on_disk) {
++        std::error_code ec;
++        std::filesystem::remove(b.path, ec);
++        st.bytes_disk -= (int64_t) b.bytes;
++        st.blocks_disk--;
++    } else {
++        st.bytes_ram -= (int64_t) b.bytes;
++        st.blocks_ram--;
++    }
++
++    auto & v = blocks_at[b.pos0];
++    v.erase(std::remove(v.begin(), v.end(), b.hash), v.end());
++    if (v.empty()) {
++        blocks_at.erase(b.pos0);
++    }
++
++    blocks.erase(it);
++    st.evicted_blocks++;
++}
++
++void kv_tree::park_rollback(const std::vector<std::pair<uint64_t, std::vector<uint8_t>>> & blobs,
++                            const kv_tree_match & m,
++                            const std::vector<std::pair<uint64_t, llama_pos>> & touched,
++                            uint64_t tip) {
++    for (const auto & p : blobs) {
++        auto it = blocks.find(p.first);
++        if (it != blocks.end()) {
++            remove_block(it);
++        }
++    }
++
++    for (const auto & key : touched) {
++        auto it = anchors.find(key);
++        if (it == anchors.end()) {
++            continue;
++        }
++        if (it->second.refcount <= 1) {
++            remove_anchor(it);
++        } else {
++            it->second.refcount--;
++        }
++    }
++
++    for (const uint64_t hash : m.path) {
++        auto it = blocks.find(hash);
++        if (it != blocks.end()) {
++            it->second.refcount--;
++        }
++    }
++    if (m.n_part > 0) {
++        auto it = blocks.find(m.part_hash);
++        if (it != blocks.end()) {
++            it->second.refcount--;
++        }
++    }
++
++    seqs.erase(tip);
++}
++
+ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens,
+                    const std::vector<kv_tree_anchor_in> & checkpoints) {
+     st.park_calls++;
+ 
+     const llama_pos L = (llama_pos) tokens.size();
+ 
+     if (L <= 0 || io_tgt.pos_max() != L - 1) {
+         fprintf(stderr, "[kv-tree] park refused: sequence end %d, expected %d\n", io_tgt.pos_max(), L - 1);
+         st.park_refused++;
+         return false;
+@@ -351,31 +808,20 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+         fprintf(stderr, "[kv-tree] park refused: failed to capture the tip state\n");
+         st.park_refused++;
+         return false;
+     }
+     if (io_dft != nullptr && !io_dft->get_partial(part_dft)) {
+         fprintf(stderr, "[kv-tree] park refused: failed to capture the tip draft state\n");
+         st.park_refused++;
+         return false;
+     }
+ 
+-    size_t need = part_tgt.size() + part_dft.size();
+-    for (const auto & p : blobs) {
+-        need += p.second.size();
+-    }
+-
+-    if (!make_room(need)) {
+-        fprintf(stderr, "[kv-tree] park refused: no room for %zu bytes\n", need);
+-        st.park_refused++;
+-        return false;
+-    }
+-
+     for (size_t k = 0; k < blobs.size(); ++k) {
+         const size_t i = idxs[k];
+         const size_t a = i * (size_t) cfg.chunk;
+         const size_t b = std::min(tokens.size(), a + (size_t) cfg.chunk);
+ 
+         kv_tree_block & nb = blocks[blobs[k].first];
+ 
+         nb.hash      = blobs[k].first;
+         nb.pos0      = (llama_pos) a;
+         nb.pos1      = (llama_pos) b;
+@@ -485,20 +931,60 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+             kv.second.refcount++;
+             touched.emplace_back(kv.first.first, kv.second.pos);
+         }
+     }
+ 
+     kv_tree_seq & s = seqs[tip];
+     s.chain     = h;
+     s.len       = L;
+     s.last_used = ++now;
+ 
++    // pin the new payloads while the budget is enforced, then roll back if it cannot be met
++    std::vector<uint64_t> pinned_blocks;
++    for (const auto & p : blobs) {
++        pinned_blocks.push_back(p.first);
++    }
++    for (const uint64_t hash : pinned_blocks) {
++        auto it = blocks.find(hash);
++        if (it != blocks.end()) {
++            it->second.pinned = true;
++        }
++    }
++    for (const auto & key : touched) {
++        auto it = anchors.find(key);
++        if (it != anchors.end()) {
++            it->second.pinned = true;
++        }
++    }
++
++    const bool fits = enforce_budget();
++
++    for (const uint64_t hash : pinned_blocks) {
++        auto it = blocks.find(hash);
++        if (it != blocks.end()) {
++            it->second.pinned = false;
++        }
++    }
++    for (const auto & key : touched) {
++        auto it = anchors.find(key);
++        if (it != anchors.end()) {
++            it->second.pinned = false;
++        }
++    }
++
++    if (!fits) {
++        fprintf(stderr, "[kv-tree] park refused: the budget cannot hold the sequence\n");
++        park_rollback(blobs, m, touched, tip);
++        st.park_refused++;
++        return false;
++    }
++
+     st.park_ok++;
+     return true;
+ }
+ 
+ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens) {
+     st.restore_calls++;
+ 
+     io_tgt.seq_rm(-1, -1);
+     if (io_dft != nullptr) {
+         io_dft->seq_rm(-1, -1);
+@@ -553,45 +1039,45 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+     }
+ 
+     bool ok = true;
+ 
+     // blocks covering [0, C): the last one may overshoot and is trimmed below
+     for (const uint64_t hash : m.path) {
+         kv_tree_block & b = blocks[hash];
+         if (b.pos0 >= C) {
+             break;
+         }
+-        if (!io_tgt.set_range(b.data.data(), b.data.size(), b.pos0 != 0)) {
++        if (!load_payload(b) || !io_tgt.set_range(b.data.data(), b.data.size(), b.pos0 != 0)) {
+             fprintf(stderr, "[kv-tree] restore failed: cannot load block [%d, %d)\n", b.pos0, b.pos1);
+             ok = false;
+             break;
+         }
+         st.bytes_load += (int64_t) b.data.size();
+     }
+ 
+     if (ok && m.n_part > 0 && C > blocks[m.part_hash].pos0) {
+         kv_tree_block & b = blocks[m.part_hash];
+-        if (!io_tgt.set_range(b.data.data(), b.data.size(), true)) {
++        if (!load_payload(b) || !io_tgt.set_range(b.data.data(), b.data.size(), true)) {
+             fprintf(stderr, "[kv-tree] restore failed: cannot load the partial block [%d, %d)\n", b.pos0, b.pos1);
+             ok = false;
+         }
+     }
+ 
+     if (ok) {
+         io_tgt.seq_rm(C, -1);
+ 
+         const auto it = anchors.find(std::make_pair(c_hash, C));
+         if (it == anchors.end()) {
+             ok = false;
+         } else {
+-            const kv_tree_anchor & a = it->second;
+-            if (!io_tgt.set_partial(a.data_tgt.data(), a.data_tgt.size())) {
++            kv_tree_anchor & a = it->second;
++            if (!load_payload(a) || !io_tgt.set_partial(a.data_tgt.data(), a.data_tgt.size())) {
+                 fprintf(stderr, "[kv-tree] restore failed: cannot load the state at %d\n", C);
+                 ok = false;
+             } else if (io_dft != nullptr && !a.data_dft.empty()) {
+                 if (!io_dft->set_partial(a.data_dft.data(), a.data_dft.size())) {
+                     fprintf(stderr, "[kv-tree] restore failed: cannot load the draft state at %d\n", C);
+                     ok = false;
+                 }
+             }
+         }
+     }
+@@ -601,20 +1087,22 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+         if (it != blocks.end()) {
+             it->second.pinned = false;
+         }
+     }
+     for (auto & kv : anchors) {
+         if (kv.second.pos <= C && std::find(cand.begin(), cand.end(), kv.first.first) != cand.end()) {
+             kv.second.pinned = false;
+         }
+     }
+ 
++    settle();
++
+     if (!ok) {
+         io_tgt.seq_rm(-1, -1);
+         st.restore_miss++;
+         return res;
+     }
+ 
+     kv_tree_anchor & ca = anchors.at(std::make_pair(c_hash, C));
+     ca.heat++;
+     ca.last_used = ++now;
+ 
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index ffce8dbf5..d3148e95d 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -92,20 +92,21 @@ struct kv_tree_io_llama : public kv_tree_io {
+ // one chunk of attention KV, content-addressed
+ struct kv_tree_block {
+     uint64_t    hash     = 0;   // chained content hash
+     llama_pos   pos0     = 0;   // [pos0, pos1) covered by this block
+     llama_pos   pos1     = 0;
+     int64_t     refcount = 0;   // stored sequences referencing this block
+     int64_t     heat     = 0;
+     int64_t     last_used = 0;
+     bool        on_disk  = false;
+     bool        pinned   = false;
++    bool        transient = false;
+     std::string path;
+     size_t      bytes    = 0;   // payload size, valid in both tiers
+     std::vector<llama_token> tokens;
+     std::vector<uint8_t>     data;
+ };
+ 
+ // recurrent state (PARTIAL_ONLY) captured at pos
+ struct kv_tree_anchor {
+     uint64_t    blk_hash = 0;   // hash of the block containing pos
+     llama_pos   pos      = 0;
+@@ -169,21 +170,39 @@ private:
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+     uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 
+     void promote_prune(llama_pos pos);
+ 
+     void remove_anchor(std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor>::iterator it);
+ 
+-    bool make_room(size_t need_ram);
++    bool enforce_budget();
++
++    void park_rollback(const std::vector<std::pair<uint64_t, std::vector<uint8_t>>> & blobs,
++                       const kv_tree_match & m,
++                       const std::vector<std::pair<uint64_t, llama_pos>> & touched,
++                       uint64_t tip);
++
++    void remove_block(std::unordered_map<uint64_t, kv_tree_block>::iterator it);
++
++    bool load_payload(kv_tree_block & b);
++    bool load_payload(kv_tree_anchor & a);
++    bool demote_block(kv_tree_block & b);
++    bool demote_anchor(kv_tree_anchor & a);
++    void settle();
++
++    bool write_disk(const std::string & path, const std::vector<uint8_t> & buf);
++    bool read_disk(const std::string & path, std::vector<uint8_t> & out);
++    std::string block_path(uint64_t hash) const;
++    std::string anchor_path(uint64_t blk_hash, llama_pos pos) const;
+ 
+     kv_tree_config cfg;
+     kv_tree_stats  st;
+ 
+     std::unordered_map<uint64_t, kv_tree_block> blocks;
+     std::map<llama_pos, std::vector<uint64_t>> blocks_at;  // pos0 -> hashes
+     std::map<std::pair<uint64_t, llama_pos>, kv_tree_anchor> anchors;
+     std::unordered_map<uint64_t, kv_tree_seq> seqs;                  // tip hash -> sequence
+ 
+     int64_t now = 0;

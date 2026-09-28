@@ -1,0 +1,3 @@
+﻿{"tag":"nospec","n_max":0,"req":1,"id":"d0","prompt_n":5,"prompt_ms":177.0,"gen_n":150,"gen_ms":5646.7,"tps":26.387,"draft_n":null,"draft_acc":null,"accept":0,"wall_s":5.9}
+{"tag":"nospec","n_max":0,"req":2,"id":"d131072","prompt_n":128270,"prompt_ms":237707.0,"gen_n":150,"gen_ms":14950.2,"tps":9.966,"draft_n":null,"draft_acc":null,"accept":0,"wall_s":253}
+{"tag":"nospec","n_max":0,"req":3,"id":"d131072","prompt_n":4,"prompt_ms":276.6,"gen_n":150,"gen_ms":11529.7,"tps":12.923,"draft_n":null,"draft_acc":null,"accept":0,"wall_s":12}

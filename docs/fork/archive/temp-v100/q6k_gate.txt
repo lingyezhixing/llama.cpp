@@ -1,0 +1,1 @@
+blk.2.ffn_gate.weight [ 5120 17408] ne0=5120 ne1=17408
