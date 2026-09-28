@@ -1,0 +1,31 @@
+===== config A0 vec= pb= nbatch= 22:40:42 =====
+[A0] replay=1 vec= pb= nbatch=
+[22:41:08] d0       prompt_n=5       gen=150  tps=52.52   acc=0.8077 draft=105/130 wall=3.1s
+[22:45:33] d131072  prompt_n=128270  gen=150  tps=20.06   acc=0.3883 draft=80/206 wall=264.6s
+[22:45:41] d131072  prompt_n=4       gen=150  tps=20.13   acc=0.3883 draft=80/206 wall=8.4s
+done -> <TEMP>\v100\t30_ab.jsonl
+===== config A3 vec=4 pb=160 nbatch=1024 22:45:46 =====
+[A3] replay=1 vec=4 pb=160 nbatch=1024
+[22:46:13] d0       prompt_n=5       gen=150  tps=52.08   acc=0.8077 draft=105/130 wall=3.1s
+[22:50:44] d131072  prompt_n=128270  gen=150  tps=12.48   acc=0.3883 draft=80/206 wall=271.6s
+[22:50:57] d131072  prompt_n=4       gen=150  tps=13.02   acc=0.3883 draft=80/206 wall=12.7s
+done -> <TEMP>\v100\t30_ab.jsonl
+===== config A2 vec= pb=160 nbatch=1024 22:51:02 =====
+[A2] replay=1 vec= pb=160 nbatch=1024
+[22:51:31] d0       prompt_n=5       gen=150  tps=49.96   acc=0.8077 draft=105/130 wall=3.3s
+[22:56:01] d131072  prompt_n=128270  gen=150  tps=15.26   acc=0.3883 draft=80/206 wall=270s
+[22:56:11] d131072  prompt_n=4       gen=150  tps=17.31   acc=0.3883 draft=80/206 wall=9.9s
+done -> <TEMP>\v100\t30_ab.jsonl
+===== config A1 vec=4 pb= nbatch= 22:56:16 =====
+[A1] replay=1 vec=4 pb= nbatch=
+[22:56:45] d0       prompt_n=5       gen=150  tps=49.82   acc=0.8077 draft=105/130 wall=3.3s
+[23:01:17] d131072  prompt_n=128270  gen=150  tps=12.78   acc=0.3835 draft=79/206 wall=271.9s
+[23:01:29] d131072  prompt_n=4       gen=150  tps=13.81   acc=0.3835 draft=79/206 wall=12s
+done -> <TEMP>\v100\t30_ab.jsonl
+===== config A0b vec= pb= nbatch= 23:01:34 =====
+[A0b] replay=1 vec= pb= nbatch=
+[23:02:03] d0       prompt_n=5       gen=150  tps=49.93   acc=0.8077 draft=105/130 wall=3.3s
+[23:06:32] d131072  prompt_n=128270  gen=150  tps=18.22   acc=0.3883 draft=80/206 wall=268.6s
+[23:06:41] d131072  prompt_n=4       gen=150  tps=19.24   acc=0.3883 draft=80/206 wall=9s
+done -> <TEMP>\v100\t30_ab.jsonl
+===== matrix done 23:06:46 =====

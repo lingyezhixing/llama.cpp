@@ -1,0 +1,258 @@
+﻿[
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  false
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  true
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  true
+    },
+    {
+        "tag":  "none",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp3",
+        "spec_type":  "draft-mtp",
+        "n_max":  3,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp1",
+        "spec_type":  "draft-mtp",
+        "n_max":  1,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp1",
+        "spec_type":  "draft-mtp",
+        "n_max":  1,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp1",
+        "spec_type":  "draft-mtp",
+        "n_max":  1,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp1",
+        "spec_type":  "draft-mtp",
+        "n_max":  1,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp1",
+        "spec_type":  "draft-mtp",
+        "n_max":  1,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp1",
+        "spec_type":  "draft-mtp",
+        "n_max":  1,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp2",
+        "spec_type":  "draft-mtp",
+        "n_max":  2,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp2",
+        "spec_type":  "draft-mtp",
+        "n_max":  2,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp2",
+        "spec_type":  "draft-mtp",
+        "n_max":  2,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp2",
+        "spec_type":  "draft-mtp",
+        "n_max":  2,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp2",
+        "spec_type":  "draft-mtp",
+        "n_max":  2,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp2",
+        "spec_type":  "draft-mtp",
+        "n_max":  2,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp4",
+        "spec_type":  "draft-mtp",
+        "n_max":  4,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp4",
+        "spec_type":  "draft-mtp",
+        "n_max":  4,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp4",
+        "spec_type":  "draft-mtp",
+        "n_max":  4,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  false
+    },
+    {
+        "tag":  "mtp4",
+        "spec_type":  "draft-mtp",
+        "n_max":  4,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp4",
+        "spec_type":  "draft-mtp",
+        "n_max":  4,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  true
+    },
+    {
+        "tag":  "mtp4",
+        "spec_type":  "draft-mtp",
+        "n_max":  4,
+        "prompt":  "spec_doc_0.txt",
+        "label":  "d0",
+        "cache":  true
+    },
+    {
+        "tag":  "none#2",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_32k.txt",
+        "label":  "32k",
+        "cache":  false
+    },
+    {
+        "tag":  "none#2",
+        "spec_type":  "",
+        "n_max":  0,
+        "prompt":  "spec_doc_128k.txt",
+        "label":  "128k",
+        "cache":  false
+    }
+]

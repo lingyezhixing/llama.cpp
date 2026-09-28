@@ -1,0 +1,37 @@
+# Review package: 69aeacd84..HEAD
+
+## Commits
+c0254f32c server : fix kv tree heal log format
+
+## Files changed
+ tools/server/server-context.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+## Diff
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index 436598619..d990aee3a 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -3585,21 +3585,21 @@ private:
+                             }
+ 
+                             if (tree->capture_anchor(io_h_tgt, io_h_dft_ptr, slot.prompt.tokens.get_tokens(), hp)) {
+                                 SLT_INF(slot, "kv tree: captured heal anchor at %d\n", hp);
+                             } else {
+                                 SLT_WRN(slot, "kv tree: failed to capture heal anchor at %d\n", hp);
+                             }
+ 
+                             slot.tree_heal = -1;
+                         } else if ((llama_pos) slot.prompt.n_tokens() > hp) {
+-                            SLT_TRC(slot, "kv tree: heal position %d missed (now %zu)\n", hp, slot.prompt.n_tokens());
++                            SLT_TRC(slot, "kv tree: heal position %d missed (now %d)\n", hp, slot.prompt.n_tokens());
+                             slot.tree_heal = -1;
+                         }
+                     }
+ 
+                     if (!slot.can_split()) {
+                         // cannot fit the prompt in the current batch - will try next iter
+                         if (batch.size() + slot.task->n_tokens() > n_batch) {
+                             return;
+                         }
+                     }

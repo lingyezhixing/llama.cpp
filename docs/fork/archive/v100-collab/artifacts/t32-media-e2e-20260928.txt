@@ -1,0 +1,45 @@
+T32 media reuse - end-to-end verification (2026-09-28, night session)
+Branch t32-media; commits: 5722fac1e + 2e341d9e9 (tree storage), 70157be75 (tree retrieval tests), 7d5b11bb1 + 587272960 (server wiring + fixes)
+Build: build\bin\Release\llama-server.exe (b2134-7d5b11bb1)
+
+Tree server command (port 18080):
+  llama-server -m <models>\Qwen3.5-0.8B-MTP\Qwen3.5-0.8B-UD-Q4_K_XL.gguf --mmproj <models>\Qwen3.5-0.8B-MTP\mmproj-F16.gguf -ngl 99 -fa on --image-min-tokens 1024 -np 1 -c 32768 -b 2048 -ub 512 --temp 0 --seed 42 --ctx-checkpoints 4 --kv-tree --tree-ram 2048 --tree-disk <tmp>\kv-tree --tree-checkpoint-anchor-step 8192 --tree-checkpoint-fork-step 4096 --slot-prompt-similarity 0 -a media-e2e
+Baseline command (port 18081): same minus --kv-tree/--tree-* /--ctx-checkpoints
+
+Requests (greedy, seed 42):
+  req1: image A + question                       -> prompt_n=1063, prompt_ms=646, wall 0.84s
+  req2: same image A message + follow-up turn     -> prompt_n=25,   prompt_ms=154, wall 0.54s
+  req3: same shape but image B + follow-up turn   -> prompt_n=1084, prompt_ms=465, wall 0.81s
+  req4a: two images (A then B) back-to-back       -> prompt_n=2094, prompt_ms=679
+  req4b: req4a + follow-up turn                   -> prompt_n=22,   prompt_ms=29
+
+Tree log (kv tree lines):
+  0.01.500.081 I srv    load_model: kv tree enabled: chunk = 512, anchor_step = 8192, fork_step = 4096, ram = 2048 MiB, disk = <TEMP>\v100\t32-media-e2e\kv-tree (65536 MiB)
+  4.30.918.521 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 1063 tokens, full prefill
+  4.48.576.320 I slot  prompt_park: id  0 | task -1 | kv tree: parked 1094 tokens, 1 checkpoint candidates, ram = 53873784 B, disk = 0 B
+  4.48.613.175 I slot prompt_resto: id  0 | task -1 | kv tree: restored 1059 tokens (heal = -1)
+  4.54.911.234 I slot  prompt_park: id  0 | task -1 | kv tree: parked 1147 tokens, 2 checkpoint candidates, ram = 95410776 B, disk = 0 B
+  4.54.914.317 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 1084 tokens, full prefill
+  5.06.302.783 I slot  prompt_park: id  0 | task -1 | kv tree: parked 1147 tokens, 2 checkpoint candidates, ram = 149937096 B, disk = 0 B
+  5.06.303.974 I slot prompt_resto: id  0 | task -1 | kv tree: restore miss for 2094 tokens, full prefill
+  5.07.383.333 I slot  prompt_park: id  0 | task -1 | kv tree: parked 2157 tokens, 1 checkpoint candidates, ram = 216898704 B, disk = 0 B
+  5.07.396.046 I slot prompt_resto: id  0 | task -1 | kv tree: restored 2090 tokens (heal = -1)
+
+Output comparison vs baseline (no tree), reasoning_content + content, case-sensitive:
+  req1: IDENTICAL (122 chars)
+  req2: IDENTICAL (280 chars)
+  req3: IDENTICAL (275 chars)
+  req4a: IDENTICAL (249 chars)
+  req4b: IDENTICAL (248 chars)
+
+Findings:
+  1. Media prompt parked (1094 tok) and restored (1059 tok) across requests; the restore point
+     is past the 1024-token image chunk, so the image KV was reused, not recomputed.
+  2. A different image at the same position produced a restore miss and a full prefill; no wrong reuse.
+  3. Two adjacent media chunks (A then B) parked 2157 and restored 2090 tokens; prompt_n=22.
+  4. All five greedy outputs are bit-identical to the no-tree baseline (no near-tie flip observed).
+  5. No abort/assert in the server log; tree ram 216 MB after the run; no disk spill at this size.
+  6. VRAM: one server ~1.9 GB on device 0 (8188 MiB total); both servers stopped after the run.
+
+Limitations (spec): a media chunk is atomic (one block); stock checkpoints, n_cache_reuse and
+spec state stay media-gated; media bytes are not stored in the tree.

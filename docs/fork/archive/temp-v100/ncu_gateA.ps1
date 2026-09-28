@@ -1,0 +1,6 @@
+﻿$ErrorActionPreference = "Continue"
+$env:CUDA_VISIBLE_DEVICES = "1"
+$ncu   = "C:\Program Files\NVIDIA Corporation\Nsight Compute 2025.2.1\ncu.bat"
+$dir   = "$env:TEMP\v100"
+& $ncu --clock-control none --cache-control none --kernel-name regex:gateA_kernel --launch-count 1 --launch-skip 4 --section SpeedOfLight --section SchedulerStats --section WarpStateStats --section Occupancy --section LaunchStats --print-details all --log-file "$dir\ncu_gateA.log" "$dir\t02_gateA_v1.exe" 17408 512 5120 8 0 0 *> "$dir\ncu_gateA_out.txt"
+"done $(Get-Date -Format o)" | Out-File "$dir\ncu_gateA_done.txt"

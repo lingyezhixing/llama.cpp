@@ -1,0 +1,130 @@
+# Review package: 98c613325..ce03a50f8
+
+## Commits
+ce03a50f8 server : clear stale kv tree files on startup
+
+## Files changed
+ tests/test-t32-tree.cpp         | 44 +++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.cpp | 17 ++++++++++++++++
+ 2 files changed, 61 insertions(+)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 319b356c9..b0e3feefa 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -386,28 +386,72 @@ static void run_logic_fixes() {
+         io.max_pos = 1023;
+         check(tree.park(io, nullptr, make_tokens(1024, 0), {}), "fixes: park for the stats line");
+ 
+         const std::string s = tree.stats_line();
+         check(s.find("parks=1") != std::string::npos, "fixes: stats line has parks");
+         check(s.find("anchors=1") != std::string::npos, "fixes: stats line has anchors");
+         check(s.find("disk_err=0") != std::string::npos, "fixes: stats line has disk_err");
+     }
+ }
+ 
++static void run_logic_wipe() {
++    fprintf(stderr, "[t32-tree] logic: startup wipe\n");
++
++    const auto dir = std::filesystem::temp_directory_path() / "t32-tree-wipe";
++
++    std::error_code ec;
++    std::filesystem::remove_all(dir, ec);
++    std::filesystem::create_directories(dir / "blocks", ec);
++    std::filesystem::create_directories(dir / "anchors", ec);
++
++    auto touch = [](const std::filesystem::path & p) {
++        std::FILE * f = fopen(p.string().c_str(), "wb");
++        if (f != nullptr) {
++            fputc('x', f);
++            fclose(f);
++        }
++    };
++
++    touch(dir / "blocks" / "aa.bin");
++    touch(dir / "blocks" / "bb.bin.tmp");
++    touch(dir / "anchors" / "cc.bin");
++
++    {
++        kv_tree_config cfg;
++        cfg.disk_dir = dir.string();
++
++        kv_tree tree(cfg);
++        check(true, "wipe: constructor with a stale disk dir");
++    }
++
++    check(!std::filesystem::exists(dir / "blocks" / "aa.bin"), "wipe: block file removed");
++    check(!std::filesystem::exists(dir / "blocks" / "bb.bin.tmp"), "wipe: tmp file removed");
++    check(!std::filesystem::exists(dir / "anchors" / "cc.bin"), "wipe: anchor file removed");
++
++    {
++        kv_tree_config cfg;
++        kv_tree tree(cfg);
++        check(true, "wipe: constructor without a disk dir");
++    }
++
++    std::filesystem::remove_all(dir, ec);
++}
++
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
+     run_logic_evict();
+     run_logic_drop();
+     run_logic_stream();
+     run_logic_capture();
+     run_logic_fixes();
++    run_logic_wipe();
+ 
+     kv_tree_config cfg;
+     cfg.chunk = 512;
+     cfg.ram_limit = 64ull << 20;
+ 
+     kv_tree tree(cfg);
+ 
+     const auto tok_a = make_tokens(1536, 0);   // 3 full chunks
+     const auto tok_b = make_tokens(1024, 0);   // shares the first 2 chunks with tok_a, then diverges
+     auto tok_b2 = tok_b;
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 3df6cbafd..00ffde593 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -177,20 +177,37 @@ bool kv_tree_io_llama::seq_rm(llama_pos p0, llama_pos p1) {
+ 
+ llama_pos kv_tree_io_llama::pos_max() {
+     return llama_memory_seq_pos_max(llama_get_memory(ctx), seq_id);
+ }
+ 
+ kv_tree::kv_tree(const kv_tree_config & cfg) : cfg(cfg) {
+     if (cfg.chunk <= 0 || cfg.anchor_step < 0) {
+         fprintf(stderr, "[kv-tree] invalid config: chunk = %d, anchor_step = %d\n", cfg.chunk, cfg.anchor_step);
+         GGML_ABORT("invalid kv tree config");
+     }
++
++    if (!cfg.disk_dir.empty()) {
++        // the tree is not persistent: drop the leftovers of a previous run
++        size_t n_stale = 0;
++
++        std::error_code ec;
++        for (const auto & entry : std::filesystem::recursive_directory_iterator(cfg.disk_dir, ec)) {
++            if (entry.is_regular_file(ec)) {
++                n_stale++;
++            }
++        }
++
++        std::filesystem::remove_all(cfg.disk_dir + "/blocks", ec);
++        std::filesystem::remove_all(cfg.disk_dir + "/anchors", ec);
++
++        fprintf(stderr, "[kv-tree] cleared %zu stale files from %s\n", n_stale, cfg.disk_dir.c_str());
++    }
+ }
+ 
+ kv_tree_match kv_tree::match(const std::vector<llama_token> & tokens) const {
+     kv_tree_match m;
+ 
+     std::vector<uint64_t> h;
+     chain_hashes(tokens, cfg.chunk, h);
+ 
+     for (size_t i = 0; i < h.size(); ++i) {
+         const auto it = blocks.find(h[i]);

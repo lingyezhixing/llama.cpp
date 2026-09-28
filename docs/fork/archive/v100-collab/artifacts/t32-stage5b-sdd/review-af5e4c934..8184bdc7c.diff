@@ -1,0 +1,98 @@
+# Review package: af5e4c934..8184bdc7c
+
+## Commits
+8184bdc7c server : do not let checkpoint guesses suppress fork anchors
+
+## Files changed
+ tests/test-t32-tree.cpp         | 34 ++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.cpp |  3 +++
+ 2 files changed, 37 insertions(+)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index 3f8a0abc0..099b62b7d 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -441,20 +441,54 @@ static void run_logic_fork() {
+ 
+         {
+             kv_tree_io_fake io;
+             io.max_pos = 9215;
+             tree.park(io, nullptr, prefix, { ck });
+         }
+ 
+         check_eq(tree.stats().anchors_skipped_step - step_skips_before, 1, "fork: the park candidate skip is counted");
+     }
+ 
++    // guesses never suppress a fork anchor
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 32768;
++        cfg.fork_step   = 8192;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++        const auto tok = make_tokens(10240, 0);
++
++        kv_tree_anchor_in guess;
++        guess.pos      = 1024;
++        guess.data_tgt = kv_tree_io_fake::pattern(0, 64);
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 10239;
++            check(tree.park(io, nullptr, tok, { guess }), "fork: park with a guess at 1024");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 5119;
++            check(tree.capture_anchor(io, nullptr, tok, 5120), "fork: the guess does not suppress the fork");
++        }
++        check_eq(tree.stats().anchors_skipped_step, 0, "fork: no spacing skip against the guess");
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 9215;
++            check(!tree.capture_anchor(io, nullptr, tok, 9216), "fork: another fork anchor still suppresses (8192)");
++        }
++        check_eq(tree.stats().anchors_skipped_step, 1, "fork: the fork-vs-fork skip is counted");
++    }
++
+     // a restore miss reports the divergence point
+     {
+         kv_tree_config cfg;
+         cfg.chunk       = 512;
+         cfg.anchor_step = 32768;
+         cfg.fork_step   = 8192;
+         cfg.ram_limit   = 1ull << 20;
+ 
+         kv_tree tree(cfg);
+ 
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index bae035a64..94de770ec 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -368,20 +368,23 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+         it->second.heat++;
+         it->second.last_used = ++now;
+         return true;
+     }
+ 
+     llama_pos prev = -1;
+     for (const auto & kv : anchors) {
+         if (kv.second.pos >= pos || kv.second.pos <= prev) {
+             continue;
+         }
++        if (kv.second.kind == KV_TREE_ANCHOR_MESSAGE) {
++            continue;   // guesses never suppress a fork anchor
++        }
+         if (std::find(chain.begin(), chain.end(), kv.first.first) != chain.end()) {
+             prev = kv.second.pos;
+         }
+     }
+ 
+     if (prev >= 0 && pos - prev < cfg.fork_step) {
+         fprintf(stderr, "[kv-tree] capture skipped at %d: within fork_step\n", pos);
+         st.anchors_skipped++;
+         st.anchors_skipped_step++;
+         return false;

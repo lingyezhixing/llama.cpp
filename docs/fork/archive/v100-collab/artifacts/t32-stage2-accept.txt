@@ -1,0 +1,62 @@
+0.01.427.279 I cmn          init: llama threadpool init, n_threads = 8
+[t32-tree] mode accept
+[t32-tree] accept: park A (4096)                                                    PASS
+[t32-tree] accept: park B (4096)                                                    PASS
+[t32-tree] accept: A restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: A tokens match the baseline                                      PASS
+[t32-tree] accept: B restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: B tokens match the baseline                                      PASS
+[t32-tree] accept: A restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: A tokens match the baseline                                      PASS
+[t32-tree] accept: B restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: B tokens match the baseline                                      PASS
+[t32-tree] accept: A restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: A tokens match the baseline                                      PASS
+[t32-tree] accept: B restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: B tokens match the baseline                                      PASS
+[t32-tree] accept: A restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: A tokens match the baseline                                      PASS
+[t32-tree] accept: B restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: B tokens match the baseline                                      PASS
+[t32-tree] accept: A restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: A tokens match the baseline                                      PASS
+[t32-tree] accept: B restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: B tokens match the baseline                                      PASS
+[t32-tree] accept: A restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: A tokens match the baseline                                      PASS
+[t32-tree] accept: B restores at the tip                                            PASS (got 4096, want 4096)
+[t32-tree] accept: B tokens match the baseline                                      PASS
+[t32-tree] accept: tokens reused                                                    PASS (got 49152, want 49152)
+[t32-tree] accept: shared trunk stored once (6+2+2 blocks)                          PASS (got 10, want 10)
+[t32-tree] accept: stored bytes below two full copies (dedup)                       PASS
+[t32-tree] accept: park short session                                               PASS
+[t32-tree] accept: park short session                                               PASS
+[t32-tree] accept: park short session                                               PASS
+[t32-tree] accept: park short session                                               PASS
+[t32-tree] accept: shared prefix stored once (1+4 blocks)                           PASS (got 5, want 5)
+[t32-tree] accept: short session restores at the tip                                PASS (got 1024, want 1024)
+[t32-tree] accept: short session tokens match the baseline                          PASS
+[t32-tree] accept: short session restores at the tip                                PASS (got 1024, want 1024)
+[t32-tree] accept: short session tokens match the baseline                          PASS
+[t32-tree] accept: short session restores at the tip                                PASS (got 1024, want 1024)
+[t32-tree] accept: short session tokens match the baseline                          PASS
+[t32-tree] accept: short session restores at the tip                                PASS (got 1024, want 1024)
+[t32-tree] accept: short session tokens match the baseline                          PASS
+[kv-tree] blocks: 10 ram, 0 disk, 103443240 bytes ram, 0 bytes disk
+[kv-tree] anchors: 2 ram, 0 disk, 2 added, 0 skipped
+[kv-tree] park: 2 calls, 2 ok, 0 refused
+[kv-tree] restore: 12 calls, 12 hits, 0 miss, 49152 tokens reused
+[kv-tree]   block 84b5715beecf9ebc [2048, 2560) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block cffc5f188e0b1ff2 [0, 512) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block 0fe844ccd2ec2fee [512, 1024) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block 9dd1e1b0716b6cb0 [1024, 1536) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block b288690e4930688f [1536, 2048) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block ab3fdf44142e94b2 [3072, 3584) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block f990fb25fad5db36 [2560, 3072) ref=2 heat=1 ram 6303912 bytes
+[kv-tree]   block 0d6e8334191da1ed [3072, 3584) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block 0c23857f5036363d [3584, 4096) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   block c0d1c2d3bb8390f9 [3584, 4096) ref=1 heat=0 ram 6303912 bytes
+[kv-tree]   anchor 0c23857f5036363d@4096 kind=0 ref=1 heat=6 ram
+[kv-tree]   anchor c0d1c2d3bb8390f9@4096 kind=0 ref=1 heat=6 ram
+[kv-tree]   seq tip=0c23857f5036363d len=4096 blocks=8
+[kv-tree]   seq tip=c0d1c2d3bb8390f9 len=4096 blocks=8

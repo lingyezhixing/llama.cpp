@@ -1,0 +1,846 @@
+diff --git a/include/llama.h b/include/llama.h
+index bb964bd3a..ee81c3209 100644
+--- a/include/llama.h
++++ b/include/llama.h
+@@ -949,6 +949,37 @@ extern "C" {
+                     llama_seq_id   dest_seq_id,
+            llama_state_seq_flags   flags);
+ 
++    // Save a position range [p0, p1) of the attention KV of a single sequence.
++    // Recurrent state is not included - use the PARTIAL_ONLY flags for that.
++    // Returns 0 on failure (unsupported memory, invalid range).
++    LLAMA_API size_t llama_state_seq_get_size_range_ext(
++            struct llama_context * ctx,
++                    llama_seq_id   seq_id,
++                      llama_pos    p0,
++                      llama_pos    p1,
++           llama_state_seq_flags   flags);
++
++    LLAMA_API size_t llama_state_seq_get_data_range_ext(
++            struct llama_context * ctx,
++                         uint8_t * dst,
++                          size_t   size,
++                    llama_seq_id   seq_id,
++                      llama_pos    p0,
++                      llama_pos    p1,
++           llama_state_seq_flags   flags);
++
++    // Restore a blob saved by llama_state_seq_get_data_range_ext.
++    // append == false replaces the destination sequence, append == true requires
++    // that none of the positions in the blob are already present in it.
++    // Returns 0 on failure (unsupported memory, invalid blob, position overlap).
++    LLAMA_API size_t llama_state_seq_set_data_range_ext(
++            struct llama_context * ctx,
++                   const uint8_t * src,
++                          size_t   size,
++                    llama_seq_id   seq_id,
++                            bool   append,
++           llama_state_seq_flags   flags);
++
+     //
+     // Decoding
+     //
+diff --git a/src/llama-context.cpp b/src/llama-context.cpp
+index 99e55da68..e766c50c0 100644
+--- a/src/llama-context.cpp
++++ b/src/llama-context.cpp
+@@ -3220,6 +3220,64 @@ size_t llama_context::state_seq_set_data(llama_seq_id seq_id, const uint8_t * sr
+     }
+ }
+ 
++size_t llama_context::state_seq_get_size_range(llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
++    llama_io_write_dummy io(false);
++    try {
++        io.write(&io_magic, sizeof(io_magic));
++        io.write(&seq_id, sizeof(seq_id));
++
++        if (memory) {
++            memory->state_write_range(io, seq_id, p0, p1, flags);
++        }
++
++        return io.n_bytes();
++    } catch (const std::exception & err) {
++        LLAMA_LOG_ERROR("%s: error getting range state size: %s\n", __func__, err.what());
++        return 0;
++    }
++}
++
++size_t llama_context::state_seq_get_data_range(llama_seq_id seq_id, uint8_t * dst, size_t size, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
++    llama_io_write_host io(dst, size);
++    try {
++        io.write(&io_magic, sizeof(io_magic));
++        io.write(&seq_id, sizeof(seq_id));
++
++        if (memory) {
++            memory->state_write_range(io, seq_id, p0, p1, flags);
++        }
++
++        return io.n_bytes();
++    } catch (const std::exception & err) {
++        LLAMA_LOG_ERROR("%s: error saving range state: %s\n", __func__, err.what());
++        return 0;
++    }
++}
++
++size_t llama_context::state_seq_set_data_range(llama_seq_id seq_id, const uint8_t * src, size_t size, bool append, llama_state_seq_flags flags) {
++    llama_io_read_host io(src, size);
++    try {
++        uint32_t magic_read;
++        io.read(&magic_read, sizeof(magic_read));
++        if (io_magic != magic_read) {
++            throw std::runtime_error("wrong sequence state magic");
++        }
++
++        llama_seq_id seq_id_read;
++        io.read(&seq_id_read, sizeof(seq_id_read));
++
++        if (memory) {
++            memory->state_read_range(io, seq_id, append, flags);
++        }
++
++        return io.n_bytes();
++    } catch (const std::exception & err) {
++        LLAMA_LOG_ERROR("%s: error loading range state: %s\n", __func__, err.what());
++        io.discard();
++        return 0;
++    }
++}
++
+ bool llama_context::state_load_file(const char * filepath, llama_token * tokens_out, size_t n_token_capacity, size_t * n_token_count_out) {
+     llama_file file(filepath, "rb");
+ 
+@@ -4300,6 +4358,22 @@ size_t llama_state_seq_set_data_ext(llama_context * ctx, const uint8_t * src, si
+     return ctx->state_seq_set_data(seq_id, src, size, flags);
+ }
+ 
++size_t llama_state_seq_get_size_range_ext(llama_context * ctx, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
++    return ctx->state_seq_get_size_range(seq_id, p0, p1, flags);
++}
++
++size_t llama_state_seq_get_data_range_ext(llama_context * ctx, uint8_t * dst, size_t size, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
++    ctx->synchronize();
++
++    return ctx->state_seq_get_data_range(seq_id, dst, size, p0, p1, flags);
++}
++
++size_t llama_state_seq_set_data_range_ext(llama_context * ctx, const uint8_t * src, size_t size, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
++    ctx->synchronize();
++
++    return ctx->state_seq_set_data_range(seq_id, src, size, append, flags);
++}
++
+ size_t llama_state_seq_save_file(llama_context * ctx, const char * filepath, llama_seq_id seq_id, const llama_token * tokens, size_t n_token_count) {
+     ctx->synchronize();
+ 
+diff --git a/src/llama-context.h b/src/llama-context.h
+index b403b099b..210f34cdb 100644
+--- a/src/llama-context.h
++++ b/src/llama-context.h
+@@ -161,6 +161,12 @@ struct llama_context {
+     size_t state_seq_get_data(llama_seq_id seq_id,       uint8_t * dst, size_t size, llama_state_seq_flags flags);
+     size_t state_seq_set_data(llama_seq_id seq_id, const uint8_t * src, size_t size, llama_state_seq_flags flags);
+ 
++    size_t state_seq_get_size_range(llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags);
++
++    size_t state_seq_get_data_range(llama_seq_id seq_id, uint8_t * dst, size_t size, llama_pos p0, llama_pos p1, llama_state_seq_flags flags);
++
++    size_t state_seq_set_data_range(llama_seq_id seq_id, const uint8_t * src, size_t size, bool append, llama_state_seq_flags flags);
++
+     bool state_load_file(
+             const char * filepath,
+            llama_token * tokens_out,
+diff --git a/src/llama-kv-cache.cpp b/src/llama-kv-cache.cpp
+index 1c93f908b..6b8fcb46c 100644
+--- a/src/llama-kv-cache.cpp
++++ b/src/llama-kv-cache.cpp
+@@ -2053,6 +2053,27 @@ ggml_cgraph * llama_kv_cache::build_graph_shift(llm_graph_result * res, llama_co
+ }
+ 
+ void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) const {
++    state_write_impl(io, seq_id, -1, -1, flags);
++}
++
++void llama_kv_cache::state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
++    // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
++    if (other) {
++        throw std::runtime_error("range state write is not supported on a mirrored kv cache");
++    }
++
++    if (seq_id < 0 || p0 < 0 || p1 <= p0) {
++        throw std::runtime_error("invalid sequence id or position range");
++    }
++
++    if (flags != 0) {
++        throw std::runtime_error("range state write supports flags == 0 only");
++    }
++
++    state_write_impl(io, seq_id, p0, p1, flags);
++}
++
++void llama_kv_cache::state_write_impl(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
+     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
+     if (other) {
+         return;
+@@ -2079,6 +2100,11 @@ void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, lla
+             add_cell = add_cell && !cells.is_empty(i);
+             add_cell = add_cell && (seq_id == -1 || cells.seq_has(i, seq_id));
+ 
++            // keep only the cells in [p0, p1), when a range is given
++            if (add_cell && (p0 >= 0 || p1 >= 0)) {
++                add_cell = (p0 < 0 || cells.pos_get(i) >= p0) && (p1 < 0 || cells.pos_get(i) < p1);
++            }
++
+             // check the cell is not SWA-masked
+             if (add_cell && seq_id != -1) {
+                 const bool is_masked = llama_hparams::is_masked_swa(n_swa, swa_type, cells.pos_get(i), cells.seq_pos_max(seq_id));
+@@ -2126,12 +2152,25 @@ void llama_kv_cache::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama
+     state_read_sinfo(io, seq_id, flags, nullptr, nullptr);
+ }
+ 
++void llama_kv_cache::state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
++    if (seq_id < 0) {
++        throw std::runtime_error("range state read requires a sequence id");
++    }
++
++    if (flags != 0) {
++        throw std::runtime_error("range state read supports flags == 0 only");
++    }
++
++    state_read_sinfo(io, seq_id, flags, nullptr, nullptr, append);
++}
++
+ void llama_kv_cache::state_read_sinfo(
+         llama_io_read_i & io,
+            llama_seq_id   seq_id,
+   llama_state_seq_flags   flags,
+       slot_info_vec_t *   sinfos_out,
+-const slot_info_vec_t *   sinfos_in) {
++const slot_info_vec_t *   sinfos_in,
++                 bool   append) {
+     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
+     if (other) {
+         return;
+@@ -2179,7 +2218,7 @@ const slot_info_vec_t *   sinfos_in) {
+         slot_info sinfo;
+ 
+         bool res = true;
+-        res = res && state_read_meta(io, strm, cell_count, sinfo, seq_id, sinfos_in ? &(*sinfos_in)[s] : nullptr);
++        res = res && state_read_meta(io, strm, cell_count, sinfo, seq_id, sinfos_in ? &(*sinfos_in)[s] : nullptr, append);
+ 
+         try {
+             res = res && state_read_data(io, strm, cell_count, sinfo);
+@@ -2188,7 +2227,11 @@ const slot_info_vec_t *   sinfos_in) {
+         }
+ 
+         if (!res) {
+-            state_clear(seq_id, strm, sinfo);
++            if (append) {
++                state_clear_append(seq_id, strm, sinfo);
++            } else {
++                state_clear(seq_id, strm, sinfo);
++            }
+             throw std::runtime_error("failed to restore kv cache");
+         }
+ 
+@@ -2330,7 +2373,7 @@ void llama_kv_cache::state_write_data(llama_io_write_i & io, const cell_ranges_t
+     }
+ }
+ 
+-bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, slot_info & sinfo, llama_seq_id dest_seq_id, const slot_info * sinfo_in) {
++bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, slot_info & sinfo, llama_seq_id dest_seq_id, const slot_info * sinfo_in, bool append) {
+     auto & cells = v_cells[strm];
+     auto & head  = v_heads[strm];
+ 
+@@ -2341,7 +2384,14 @@ bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32
+             return false;
+         }
+ 
+-        seq_rm(dest_seq_id, -1, -1);
++        if (append && sinfo_in) {
++            LLAMA_LOG_ERROR("%s: append restore does not support mirrored slot layouts\n", __func__);
++            return false;
++        }
++
++        if (!append) {
++            seq_rm(dest_seq_id, -1, -1);
++        }
+ 
+         llama_batch_allocr balloc(hparams.n_pos_per_embd());
+ 
+@@ -2367,6 +2417,12 @@ bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32
+                 return false;
+             }
+ 
++            // append must not overwrite the cells that the sequence already has
++            if (append && cells.seq_pos_has(dest_seq_id, pos)) {
++                LLAMA_LOG_ERROR("%s: position %d is already present in seq %d\n", __func__, pos, dest_seq_id);
++                return false;
++            }
++
+             if (has_cell_ext()) {
+                 llama_kv_cell_ext ext;
+                 io.read(&ext, sizeof(ext));
+@@ -2701,7 +2757,26 @@ void llama_kv_cache::state_clear(llama_seq_id seq_id, uint32_t strm, const slot_
+ 
+     seq_rm(seq_id, -1, -1);
+ 
+-    // zero the K/V data of the failed restore attempt - the attention can still read the data of free cells
++    state_zero_data(strm, sinfo);
++}
++
++// detach only the cells that a failed append restore has allocated
++void llama_kv_cache::state_clear_append(llama_seq_id seq_id, uint32_t strm, const slot_info & sinfo) {
++    if (sinfo.empty() || sinfo.size() == 0) {
++        return;
++    }
++
++    auto & cells = v_cells[strm];
++
++    for (uint32_t idx : sinfo.idxs[0]) {
++        cells.seq_rm(idx, seq_id);
++    }
++
++    state_zero_data(strm, sinfo);
++}
++
++// zero the K/V data of the failed restore attempt - the attention can still read the data of free cells
++void llama_kv_cache::state_zero_data(uint32_t strm, const slot_info & sinfo) {
+     if (sinfo.empty() || sinfo.size() == 0) {
+         return;
+     }
+diff --git a/src/llama-kv-cache.h b/src/llama-kv-cache.h
+index 5051f4343..b7488679b 100644
+--- a/src/llama-kv-cache.h
++++ b/src/llama-kv-cache.h
+@@ -151,6 +151,10 @@ public:
+     void state_write(llama_io_write_i & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) const override;
+     void state_read (llama_io_read_i  & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) override;
+ 
++    void state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags = 0) const override;
++
++    void state_read_range (llama_io_read_i  & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags = 0) override;
++
+     //
+     // llama_kv_cache specific API
+     //
+@@ -172,12 +176,14 @@ public:
+     // a cache that mirrors another one (the qwen4exp indexer) must not search for its own cells: two searches agree only by luck
+     //   sinfos_out: if set, filled with the layout used; a stream with no cells leaves an empty entry
+     //   sinfos_in : if set, the layout to use instead of searching. one entry per stream, cell count must match the blob
++    //   append    : if set, keep the cells that dest seq already has; fail on position overlap
+     void state_read_sinfo(
+             llama_io_read_i & io,
+                llama_seq_id   seq_id,
+       llama_state_seq_flags   flags,
+           slot_info_vec_t *   sinfos_out,
+-    const slot_info_vec_t *   sinfos_in);
++    const slot_info_vec_t *   sinfos_in,
++                     bool   append = false);
+ 
+     // undo a state_read() of seq_id (-1 for the whole cache) that another memory module failed to complete
+     void state_clear(llama_seq_id seq_id);
+@@ -345,11 +351,17 @@ private:
+     void state_write_meta(llama_io_write_i & io, const cell_ranges_t & cr, llama_seq_id seq_id = -1) const;
+     void state_write_data(llama_io_write_i & io, const cell_ranges_t & cr) const;
+ 
++    // p0 < 0 means no lower bound, p1 < 0 means no upper bound
++    void state_write_impl(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const;
++
+     // sinfo_in, when set, replaces the find_slot call: the cells are given by the caller
+-    bool state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,       slot_info & sinfo, llama_seq_id dest_seq_id = -1, const slot_info * sinfo_in = nullptr);
++    // append, when set, keeps the cells of dest_seq_id and fails on position overlap
++    bool state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,       slot_info & sinfo, llama_seq_id dest_seq_id = -1, const slot_info * sinfo_in = nullptr, bool append = false);
+     bool state_read_data(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, const slot_info & sinfo);
+ 
+     void state_clear(llama_seq_id seq_id, uint32_t strm, const slot_info & sinfo);
++    void state_clear_append(llama_seq_id seq_id, uint32_t strm, const slot_info & sinfo);
++    void state_zero_data(uint32_t strm, const slot_info & sinfo);
+ };
+ 
+ class llama_kv_cache_context : public llama_memory_context_i {
+diff --git a/src/llama-kv-cells.h b/src/llama-kv-cells.h
+index 5d567a6ed..497f79c30 100644
+--- a/src/llama-kv-cells.h
++++ b/src/llama-kv-cells.h
+@@ -386,6 +386,17 @@ public:
+         return seq_pos[seq_id].rbegin()->first;
+     }
+ 
++    // true if sequence seq_id has a cell at position p
++    bool seq_pos_has(llama_seq_id seq_id, llama_pos p) const {
++        assert(seq_id >= 0);
++        assert(seq_id < LLAMA_MAX_SEQ);
++
++        const auto & sp = seq_pos[seq_id];
++
++        auto it = sp.lower_bound({ p, 0 });
++        return it != sp.end() && it->first == p;
++    }
++
+     // note: call only if the cell is not empty
+     llama_pos pos_get(uint32_t i) const {
+         assert(i < pos.size());
+diff --git a/src/llama-memory-hybrid-idx.cpp b/src/llama-memory-hybrid-idx.cpp
+index 3972ce9ce..3b46ac4bc 100644
+--- a/src/llama-memory-hybrid-idx.cpp
++++ b/src/llama-memory-hybrid-idx.cpp
+@@ -218,6 +218,25 @@ void llama_memory_hybrid_idx::state_write(llama_io_write_i & io, llama_seq_id se
+ 
+ }
+ 
++void llama_memory_hybrid_idx::state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
++    GGML_UNUSED(io);
++    GGML_UNUSED(seq_id);
++    GGML_UNUSED(p0);
++    GGML_UNUSED(p1);
++    GGML_UNUSED(flags);
++
++    throw std::runtime_error("state_write_range is not supported for the indexed hybrid memory");
++}
++
++void llama_memory_hybrid_idx::state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
++    GGML_UNUSED(io);
++    GGML_UNUSED(seq_id);
++    GGML_UNUSED(append);
++    GGML_UNUSED(flags);
++
++    throw std::runtime_error("state_read_range is not supported for the indexed hybrid memory");
++}
++
+ void llama_memory_hybrid_idx::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) {
+     // note: repeats llama_memory_hybrid::state_read
+     // the indexer needs the attention cache's cells, and a half-failed restore must leave all three caches alike
+diff --git a/src/llama-memory-hybrid-idx.h b/src/llama-memory-hybrid-idx.h
+index 705189e7e..c85858800 100644
+--- a/src/llama-memory-hybrid-idx.h
++++ b/src/llama-memory-hybrid-idx.h
+@@ -69,6 +69,10 @@ public:
+     void state_write(llama_io_write_i & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) const override;
+     void state_read (llama_io_read_i  & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0)       override;
+ 
++    void state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags = 0) const override;
++
++    void state_read_range (llama_io_read_i  & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags = 0) override;
++
+     //
+     // llama_memory_hybrid_idx specific API
+     //
+diff --git a/src/llama-memory-hybrid.cpp b/src/llama-memory-hybrid.cpp
+index 62f12de95..abf4c1941 100644
+--- a/src/llama-memory-hybrid.cpp
++++ b/src/llama-memory-hybrid.cpp
+@@ -194,6 +194,14 @@ void llama_memory_hybrid::state_write(llama_io_write_i & io, llama_seq_id seq_id
+     mem_recr->state_write(io, seq_id, flags);
+ }
+ 
++void llama_memory_hybrid::state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
++    mem_attn->state_write_range(io, seq_id, p0, p1, flags);
++}
++
++void llama_memory_hybrid::state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
++    mem_attn->state_read_range(io, seq_id, append, flags);
++}
++
+ void llama_memory_hybrid::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) {
+     const bool read_attn = (flags & LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == 0;
+ 
+diff --git a/src/llama-memory-hybrid.h b/src/llama-memory-hybrid.h
+index 484eafb74..e4c681be0 100644
+--- a/src/llama-memory-hybrid.h
++++ b/src/llama-memory-hybrid.h
+@@ -76,6 +76,10 @@ public:
+     void state_write(llama_io_write_i & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) const override;
+     void state_read (llama_io_read_i  & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0)       override;
+ 
++    void state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags = 0) const override;
++
++    void state_read_range (llama_io_read_i  & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags = 0) override;
++
+     //
+     // llama_memory_hybrid specific API
+     //
+diff --git a/src/llama-memory.h b/src/llama-memory.h
+index db8253966..1dac17d90 100644
+--- a/src/llama-memory.h
++++ b/src/llama-memory.h
+@@ -6,6 +6,7 @@
+ #include <map>
+ #include <memory>
+ #include <functional>
++#include <stdexcept>
+ 
+ struct llama_ubatch;
+ 
+@@ -124,6 +125,28 @@ struct llama_memory_i {
+ 
+     virtual void state_write(llama_io_write_i & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) const = 0;
+     virtual void state_read (llama_io_read_i  & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) = 0;
++
++    // serialize a position range [p0, p1) of the attention KV of one sequence
++    virtual void state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags = 0) const {
++        GGML_UNUSED(io);
++        GGML_UNUSED(seq_id);
++        GGML_UNUSED(p0);
++        GGML_UNUSED(p1);
++        GGML_UNUSED(flags);
++
++        throw std::runtime_error("state_write_range is not supported by this memory type");
++    }
++
++    // restore a position range of the attention KV of one sequence
++    // append == true keeps the cells that the sequence already has and fails on position overlap
++    virtual void state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags = 0) {
++        GGML_UNUSED(io);
++        GGML_UNUSED(seq_id);
++        GGML_UNUSED(append);
++        GGML_UNUSED(flags);
++
++        throw std::runtime_error("state_read_range is not supported by this memory type");
++    }
+ };
+ 
+ using llama_memory_ptr = std::unique_ptr<llama_memory_i>;
+diff --git a/tests/CMakeLists.txt b/tests/CMakeLists.txt
+index 996e7f58f..bf0fd73e4 100644
+--- a/tests/CMakeLists.txt
++++ b/tests/CMakeLists.txt
+@@ -319,6 +319,8 @@ llama_build_and_test(test-backend-sampler.cpp   LABEL "model")
+ llama_build_and_test(test-state-restore-fragmented.cpp LABEL "model" ARGS -m "${MODEL_DEST}")
+ set_tests_properties(test-state-restore-fragmented PROPERTIES FIXTURES_REQUIRED test-download-model)
+ 
++llama_build(test-t32-range.cpp)
++
+ if (APPLE)
+     llama_build(test-rset-release.cpp)
+ endif()
+diff --git a/tests/test-t32-range.cpp b/tests/test-t32-range.cpp
+new file mode 100644
+index 000000000..51f6d885f
+--- /dev/null
++++ b/tests/test-t32-range.cpp
+@@ -0,0 +1,325 @@
++// Benchmarks and correctness checks for the range state API (T32 tree storage)
++#include "arg.h"
++#include "common.h"
++#include "llama.h"
++
++#include <algorithm>
++#include <cstdio>
++#include <cstdlib>
++#include <cstring>
++#include <string>
++#include <vector>
++
++static void print_usage(const char * prog) {
++    fprintf(stderr, "usage: %s -m model.gguf [common args] --mode <h2d|correctness|range-bench> [--n N] [--chunk C]\n", prog);
++}
++
++static int fill_context(llama_context * ctx, int n_tokens, int n_ubatch = 512) {
++    llama_batch batch = llama_batch_init(n_ubatch, 0, 1);
++
++    for (int i = 0; i < n_tokens; ) {
++        batch.n_tokens = 0;
++
++        const int n = std::min(n_ubatch, n_tokens - i);
++
++        for (int j = 0; j < n; ++j) {
++            common_batch_add(batch, 10 + (i + j) % 1000, i + j, { 0 }, j == n - 1);
++        }
++
++        if (llama_decode(ctx, batch) != 0) {
++            fprintf(stderr, "decode failed at token %d\n", i);
++            llama_batch_free(batch);
++            return 1;
++        }
++
++        i += n;
++    }
++
++    llama_batch_free(batch);
++    return 0;
++}
++
++static int run_h2d(llama_context * ctx, int n_tokens) {
++    const int64_t t_fill0 = ggml_time_us();
++
++    if (fill_context(ctx, n_tokens) != 0) {
++        return 1;
++    }
++
++    const double t_fill = (ggml_time_us() - t_fill0) / 1e6;
++
++    const size_t size = llama_state_seq_get_size_ext(ctx, 0, 0);
++    if (size == 0) {
++        fprintf(stderr, "failed to get state size\n");
++        return 1;
++    }
++
++    std::vector<uint8_t> data(size);
++
++    const int64_t t_d2h0 = ggml_time_us();
++    const size_t n_d2h = llama_state_seq_get_data_ext(ctx, data.data(), data.size(), 0, 0);
++    const double t_d2h = (ggml_time_us() - t_d2h0) / 1e6;
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 1, -1, -1);
++
++    const int64_t t_h2d0 = ggml_time_us();
++    const size_t n_h2d = llama_state_seq_set_data_ext(ctx, data.data(), data.size(), 1, 0);
++    const double t_h2d = (ggml_time_us() - t_h2d0) / 1e6;
++
++    const double mib = size / 1024.0 / 1024.0;
++
++    fprintf(stderr, "[t32-h2d] fill: %d tokens in %.1f s (%.1f t/s)\n", n_tokens, t_fill, n_tokens / t_fill);
++    fprintf(stderr, "[t32-h2d] size: %.1f MiB\n", mib);
++    fprintf(stderr, "[t32-h2d] D2H:  %.2f s (%.2f GiB/s) [%zu bytes]\n", t_d2h, mib / 1024.0 / t_d2h, n_d2h);
++    fprintf(stderr, "[t32-h2d] H2D:  %.2f s (%.2f GiB/s) [%zu bytes]\n", t_h2d, mib / 1024.0 / t_h2d, n_h2d);
++
++    return (n_d2h == size && n_h2d == size) ? 0 : 1;
++}
++
++static int n_fail = 0;
++
++static void check(bool cond, const char * what) {
++    fprintf(stderr, "[t32] %-72s %s\n", what, cond ? "PASS" : "FAIL");
++    if (!cond) {
++        n_fail++;
++    }
++}
++
++static std::vector<llama_token> generate(llama_context * ctx, llama_seq_id seq_id, llama_token first, llama_pos pos0, int n) {
++    std::vector<llama_token> res;
++
++    llama_sampler * smpl = llama_sampler_init_greedy();
++    llama_batch batch = llama_batch_init(1, 0, 1);
++
++    llama_token cur = first;
++    llama_pos   pos = pos0;
++
++    for (int i = 0; i < n; ++i) {
++        batch.n_tokens = 0;
++        common_batch_add(batch, cur, pos++, { seq_id }, true);
++
++        if (llama_decode(ctx, batch) != 0) {
++            res.clear();
++            break;
++        }
++
++        cur = llama_sampler_sample(smpl, ctx, -1);
++        llama_sampler_accept(smpl, cur);
++        res.push_back(cur);
++    }
++
++    llama_sampler_free(smpl);
++    llama_batch_free(batch);
++
++    return res;
++}
++
++static int run_correctness(llama_model * model, llama_context * ctx) {
++    const int L = 64;
++
++    if (fill_context(ctx, L, L) != 0) {
++        return 1;
++    }
++
++    const bool hybrid = llama_model_is_hybrid(model);
++
++    const size_t size_full  = llama_state_seq_get_size_ext(ctx, 0, 0);
++    const size_t size_part  = llama_state_seq_get_size_ext(ctx, 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
++    const size_t size_range = llama_state_seq_get_size_range_ext(ctx, 0, 0, L, 0);
++
++    fprintf(stderr, "[t32] hybrid=%d full=%zu partial=%zu range=%zu\n", hybrid, size_full, size_part, size_range);
++
++    check(size_full > 0, "full state size > 0");
++    check(size_range > 0, "range state size > 0");
++
++    if (hybrid) {
++        check(size_range == size_full - size_part + 8, "hybrid: range(0,L) size == full - partial + 8");
++    } else {
++        check(size_range == size_full, "attn: range(0,L) size == full size");
++
++        std::vector<uint8_t> data_full(size_full);
++        std::vector<uint8_t> data_range(size_range);
++
++        const size_t n_full  = llama_state_seq_get_data_ext(ctx, data_full.data(), data_full.size(), 0, 0);
++        const size_t n_range = llama_state_seq_get_data_range_ext(ctx, data_range.data(), data_range.size(), 0, 0, L, 0);
++
++        check(n_full == size_full && n_range == size_range, "payload reads returned the expected sizes");
++        check(n_range == n_full && memcmp(data_full.data(), data_range.data(), size_full) == 0, "attn: range(0,L) payload == full payload");
++    }
++
++    const size_t size_half = llama_state_seq_get_size_range_ext(ctx, 0, 0, L/2, 0);
++    check(size_half > 8 && size_half < size_range, "range(0,L/2) size is between header and full range");
++
++    // chunked restore must match a full restore
++    const int mid = L / 2;
++
++    const size_t size_c0 = llama_state_seq_get_size_range_ext(ctx, 0, 0,   mid, 0);
++    const size_t size_c1 = llama_state_seq_get_size_range_ext(ctx, 0, mid, L,   0);
++
++    std::vector<uint8_t> data_c0(size_c0);
++    std::vector<uint8_t> data_c1(size_c1);
++
++    check(llama_state_seq_get_data_range_ext(ctx, data_c0.data(), size_c0, 0, 0,   mid, 0) == size_c0, "read chunk 0");
++    check(llama_state_seq_get_data_range_ext(ctx, data_c1.data(), size_c1, 0, mid, L,   0) == size_c1, "read chunk 1");
++
++    std::vector<uint8_t> data_part;
++    if (hybrid) {
++        data_part.resize(size_part);
++        check(llama_state_seq_get_data_ext(ctx, data_part.data(), data_part.size(), 0, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == size_part, "read recurrent state");
++        check(llama_state_seq_set_data_ext(ctx, data_part.data(), data_part.size(), 1, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) == size_part, "restore recurrent state into seq 1");
++    }
++
++    check(llama_state_seq_set_data_range_ext(ctx, data_c0.data(), size_c0, 1, false, 0) == size_c0, "restore chunk 0 (append=false)");
++    check(llama_state_seq_set_data_range_ext(ctx, data_c1.data(), size_c1, 1, true,  0) == size_c1, "restore chunk 1 (append=true)");
++
++    std::vector<uint8_t> data_full(size_full);
++    check(llama_state_seq_get_data_ext(ctx, data_full.data(), data_full.size(), 0, 0) == size_full, "read full state");
++    check(llama_state_seq_set_data_ext(ctx, data_full.data(), data_full.size(), 2, 0) == size_full, "restore full state into seq 2");
++
++    const llama_token first = 42;
++    const auto gen1 = generate(ctx, 1, first, L, 8);
++    const auto gen2 = generate(ctx, 2, first, L, 8);
++
++    check(!gen1.empty() && gen1 == gen2, "chunked restore generates the same tokens as a full restore");
++
++    const size_t n_overlap = llama_state_seq_set_data_range_ext(ctx, data_c0.data(), size_c0, 1, true, 0);
++    check(n_overlap == 0, "append with overlapping positions is rejected");
++
++    // gen1/gen2 already decoded past L, so continue both: seq 1 went through the rejected append, seq 2 did not
++    const llama_token next = gen1.empty() ? first : gen1.back();
++
++    const auto gen1b = generate(ctx, 1, next, L + 8, 8);
++    const auto gen2b = generate(ctx, 2, next, L + 8, 8);
++
++    check(gen1b == gen2b, "rejected append left the existing state intact");
++
++    return n_fail == 0 ? 0 : 1;
++}
++
++static int run_range_bench(llama_context * ctx, int n_tokens, int chunk) {
++    const int64_t t_fill0 = ggml_time_us();
++
++    if (fill_context(ctx, n_tokens) != 0) {
++        return 1;
++    }
++
++    const double t_fill = (ggml_time_us() - t_fill0) / 1e6;
++
++    const int n_chunks = (n_tokens + chunk - 1) / chunk;
++
++    std::vector<std::vector<uint8_t>> data(n_chunks);
++
++    size_t total = 0;
++
++    const int64_t t_write0 = ggml_time_us();
++    for (int c = 0; c < n_chunks; ++c) {
++        const int p0 = c * chunk;
++        const int p1 = std::min(n_tokens, p0 + chunk);
++
++        const size_t size = llama_state_seq_get_size_range_ext(ctx, 0, p0, p1, 0);
++        data[c].resize(size);
++
++        if (llama_state_seq_get_data_range_ext(ctx, data[c].data(), size, 0, p0, p1, 0) != size) {
++            fprintf(stderr, "chunk %d write failed\n", c);
++            return 1;
++        }
++
++        total += size;
++    }
++    const double t_write = (ggml_time_us() - t_write0) / 1e6;
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 1, -1, -1);
++
++    const int64_t t_read0 = ggml_time_us();
++    for (int c = 0; c < n_chunks; ++c) {
++        if (llama_state_seq_set_data_range_ext(ctx, data[c].data(), data[c].size(), 1, c > 0, 0) != data[c].size()) {
++            fprintf(stderr, "chunk %d read failed\n", c);
++            return 1;
++        }
++    }
++    const double t_read = (ggml_time_us() - t_read0) / 1e6;
++
++    const double mib = total / 1024.0 / 1024.0;
++
++    fprintf(stderr, "[t32-bench] n=%d chunk=%d chunks=%d fill=%.1fs total=%.1f MiB\n", n_tokens, chunk, n_chunks, t_fill, mib);
++    fprintf(stderr, "[t32-bench] write: %.2f s (%.1f MiB/s, %.2f ms/chunk)\n", t_write, mib / t_write, 1e3 * t_write / n_chunks);
++    fprintf(stderr, "[t32-bench] read:  %.2f s (%.1f MiB/s, %.2f ms/chunk)\n", t_read,  mib / t_read,  1e3 * t_read  / n_chunks);
++
++    return 0;
++}
++
++int main(int argc, char ** argv) {
++    common_params params;
++    params.sampling.seed = 1234;
++    params.n_parallel = 3;
++    params.n_ctx = 512;
++
++    std::string mode = "correctness";
++    int n_tokens = 32000;
++    int chunk    = 512;
++    bool kv_unified = false;
++
++    // extract our own options before handing the rest to the common arg parser
++    std::vector<char *> args;
++    args.push_back(argv[0]);
++
++    for (int i = 1; i < argc; ++i) {
++        const std::string arg = argv[i];
++
++        if (arg == "--mode" && i + 1 < argc) {
++            mode = argv[++i];
++            continue;
++        }
++        if (arg == "--n" && i + 1 < argc) {
++            n_tokens = atoi(argv[++i]);
++            continue;
++        }
++        if (arg == "--chunk" && i + 1 < argc) {
++            chunk = atoi(argv[++i]);
++            continue;
++        }
++        // the common parser only exposes -kvu to some example types, so handle it here
++        if (arg == "-kvu" || arg == "--kv-unified") {
++            kv_unified = true;
++            continue;
++        }
++
++        args.push_back(argv[i]);
++    }
++
++    if (kv_unified) {
++        params.kv_unified = true;
++    }
++
++    common_init();
++
++    if (!common_params_parse((int) args.size(), args.data(), params, LLAMA_EXAMPLE_COMMON)) {
++        print_usage(argv[0]);
++        return 1;
++    }
++
++    ggml_backend_load_all();
++
++    common_init_result_ptr llama_init = common_init_from_params(params);
++
++    llama_model   * model = llama_init->model();
++    llama_context * ctx   = llama_init->context();
++
++    if (model == nullptr || ctx == nullptr) {
++        fprintf(stderr, "failed to init\n");
++        return 1;
++    }
++
++    if (mode == "h2d") {
++        return run_h2d(ctx, n_tokens);
++    }
++    if (mode == "correctness") {
++        return run_correctness(model, ctx);
++    }
++    if (mode == "range-bench") {
++        return run_range_bench(ctx, n_tokens, chunk);
++    }
++
++    print_usage(argv[0]);
++    return 1;
++}

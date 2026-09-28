@@ -1,0 +1,215 @@
+diff --git a/common/sampling.cpp b/common/sampling.cpp
+index 06dea1e1c..f8baa1654 100644
+--- a/common/sampling.cpp
++++ b/common/sampling.cpp
+@@ -606,6 +606,39 @@ llama_token common_sampler_sample(struct common_sampler * gsmpl, struct llama_co
+ 
+     gsmpl->set_logits(ctx, idx);
+ 
++    // T20 debug: dump top-8 logits per sample call to compare spec vs non-spec numerics
++    {
++        static FILE * f = []() -> FILE * {
++            const char * path = getenv("GGML_DBG_LOGITS");
++            return path ? fopen(path, "w") : nullptr;
++        }();
++        if (f != nullptr) {
++            const float * logits = llama_get_logits_ith(ctx, idx);
++            if (logits == nullptr) {
++                fprintf(f, "%p NULL\n", (const void *) ctx);
++            } else {
++                const int n_vocab = llama_vocab_n_tokens(llama_model_get_vocab(llama_get_model(ctx)));
++                int   best_i[8];
++                float best_v[8];
++                for (int j = 0; j < 8; ++j) { best_i[j] = -1; best_v[j] = -FLT_MAX; }
++                for (int i = 0; i < n_vocab; ++i) {
++                    const float v = logits[i];
++                    for (int j = 0; j < 8; ++j) {
++                        if (v > best_v[j]) {
++                            for (int k = 7; k > j; --k) { best_v[k] = best_v[k-1]; best_i[k] = best_i[k-1]; }
++                            best_v[j] = v; best_i[j] = i;
++                            break;
++                        }
++                    }
++                }
++                fprintf(f, "%p", (const void *) ctx);
++                for (int j = 0; j < 8; ++j) { fprintf(f, " %d:%.9g", best_i[j], best_v[j]); }
++                fprintf(f, "\n");
++            }
++            fflush(f);
++        }
++    }
++
+     // Check if a backend sampler has already sampled a token in which case we
+     // return that token id directly.
+     {
+diff --git a/examples/CMakeLists.txt b/examples/CMakeLists.txt
+index 39f802d25..dc36da0f1 100644
+--- a/examples/CMakeLists.txt
++++ b/examples/CMakeLists.txt
+@@ -14,6 +14,7 @@ llama_add_compile_flags()
+ 
+ if (EMSCRIPTEN)
+ else()
++    add_subdirectory(batch-invariance)
+     add_subdirectory(batched)
+     add_subdirectory(debug)
+     add_subdirectory(embedding)
+diff --git a/ggml/src/ggml-cuda/fattn-common.cuh b/ggml/src/ggml-cuda/fattn-common.cuh
+index 29201744b..3ea5aa5e6 100644
+--- a/ggml/src/ggml-cuda/fattn-common.cuh
++++ b/ggml/src/ggml-cuda/fattn-common.cuh
+@@ -1208,28 +1208,46 @@ void launch_fattn(
+             dst_tmp_meta.alloc((size_t(blocks_num.x) * ncols * (2 + DV/2)));
+         }
+     } else {
+-        // parallel_blocks must not be larger than what the tensor size allows:
+-        parallel_blocks = std::min(parallel_blocks, ntiles_KV);
+-
+         // If ntiles_total % blocks_per_wave != 0 then some efficiency is lost due to tail effects.
+         // Test whether parallel_blocks can be set to a higher value for better efficiency.
+         const int blocks_per_wave = nsm * max_blocks_per_sm;
+-        int nwaves_best = 0;
+-        int efficiency_percent_best = 0;
+-        for (int parallel_blocks_test = parallel_blocks; parallel_blocks_test <= ntiles_KV; ++parallel_blocks_test) {
+-            const int nblocks_total = ntiles_dst * parallel_blocks_test;
+-            const int nwaves = (nblocks_total + blocks_per_wave - 1) / blocks_per_wave;
+-            const int efficiency_percent = 100 * nblocks_total / (nwaves*blocks_per_wave);
+-
+-            // Stop trying configurations with more waves if we already have good efficiency to avoid excessive overhead.
+-            if (efficiency_percent_best >= 95 && nwaves > nwaves_best) {
+-                break;
+-            }
+ 
+-            if (efficiency_percent > efficiency_percent_best) {
+-                nwaves_best = nwaves;
+-                efficiency_percent_best = efficiency_percent;
+-                parallel_blocks = parallel_blocks_test;
++        // T20 debug: GGML_CUDA_FATTN_PB_FORCE=N forces the KV split for the non-stream-K kernels
++        static const int pb_force = []() {
++            const char * env = getenv("GGML_CUDA_FATTN_PB_FORCE");
++            return env ? atoi(env) : -1;
++        }();
++
++        if (pb_force > 0) {
++            parallel_blocks = pb_force;
++        } else if (Q->ne[1] <= 8) {
++            // Small batches (decode and speculative verification) must produce identical results for
++            // different batch shapes: the KV split has to be independent of the padded KV length,
++            // otherwise extra masked KV tiles land in other blocks and change the accumulation order
++            // of the online softmax. Blocks without visible KV contribute exactly zero.
++            const int ntiles_dst_ref = ntiles_z_gqa*K->ne[2]*Q->ne[3];
++            parallel_blocks = std::max(1, (blocks_per_wave + ntiles_dst_ref - 1)/ntiles_dst_ref);
++        } else {
++            // parallel_blocks must not be larger than what the tensor size allows:
++            parallel_blocks = std::min(parallel_blocks, ntiles_KV);
++
++            int nwaves_best = 0;
++            int efficiency_percent_best = 0;
++            for (int parallel_blocks_test = parallel_blocks; parallel_blocks_test <= ntiles_KV; ++parallel_blocks_test) {
++                const int nblocks_total = ntiles_dst * parallel_blocks_test;
++                const int nwaves = (nblocks_total + blocks_per_wave - 1) / blocks_per_wave;
++                const int efficiency_percent = 100 * nblocks_total / (nwaves*blocks_per_wave);
++
++                // Stop trying configurations with more waves if we already have good efficiency to avoid excessive overhead.
++                if (efficiency_percent_best >= 95 && nwaves > nwaves_best) {
++                    break;
++                }
++
++                if (efficiency_percent > efficiency_percent_best) {
++                    nwaves_best = nwaves;
++                    efficiency_percent_best = efficiency_percent;
++                    parallel_blocks = parallel_blocks_test;
++                }
+             }
+         }
+ 
+diff --git a/ggml/src/ggml-cuda/fattn.cu b/ggml/src/ggml-cuda/fattn.cu
+index 7098c8b4c..2f0af6bfa 100644
+--- a/ggml/src/ggml-cuda/fattn.cu
++++ b/ggml/src/ggml-cuda/fattn.cu
+@@ -5,6 +5,9 @@
+ #include "fattn-vec.cuh"
+ #include "fattn.cuh"
+ 
++#include <cstdio>
++#include <cstdlib>
++
+ #if !defined(GGML_USE_HIP) && !defined(GGML_USE_MUSA)
+ // one list per group of ncols1 queries: a column is selected if any query of the group can see it
+ __launch_bounds__(256, 1)
+@@ -622,6 +625,27 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
+     // 192 satisfies % 64 == 0 but has no vec instance (DKQ != DV); force it onto the MMA path.
+     const bool can_use_vector_kernel = Q->ne[0] <= 256 && Q->ne[0] % 64 == 0 && Q->ne[0] != 192 && K->ne[1] % FATTN_KQ_STRIDE == 0;
+ 
++    // T20 debug: force a FATTN kernel to attribute numerical differences (vec/tile/mma)
++    static const int fa_force = []() {
++        const char * env = getenv("GGML_CUDA_FA_FORCE");
++        if (env == nullptr) {
++            return 0;
++        }
++        if (strcmp(env, "vec")  == 0) { return 1; }
++        if (strcmp(env, "tile") == 0) { return 2; }
++        if (strcmp(env, "mma")  == 0) { return 3; }
++        return 0;
++    }();
++    if (fa_force == 1 && can_use_vector_kernel) {
++        return BEST_FATTN_KERNEL_VEC;
++    }
++    if (fa_force == 2) {
++        return BEST_FATTN_KERNEL_TILE;
++    }
++    if (fa_force == 3) {
++        return BEST_FATTN_KERNEL_MMA_F16;
++    }
++
+     // If Turing tensor cores are available, use them:
+     if (turing_mma_available(cc) && Q->ne[0] != 40 && Q->ne[0] != 72) {
+         if (can_use_vector_kernel) {
+@@ -659,7 +683,11 @@ static best_fattn_kernel ggml_cuda_get_best_fattn_kernel(const int device, const
+     }
+ 
+     if (volta_mma_available(cc) && Q->ne[0] != 40 && Q->ne[0] != 72) {
+-        if (can_use_vector_kernel && Q->ne[1] * gqa_ratio_eff <= 2) {
++        // env: GGML_CUDA_FA_SMALL_BATCH_VEC - force the vector kernel for small batches
++        // so that speculative verification matches the single-token decode numerics
++        static const bool small_batch_vec = getenv("GGML_CUDA_FA_SMALL_BATCH_VEC") != nullptr;
++        const int vec_limit = small_batch_vec ? 16 : 2;
++        if (can_use_vector_kernel && Q->ne[1] * gqa_ratio_eff <= vec_limit) {
+             return BEST_FATTN_KERNEL_VEC;
+         }
+         if (Q->ne[1] * gqa_ratio_eff <= 16) {
+@@ -742,7 +770,15 @@ size_t ggml_cuda_flash_attn_ext_get_alloc_size(int device, const ggml_tensor * d
+ 
+ void ggml_cuda_flash_attn_ext(ggml_backend_cuda_context & ctx, ggml_tensor * dst) {
+     ggml_cuda_set_device(ctx.device);
+-    switch (ggml_cuda_get_best_fattn_kernel(ggml_cuda_get_device(), dst)) {
++    const best_fattn_kernel kernel = ggml_cuda_get_best_fattn_kernel(ggml_cuda_get_device(), dst);
++    if (getenv("GGML_CUDA_FA_DEBUG")) {
++        const ggml_tensor * Q = dst->src[0];
++        const ggml_tensor * K = dst->src[1];
++        fprintf(stderr, "FA_DEBUG n_q=%d n_head=%d n_head_kv=%d n_kv=%d head_dim=%d kernel=%d (%s)\n",
++                (int) Q->ne[1], (int) Q->ne[2], (int) K->ne[2], (int) K->ne[1], (int) Q->ne[0], (int) kernel,
++                kernel == BEST_FATTN_KERNEL_VEC ? "VEC" : kernel == BEST_FATTN_KERNEL_TILE ? "TILE" : "MMA_F16");
++    }
++    switch (kernel) {
+         case BEST_FATTN_KERNEL_NONE:
+             GGML_ABORT("fatal error");
+         case BEST_FATTN_KERNEL_TILE:
+diff --git a/ggml/src/ggml-cuda/gated_delta_net.cu b/ggml/src/ggml-cuda/gated_delta_net.cu
+index aa9b083c8..f1f616083 100644
+--- a/ggml/src/ggml-cuda/gated_delta_net.cu
++++ b/ggml/src/ggml-cuda/gated_delta_net.cu
+@@ -205,7 +205,12 @@ static void launch_gated_delta_net(
+         float scale, int64_t state_slot_stride, int K, cudaStream_t stream) {
+     //TODO: Add chunked kernel for even faster pre-fill
+     // vectorized loads help multi-token prefill but are a small loss for single-token decode
+-    const bool vec4 = n_tokens > 1;
++    // T20 debug: GGML_CUDA_GDN_VEC4=0/1 overrides the layout for batch-invariance experiments
++    static const int vec4_env = []() {
++        const char * env = getenv("GGML_CUDA_GDN_VEC4");
++        return env ? atoi(env) : -1;
++    }();
++    const bool vec4 = vec4_env >= 0 ? vec4_env != 0 : n_tokens > 1;
+     const int warp_size = ggml_cuda_info().devices[ggml_cuda_get_device()].warp_size;
+     const int num_warps = 4;
+     dim3      grid_dims(H, n_seqs, (S_v + num_warps - 1) / num_warps);

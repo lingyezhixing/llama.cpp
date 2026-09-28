@@ -1,0 +1,87 @@
+# Review package: 569f05669..c0619da14
+
+## Commits
+c0619da14 server : use tail semantics for rebuilt checkpoints on recurrent contexts
+
+## Files changed
+ tools/server/server-context.cpp | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index e8f8fffbe..271f6f53c 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -338,21 +338,21 @@ struct server_slot {
+         if (ok) {
+             SLT_INF(*this, "kv tree: parked %d tokens, %zu checkpoint candidates, ram = %lld B, disk = %lld B\n",
+                     (int) prompt.tokens.size(), cks.size(),
+                     (long long) tree.stats().bytes_ram, (long long) tree.stats().bytes_disk);
+         } else {
+             SLT_TRC(*this, "%s", "kv tree: park did not store (see module log)\n");
+         }
+         return ok;
+     }
+ 
+-    bool prompt_restore_tree(kv_tree & tree, const server_tokens & tokens, int n_ckpt_max) {
++    bool prompt_restore_tree(kv_tree & tree, const server_tokens & tokens, int n_ckpt_max, bool ckpt_tail) {
+         if (!lora.empty() || tokens.empty() || tokens.has_mtmd) {
+             return false;
+         }
+ 
+         kv_tree_io_llama io_tgt(ctx_tgt, id);
+         std::unique_ptr<kv_tree_io_llama> io_dft;
+         kv_tree_io * io_dft_ptr = nullptr;
+         if (ctx_dft != nullptr) {
+             io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
+             io_dft_ptr = io_dft.get();
+@@ -370,21 +370,23 @@ struct server_slot {
+         if (n_ckpt_max > 0) {
+             std::list<common_prompt_checkpoint> cks;
+ 
+             for (auto & a : res.anchors) {
+                 if (a.pos <= 0 || a.pos >= res.C) {
+                     continue;
+                 }
+ 
+                 common_prompt_checkpoint ck;
+                 ck.id_task = -1;
+-                ck.update_pos(a.pos, 0, a.pos - 1);
++                // stock checkpoints for recurrent contexts record the tail; the rollback filter
++                // relies on it, so a partial seq_rm is never attempted for them
++                ck.update_pos(a.pos, ckpt_tail ? a.pos - 1 : 0, a.pos - 1);
+                 ck.data_tgt = std::move(a.data_tgt);
+                 ck.data_dft = std::move(a.data_dft);
+                 cks.push_back(std::move(ck));
+             }
+ 
+             while ((int) cks.size() > n_ckpt_max) {
+                 cks.pop_front();
+             }
+ 
+             prompt.checkpoints = std::move(cks);
+@@ -1785,21 +1787,23 @@ private:
+ 
+             if (update_cache) {
+                 SRV_TRC("%s", "updating prompt cache\n");
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+                 if (tree) {
+                     ret->prompt_park(*tree);
+ 
+                     // no point restoring when the request will not reuse the prompt
+-                    if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens, params_base.n_ctx_checkpoints)) {
++                    const bool ckpt_tail = ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_FULL ||
++                                           ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS;
++                    if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens, params_base.n_ctx_checkpoints, ckpt_tail)) {
+                         ret->prompt_clear();
+                     }
+                 } else {
+                     ret->prompt_save(*prompt_cache);
+ 
+                     if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+                         ret->prompt_clear();
+                     }
+ 
+                     prompt_cache->update();

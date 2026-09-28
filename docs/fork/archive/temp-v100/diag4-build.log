@@ -1,0 +1,16 @@
+[1/10] Building CXX object src\CMakeFiles\llama.dir\Release\llama-memory-recurrent.cpp.obj
+[2/10] Linking CXX shared library bin\Release\llama.dll
+[3/8] Provisioning UI assets
+-- UI: downloading from b2160: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b2160/dist.tar.gz
+-- UI: download dist.tar.gz.sha256 from b2160 failed: "Timeout was reached"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: download dist.tar.gz.sha256 from latest failed: "Timeout was reached"
+-- UI: HF download failed
+CMake Warning at D:/LLM/Backend/src/llama.cpp-my/scripts/ui-assets.cmake:584 (message):
+  UI: no assets available - building without an embedded UI.  In a
+  disconnected environment, download the pre-built UI from a llama.cpp
+  release at https://github.com/ggml-org/llama.cpp/releases and extract to
+  tools/ui/dist.
+
+
+-- UI: assets unchanged, skipping embedding

@@ -1,0 +1,314 @@
+# Review package: daf4186d3..98c613325
+
+## Commits
+98c613325 server : fix kv tree disk error counting, anchor spacing and add stats line
+
+## Files changed
+ tests/test-t32-tree.cpp         | 116 ++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-kv-tree.cpp |  32 +++++++++--
+ tools/server/server-kv-tree.h   |   2 +
+ 3 files changed, 146 insertions(+), 4 deletions(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index f40f14180..319b356c9 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -271,27 +271,143 @@ static void run_logic_capture() {
+             ext.push_back((llama_token) (800 + i));
+         }
+ 
+         kv_tree_io_fake io;
+         io.max_pos = 1699;
+         check(!tree.capture_anchor(io, nullptr, ext, 1700), "capture: refused with no stored block");
+         check_eq(tree.stats().anchors_added, 2, "capture: nothing stored on refusal");
+     }
+ }
+ 
++static void run_logic_fixes() {
++    fprintf(stderr, "[t32-tree] logic: fixes\n");
++
++    // disk_errors must count one error per failed write, not two
++    {
++        const auto file = std::filesystem::temp_directory_path() / "t32-tree-diskerr";
++        std::error_code ec;
++        std::filesystem::remove(file, ec);
++        {
++            std::FILE * f = fopen(file.string().c_str(), "wb");
++            if (f != nullptr) {
++                fputc('x', f);
++                fclose(f);
++            }
++        }
++
++        kv_tree_config cfg;
++        cfg.ram_limit  = 0;           // force demotion
++        cfg.disk_limit = 1ull << 20;
++        cfg.disk_dir   = file.string(); // a file, not a directory: every write fails
++
++        kv_tree tree(cfg);
++
++        kv_tree_io_fake io;
++        io.max_pos = 1023;
++        check(!tree.park(io, nullptr, make_tokens(1024, 0), {}), "fixes: park refused when the disk tier fails");
++        check_eq(tree.stats().disk_errors, 2, "fixes: one disk error per failed write (block + anchor)");
++
++        std::filesystem::remove(file, ec);
++    }
++
++    // anchor spacing must be scoped to the chain, not global
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 4096;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++
++        const auto tok_a = make_tokens(512, 0);
++        const auto tok_b = make_tokens(2048, 1);
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 511;
++            check(tree.park(io, nullptr, tok_a, {}), "fixes: park chain A (tip anchor at 512)");
++        }
++
++        {
++            kv_tree_anchor_in ck;
++            ck.pos      = 1024;
++            ck.data_tgt = kv_tree_io_fake::pattern(0, 64);
++
++            kv_tree_io_fake io;
++            io.max_pos = 2047;
++            check(tree.park(io, nullptr, tok_b, { ck }), "fixes: park chain B with a candidate at 1024");
++        }
++
++        // chain B now has anchors at 1024 and 2048; chain A has one at 512
++        check_eq(tree.stats().anchors_added, 3, "fixes: the cross-chain anchor does not suppress the candidate");
++    }
++
++    // capture spacing must be chain-scoped too, and same-chain spacing must still apply
++    {
++        kv_tree_config cfg;
++        cfg.chunk       = 512;
++        cfg.anchor_step = 4096;
++        cfg.ram_limit   = 1ull << 20;
++
++        kv_tree tree(cfg);
++
++        const auto tok_a = make_tokens(512, 0);
++        const auto tok_b = make_tokens(2048, 1);
++
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 511;
++            check(tree.park(io, nullptr, tok_a, {}), "fixes: park chain A");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 2047;
++            check(tree.park(io, nullptr, tok_b, {}), "fixes: park chain B");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 1535;
++            check(tree.capture_anchor(io, nullptr, tok_b, 1536), "fixes: cross-chain anchor does not block the capture");
++        }
++        {
++            kv_tree_io_fake io;
++            io.max_pos = 2559;
++            check(!tree.capture_anchor(io, nullptr, tok_b, 2560), "fixes: same-chain spacing still refuses");
++        }
++    }
++
++    // stats summary line
++    {
++        kv_tree_config cfg;
++        cfg.ram_limit = 1ull << 20;
++
++        kv_tree tree(cfg);
++
++        kv_tree_io_fake io;
++        io.max_pos = 1023;
++        check(tree.park(io, nullptr, make_tokens(1024, 0), {}), "fixes: park for the stats line");
++
++        const std::string s = tree.stats_line();
++        check(s.find("parks=1") != std::string::npos, "fixes: stats line has parks");
++        check(s.find("anchors=1") != std::string::npos, "fixes: stats line has anchors");
++        check(s.find("disk_err=0") != std::string::npos, "fixes: stats line has disk_err");
++    }
++}
++
+ static int run_logic() {
+     fprintf(stderr, "[t32-tree] mode logic\n");
+ 
+     run_logic_evict();
+     run_logic_drop();
+     run_logic_stream();
+     run_logic_capture();
++    run_logic_fixes();
+ 
+     kv_tree_config cfg;
+     cfg.chunk = 512;
+     cfg.ram_limit = 64ull << 20;
+ 
+     kv_tree tree(cfg);
+ 
+     const auto tok_a = make_tokens(1536, 0);   // 3 full chunks
+     const auto tok_b = make_tokens(1024, 0);   // shares the first 2 chunks with tok_a, then diverges
+     auto tok_b2 = tok_b;
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 582df56e3..3df6cbafd 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -355,21 +355,24 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+ 
+     const auto it = anchors.find(key);
+     if (it != anchors.end()) {
+         it->second.heat++;
+         it->second.last_used = ++now;
+         return true;
+     }
+ 
+     llama_pos prev = -1;
+     for (const auto & kv : anchors) {
+-        if (kv.second.pos < pos && kv.second.pos > prev) {
++        if (kv.second.pos >= pos || kv.second.pos <= prev) {
++            continue;
++        }
++        if (std::find(chain.begin(), chain.end(), kv.first.first) != chain.end()) {
+             prev = kv.second.pos;
+         }
+     }
+ 
+     if (prev >= 0 && pos - prev < cfg.anchor_step) {
+         fprintf(stderr, "[kv-tree] capture skipped at %d: within anchor_step\n", pos);
+         st.anchors_skipped++;
+         return false;
+     }
+ 
+@@ -468,29 +471,27 @@ std::string kv_tree::anchor_path(uint64_t blk_hash, llama_pos pos) const {
+ }
+ 
+ bool kv_tree::write_disk(const std::string & path, const std::vector<uint8_t> & buf) {
+     const std::string tmp = path + ".tmp";
+ 
+     {
+         std::error_code ec;   // the tier subdirectories are created on demand
+         std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
+         if (ec) {
+             fprintf(stderr, "[kv-tree] failed to create the directory for %s: %s\n", tmp.c_str(), ec.message().c_str());
+-            st.disk_errors++;
+             return false;
+         }
+     }
+ 
+     std::FILE * f = fopen(tmp.c_str(), "wb");
+     if (f == nullptr) {
+         fprintf(stderr, "[kv-tree] failed to open %s for writing\n", tmp.c_str());
+-        st.disk_errors++;
+         return false;
+     }
+ 
+     const size_t n = fwrite(buf.data(), 1, buf.size(), f);
+     const bool ok = fclose(f) == 0 && n == buf.size();
+ 
+     if (!ok) {
+         remove(tmp.c_str());
+         return false;
+     }
+@@ -1157,21 +1158,24 @@ bool kv_tree::park(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<l
+ 
+         const uint64_t blk = containing_block(c.pos, &h);
+         if (blk == 0) {
+             fprintf(stderr, "[kv-tree] candidate at %d skipped: no containing block on the parked chain\n", c.pos);
+             st.anchors_skipped++;
+             continue;
+         }
+ 
+         llama_pos prev = -1;
+         for (const auto & kv : anchors) {
+-            if (kv.second.pos < c.pos && kv.second.pos > prev) {
++            if (kv.second.pos >= c.pos || kv.second.pos <= prev) {
++                continue;
++            }
++            if (std::find(h.begin(), h.end(), kv.first.first) != h.end()) {
+                 prev = kv.second.pos;
+             }
+         }
+ 
+         const llama_pos prev_kept = prev > last_kept ? prev : last_kept;
+ 
+         if (prev_kept >= 0 && c.pos - prev_kept < cfg.anchor_step) {
+             st.anchors_skipped++;
+             continue;
+         }
+@@ -1403,20 +1407,40 @@ kv_tree_restore kv_tree::restore(kv_tree_io & io_tgt, kv_tree_io * io_dft, const
+     res.heal   = m.deep > C ? m.deep : -1;
+     res.anchors = path_anchors;
+ 
+     if (cfg.debug) {
+         dump();
+     }
+ 
+     return res;
+ }
+ 
++std::string kv_tree::stats_line() const {
++    char buf[512];
++
++    snprintf(buf, sizeof(buf),
++             "parks=%" PRId64 " ok=%" PRId64 " refused=%" PRId64
++             " restore=%" PRId64 " hits=%" PRId64 " miss=%" PRId64
++             " anchors=%" PRId64 " skipped=%" PRId64 " reuse_tok=%" PRId64
++             " store=%" PRId64 " load=%" PRId64
++             " evicted=%" PRId64 "/%" PRId64 "/%" PRId64 " evict_refused=%" PRId64
++             " disk_err=%" PRId64 " ram=%" PRId64 " disk=%" PRId64,
++             st.park_calls, st.park_ok, st.park_refused,
++             st.restore_calls, st.restore_hits, st.restore_miss,
++             st.anchors_added, st.anchors_skipped, st.tokens_reused,
++             st.bytes_store, st.bytes_load,
++             st.evicted_anchors, st.evicted_blocks, st.evicted_seqs, st.evict_refused,
++             st.disk_errors, st.bytes_ram, st.bytes_disk);
++
++    return buf;
++}
++
+ void kv_tree::dump() const {
+     fprintf(stderr, "[kv-tree] blocks: %" PRId64 " ram, %" PRId64 " disk, %" PRId64 " bytes ram, %" PRId64 " bytes disk\n",
+             st.blocks_ram, st.blocks_disk, st.bytes_ram, st.bytes_disk);
+     fprintf(stderr, "[kv-tree] anchors: %" PRId64 " ram, %" PRId64 " disk, %" PRId64 " added, %" PRId64 " skipped\n",
+             st.anchors_ram, st.anchors_disk, st.anchors_added, st.anchors_skipped);
+     fprintf(stderr, "[kv-tree] park: %" PRId64 " calls, %" PRId64 " ok, %" PRId64 " refused\n",
+             st.park_calls, st.park_ok, st.park_refused);
+     fprintf(stderr, "[kv-tree] restore: %" PRId64 " calls, %" PRId64 " hits, %" PRId64 " miss, %" PRId64 " tokens reused\n",
+             st.restore_calls, st.restore_hits, st.restore_miss, st.tokens_reused);
+ 
+diff --git a/tools/server/server-kv-tree.h b/tools/server/server-kv-tree.h
+index 7af02c9c1..20b8d464c 100644
+--- a/tools/server/server-kv-tree.h
++++ b/tools/server/server-kv-tree.h
+@@ -159,20 +159,22 @@ public:
+ 
+     // capture the state at pos (the io state must be exactly at pos) as a fork anchor;
+     // tokens is the sequence content, used to attach the anchor to the right chain block
+     bool capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std::vector<llama_token> & tokens, llama_pos pos);
+ 
+     // release the stored sequence that matches a prefix of tokens; no-op when nothing matches
+     bool drop_seq(const std::vector<llama_token> & tokens);
+ 
+     const kv_tree_stats & stats() const { return st; }
+ 
++    std::string stats_line() const;
++
+     void dump() const;
+ 
+ private:
+     kv_tree_match match(const std::vector<llama_token> & tokens) const;
+ 
+     bool store_anchor(uint64_t blk_hash, llama_pos pos, int kind,
+                       std::vector<uint8_t> && data_tgt, std::vector<uint8_t> && data_dft);
+ 
+     uint64_t containing_block(llama_pos pos, const std::vector<uint64_t> * chain) const;
+ 

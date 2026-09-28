@@ -1,0 +1,59 @@
+# Review package: bf1e4562d..19acf3fb2
+
+## Commits
+19acf3fb2 server : evict only leaf sequences in the kv tree
+
+## Files changed
+ tools/server/server-kv-tree.cpp | 21 +++++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+## Diff
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 731c04d38..5c80d6fc5 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -778,25 +778,42 @@ bool kv_tree::evict_block_one() {
+ 
+     remove_block(best);
+     return true;
+ }
+ 
+ bool kv_tree::evict_seq_one() {
+     auto best = seqs.end();
+     int64_t best_score = 0;
+ 
+     for (auto it = seqs.begin(); it != seqs.end(); ++it) {
+-        if (it->second.pinned) {
++        const kv_tree_seq & s = it->second;
++        if (s.pinned) {
+             continue;
+         }
+ 
+-        const int64_t score = it->second.last_used;
++        // only leaf sequences: no other stored sequence extends this one
++        bool leaf = true;
++        for (const auto & other : seqs) {
++            const kv_tree_seq & o = other.second;
++            if (o.chain.size() <= s.chain.size()) {
++                continue;
++            }
++            if (std::equal(s.chain.begin(), s.chain.end(), o.chain.begin())) {
++                leaf = false;
++                break;
++            }
++        }
++        if (!leaf) {
++            continue;
++        }
++
++        const int64_t score = s.last_used;
+ 
+         if (best == seqs.end() || score < best_score) {
+             best = it;
+             best_score = score;
+         }
+     }
+ 
+     if (best == seqs.end()) {
+         return false;
+     }

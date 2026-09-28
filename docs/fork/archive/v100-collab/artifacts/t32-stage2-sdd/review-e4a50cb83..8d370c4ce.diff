@@ -1,0 +1,71 @@
+# Review package: e4a50cb83..8d370c4ce
+
+## Commits
+8d370c4ce server : count capture refusals in the kv tree
+
+## Files changed
+ tests/test-t32-tree.cpp         | 4 +++-
+ tools/server/server-kv-tree.cpp | 2 ++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index def410cb5..3449683cf 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -319,21 +319,23 @@ static int scenario_fork(llama_context * ctx, const kv_tree_config & cfg_in) {
+     }
+     {
+         const auto base = run_baseline(ctx, tok_a2, 42, 8);
+ 
+         llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
+ 
+         const auto r = tree.restore(io, nullptr, tok_a2);
+         check_eq(r.C, 512, "fork: A' restores at the deepest usable anchor");
+         check_eq(r.heal, 1024, "fork: A' asks for a heal at the fork point");
+ 
+-        prefill(ctx, 0, std::vector<llama_token>(tok_a2.begin(), tok_a2.begin() + 1024), (int) r.C, 512);
++        if (r.C >= 0) {
++            prefill(ctx, 0, std::vector<llama_token>(tok_a2.begin(), tok_a2.begin() + 1024), (int) r.C, 512);
++        }
+ 
+         check(tree.capture_anchor(io, nullptr, tok_a2, 1024), "fork: heal capture at the fork point");
+ 
+         prefill(ctx, 0, tok_a2, 1024, 512);
+ 
+         const auto gen = generate(ctx, 0, 42, (llama_pos) tok_a2.size(), 8);
+         check(gen == base, "fork: A' tokens match the baseline");
+ 
+         const auto r2 = run_tree_path(ctx, tree, io, tok_a2, 42, 8);
+         check_eq(r2.res.C, 1024, "heal: A' restores at the self-healed anchor");
+diff --git a/tools/server/server-kv-tree.cpp b/tools/server/server-kv-tree.cpp
+index 1052a4706..32de3331a 100644
+--- a/tools/server/server-kv-tree.cpp
++++ b/tools/server/server-kv-tree.cpp
+@@ -227,24 +227,26 @@ bool kv_tree::capture_anchor(kv_tree_io & io_tgt, kv_tree_io * io_dft, const std
+     if (prev >= 0 && pos - prev < cfg.anchor_step) {
+         st.anchors_skipped++;
+         return true;
+     }
+ 
+     std::vector<uint8_t> tgt;
+     std::vector<uint8_t> dft;
+ 
+     if (!io_tgt.get_partial(tgt)) {
+         fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the state\n", pos);
++        st.anchors_skipped++;
+         return false;
+     }
+     if (io_dft != nullptr && !io_dft->get_partial(dft)) {
+         fprintf(stderr, "[kv-tree] capture refused at %d: failed to capture the draft state\n", pos);
++        st.anchors_skipped++;
+         return false;
+     }
+ 
+     if (!store_anchor(blk, pos, KV_TREE_ANCHOR_ONDEMAND, std::move(tgt), std::move(dft))) {
+         return false;
+     }
+ 
+     promote_prune(pos);
+ 
+     return true;

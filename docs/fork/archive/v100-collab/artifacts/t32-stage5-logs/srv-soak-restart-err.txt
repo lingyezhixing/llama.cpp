@@ -1,0 +1,18 @@
+0.00.001.018 I srv  llama_server: initializing ...
+0.00.031.378 I cmn  common_param: common_params_print_info: verbosity = 3 (adjust with the `-lv N` CLI arg)
+0.00.031.553 W srv  llama_server: security: no API key is set and CORS allows all origins (see https://github.com/ggml-org/llama.cpp/pull/25655)
+0.00.035.157 I srv    load_model: loading model '<models>\Qwen3.5-2B-UD-Q4_K_XL.gguf'
+0.02.270.213 I cmn          init: llama threadpool init, n_threads = 8
+0.02.358.528 I srv    load_model: initializing, n_slots = 2, n_ctx_slot = 8192, kv_unified = 'false'
+[kv-tree] cleared 63 stale files from <TEMP>\v100\t32-stage3\tree-soak
+0.02.408.526 I srv    load_model: kv tree enabled: chunk = 512, anchor_step = 512, fork_step = 8192, ram = 64 MiB, disk = <TEMP>\v100\t32-stage3\tree-soak (512 MiB)
+0.02.415.754 I srv  llama_server: model loaded
+0.02.415.764 I srv  llama_server: listening on http://127.0.0.1:8933
+0.02.923.059 I slot get_availabl: id  1 | task -1 | selected slot by LRU, t_last = -1
+0.02.923.088 I slot prompt_resto: id  1 | task -1 | kv tree: restore miss for 3588 tokens, full prefill
+0.02.923.114 I slot launch_slot_: id  1 | task 0 | processing task, is_child = 0
+0.03.739.943 I slot print_timing: id  1 | task 0 | prompt eval time =     589.94 ms /  3588 tokens (    0.16 ms per token,  6081.93 tokens per second)
+0.03.739.955 I slot print_timing: id  1 | task 0 |        eval time =     226.85 ms /    32 tokens (    7.32 ms per token,   136.65 tokens per second)
+0.03.739.956 I slot print_timing: id  1 | task 0 |       total time =     816.80 ms /  3620 tokens
+0.03.739.957 I slot print_timing: id  1 | task 0 |    graphs reused =         31
+0.03.740.293 I slot      release: id  1 | task 0 | stop processing: n_tokens = 3619, truncated = 0

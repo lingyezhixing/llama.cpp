@@ -1,0 +1,177 @@
+# Review package: 9e7784270..04954b468
+
+## Commits
+04954b468 server : seed fork anchors when a tree restore misses
+
+## Files changed
+ tests/test-t32-tree.cpp         | 49 +++++++++++++++++++++++++++++++++++++++++
+ tools/server/server-context.cpp |  3 +++
+ 2 files changed, 52 insertions(+)
+
+## Diff
+diff --git a/tests/test-t32-tree.cpp b/tests/test-t32-tree.cpp
+index b9006258e..ee6970b4a 100644
+--- a/tests/test-t32-tree.cpp
++++ b/tests/test-t32-tree.cpp
+@@ -708,20 +708,21 @@ static std::vector<llama_token> make_fork_tokens(int n_shared, int n_tail, int s
+         t.push_back(10 + (i * 13 + salt) % 1000);
+     }
+     return t;
+ }
+ 
+ static int scenario_fork(llama_context * ctx, const kv_tree_config & cfg_in) {
+     fprintf(stderr, "[t32-tree] scenario: fork\n");
+ 
+     kv_tree_config cfg = cfg_in;
+     cfg.anchor_step = 512;
++    cfg.fork_step   = 512;   // allow the heal capture 512 tokens after the anchor at 512
+ 
+     kv_tree tree(cfg);
+     kv_tree_io_llama io(ctx, 0);
+ 
+     const auto tok_a  = make_fork_tokens(1024, 1024, 0);
+     const auto tok_b  = make_fork_tokens(1024, 1024, 1);
+     const auto tok_a2 = make_fork_tokens(1024, 512,  2);
+ 
+     llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
+     prefill(ctx, 0, std::vector<llama_token>(tok_a.begin(), tok_a.begin() + 512), 0, 512);
+@@ -1029,20 +1030,67 @@ static int scenario_restore_anchors(llama_context * ctx, const kv_tree_config &
+             }
+         }
+         check(found, "restore-anchors: the disk anchor is returned");
+ 
+         std::filesystem::remove_all(cfg2.disk_dir, ec);
+     }
+ 
+     return 0;
+ }
+ 
++static int scenario_fork_miss(llama_context * ctx, const kv_tree_config & cfg) {
++    fprintf(stderr, "[t32-tree] scenario: fork miss\n");
++
++    kv_tree tree(cfg);
++    kv_tree_io_llama io(ctx, 0);
++
++    const auto tok_a = make_tokens(4096, 3);
++    auto tok_b = make_tokens(4096, 4);
++    for (int i = 0; i < 2048; ++i) {
++        tok_b[i] = tok_a[i];
++    }
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    if (prefill(ctx, 0, tok_a, 0, 512) != 0) {
++        return 1;
++    }
++    check(tree.park(io, nullptr, tok_a, {}), "fork-miss: park A");
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    const kv_tree_restore r1 = tree.restore(io, nullptr, tok_b);
++    check_eq(r1.C, -1, "fork-miss: the first visit misses");
++    check_eq(r1.heal, 2048, "fork-miss: the miss reports the divergence point");
++
++    // the server prefills to the heal position and captures there
++    if (prefill(ctx, 0, std::vector<llama_token>(tok_b.begin(), tok_b.begin() + 2048), 0, 512) != 0) {
++        return 1;
++    }
++    check(tree.capture_anchor(io, nullptr, tok_b, 2048), "fork-miss: capture at the divergence point");
++    if (prefill(ctx, 0, tok_b, 2048, 512) != 0) {
++        return 1;
++    }
++
++    llama_memory_seq_rm(llama_get_memory(ctx), 0, -1, -1);
++    const kv_tree_restore r2 = tree.restore(io, nullptr, tok_b);
++    check_eq(r2.C, 2048, "fork-miss: the second visit restores at the fork");
++    check_eq(r2.heal, -1, "fork-miss: no heal on a full match");
++
++    const auto base = run_baseline(ctx, tok_b, 42, 8);
++    const auto r = run_tree_path(ctx, tree, io, tok_b, 42, 8);
++    check_eq(r.res.C, 2048, "fork-miss: the tree path restores at the fork");
++    check(r.gen == base, "fork-miss: tokens match the baseline");
++
++    tree.dump();
++
++    return 0;
++}
++
+ static int run_accept(llama_context * ctx, const kv_tree_config & cfg) {
+     fprintf(stderr, "[t32-tree] mode accept\n");
+ 
+     kv_tree tree(cfg);
+     kv_tree_io_llama io(ctx, 0);
+ 
+     // A-mini: two 4096-token sequences sharing 3072 tokens, six alternating restores
+     const auto tok_a = make_fork_tokens(3072, 1024, 0);
+     const auto tok_b = make_fork_tokens(3072, 1024, 1);
+ 
+@@ -1184,20 +1232,21 @@ int main(int argc, char ** argv) {
+     cfg.disk_limit  = (size_t) disk_mib << 20;
+     cfg.disk_dir    = disk;
+ 
+     if (mode == "model") {
+         int ret = 0;
+         ret |= scenario_tip(ctx, cfg);
+         ret |= scenario_fork(ctx, cfg);
+         ret |= scenario_sparsify(ctx, cfg);
+         ret |= scenario_ssd(ctx, cfg);
+         ret |= scenario_restore_anchors(ctx, cfg);
++        ret |= scenario_fork_miss(ctx, cfg);
+         ret |= scenario_unaligned(ctx, cfg);
+         return ret;
+     }
+ 
+     if (mode == "accept") {
+         return run_accept(ctx, cfg);
+     }
+ 
+     fprintf(stderr, "unknown mode %s\n", mode.c_str());
+     return 1;
+diff --git a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+index b2d2d2498..a41d4ddfc 100644
+--- a/tools/server/server-context.cpp
++++ b/tools/server/server-context.cpp
+@@ -354,20 +354,21 @@ struct server_slot {
+         std::unique_ptr<kv_tree_io_llama> io_dft;
+         kv_tree_io * io_dft_ptr = nullptr;
+         if (ctx_dft != nullptr) {
+             io_dft = std::make_unique<kv_tree_io_llama>(ctx_dft, id);
+             io_dft_ptr = io_dft.get();
+         }
+ 
+         kv_tree_restore res = tree.restore(io_tgt, io_dft_ptr, tokens.get_tokens());
+         if (res.C <= 0) {
+             SLT_INF(*this, "kv tree: restore miss for %zu tokens, full prefill\n", tokens.size());
++            tree_heal = res.heal;   // seed a fork anchor while the prompt is re-prefilled
+             return false;
+         }
+ 
+         prompt.tokens = server_tokens(llama_tokens(tokens.get_tokens().begin(), tokens.get_tokens().begin() + res.C), false);
+         prompt.checkpoints.clear();
+ 
+         if (n_ckpt_max > 0) {
+             std::list<common_prompt_checkpoint> cks;
+ 
+             // the tree budget is enforced gradually, but a rebuilt checkpoint is an extra in-RAM
+@@ -1803,21 +1804,23 @@ private:
+ 
+                 const int64_t t_start = ggml_time_us();
+ 
+                 if (tree) {
+                     ret->prompt_park(*tree);
+ 
+                     // no point restoring when the request will not reuse the prompt
+                     const bool ckpt_tail = ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_FULL ||
+                                            ctx_tgt_seq_rm_type == COMMON_CONTEXT_SEQ_RM_TYPE_RS;
+                     if (!task.params.cache_prompt || !ret->prompt_restore_tree(*tree, task.tokens, params_base.n_ctx_checkpoints, ckpt_tail)) {
++                        const llama_pos heal = task.params.cache_prompt ? ret->tree_heal : -1;
+                         ret->prompt_clear();
++                        ret->tree_heal = heal;
+                     }
+                 } else {
+                     ret->prompt_save(*prompt_cache);
+ 
+                     if (!ret->prompt_load(*prompt_cache, task.tokens)) {
+                         ret->prompt_clear();
+                     }
+ 
+                     prompt_cache->update();
+                 }

@@ -1,0 +1,28 @@
+T32 media reuse - daytime round 2 (2026-09-28, cuda1): extended matrix + rollback crash fix
+Branch t32-media; new commits: d9a62d8ef (leave one token when the restore cannot roll back), 1bfb1b38a (cap at the verified prefix)
+
+1) Matrix (all with the fixed build)
+   a. no --image-min-tokens (0.8B + mmproj, np=1): req1 prompt_n=107, req2 prompt_n=25 (restored 103 through the small image chunk); outputs vs its own no-tree baseline: IDENTICAL x2
+   b. SSD tier (--tree-ram 16, media block demoted): park 'ram = 0 B, disk = 53873784 B', 4 files on disk, restore 1059 tokens from disk, prompt_n=25; output vs baseline IDENTICAL
+   c. np=2 cross-slot: A1/B1 fill both slots, C1 evicts A's chain, A2 returns -> 'restored 1053 (heal=1057)', prompt_n=4, correct image description; heal anchor captured at 1057
+   d. media soak (np=2, tree-ram 32 MiB forced disk): 90 requests, alive, restore path deterministic (vs round 2 diff = 0), aborts = 0, stats: parks=124 ok=124 restore=64 hits=61 miss=3 anchors=11 reuse_tok=63993 store=230019280 load=2858045956 disk_err=0
+   e. 27B production-like (Q6_K + q8_0 V + mmproj + MTP, 32K ctx): round1 1126 (full), round2 1084 (heal anchor captured at 1126), round3/4 prompt_n=1 cached=1125 prompt_ms=143-146 (deep media reuse + MTP)
+   f. text-only 0.8B (tree on, no spec): identical request x3 -> prompt_n=4 cached=23 (stock-like reuse, no crash)
+   g. harness: logic 130 PASS / 0 FAIL (3 new leave_one checks), 2B model 65 PASS / 0 FAIL
+
+2) Crash found and fixed in this round
+   Repro: hybrid model without rollback snapshots (0.8B-MTP, no --spec-type => n_rs_seq=0, seq_rm_type=FULL).
+   A tree restore covering the whole prompt (C == task.n_tokens) made the server decrement n_past (TAG_PROMPT_LOGITS)
+   and call seq_rm(pos_next(), -1); the recurrent memory cannot roll back a state restored via set_partial without
+   snapshots -> 'failed to remove sequence N with p0=.., p1=-1' -> abort. Reproduced with text-only prompts too.
+   Root cause chain: (a) the reuse logic requires a checkpoint below the reuse point for hybrid memory;
+   (b) media prompts had no rebuilt checkpoints, so a full-prompt restore fell into do_reset or, after the skip,
+   into the 1-token rollback; (c) rollback is only possible when the context reports PART/RS.
+   Fix: tree restore takes leave_one (cap the restore point at min(deep, tokens.size()-1)) whenever the
+   target or draft context cannot roll back; the checkpoint search is skipped when the tree restored at exactly
+   n_past (tree_restore_point); media checkpoints are rebuilt (with a.tok / a.pos units) so a rollback-capable
+   model keeps the deep reuse; the leave_one cap never exceeds the verified prefix (review finding, tested by mutation).
+   Review: delta d9a62d8ef+1bfb1b38a reviewed; 1 Critical + 1 Important + 1 Minor found and fixed; scoped re-review: all addressed.
+
+3) Output-equality checks: every greedy comparison against the no-tree baseline in this round is IDENTICAL
+   (near-tie flips only observed between a full prefill and a restore into a fragmented np=2 cache, deterministic per path).

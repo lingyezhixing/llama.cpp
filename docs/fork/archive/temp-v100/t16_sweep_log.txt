@@ -1,0 +1,5 @@
+base-grid80: OK pp4096@d8192=n/a t/s
+blocks192: OK pp4096@d8192=n/a t/s
+blocks96: OK pp4096@d8192=n/a t/s
+blocks160: OK pp4096@d8192=n/a t/s
+pb2-grid384: OK pp4096@d8192=n/a t/s
