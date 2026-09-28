@@ -300,6 +300,10 @@ public:
 
     void set_input(const llama_ubatch * ubatch) override;
 
+    // ReplaySSM: set the fold parameters in the recurrent memory before the s_copy loop consumes the
+    // rollback indices. The context is passed in because the hybrid input keeps a stale mctx.
+    void set_fold_input(const llama_memory_recurrent_context * mctx_cur, const llama_ubatch * ubatch) const;
+
     bool can_reuse(const llm_graph_params & params) override;
 
     ggml_tensor * s_copy;  // I32 [n_rs]
@@ -308,6 +312,11 @@ public:
     // and shared across layers which use build_rs
     ggml_tensor * s_copy_main; // I32 [n_seqs]
     ggml_tensor * s_copy_tail; // I32 [n_rs - 1]
+
+    // ReplaySSM: rollback indices for the conv cache, which still uses snapshot rows
+    ggml_tensor * s_copy_conv;
+    ggml_tensor * s_copy_conv_main;
+    ggml_tensor * s_copy_conv_extra;
 
     const llama_memory_recurrent_context * mctx;
 
@@ -1467,7 +1476,8 @@ struct llm_graph_context {
             ggml_tensor * s,
                 int32_t   state_size,
                 int32_t   n_seqs,
-            const llm_graph_get_rows_fn & get_state_rows = nullptr) const;
+            const llm_graph_get_rows_fn & get_state_rows = nullptr,
+            bool      conv = false) const;
 
     // store the conv history of the ubatch cells, the last n_cols columns of conv_x {n_cols + n_seq_tokens, channels, n_seqs},
     // at byte offset offs of each row of s, and with n_rs_seq > 0 once per rollback slot of this ubatch
