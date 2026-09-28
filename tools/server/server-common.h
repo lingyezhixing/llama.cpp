@@ -183,10 +183,17 @@ public:
     // the next position after n_tokens. if n_tokens < 0, return the next position after all tokens.
     llama_pos pos_next(int64_t n_tokens = -1) const;
 
+    // position of the last KV cell, -1 when the prompt is empty
+    llama_pos pos_last() const;
+
     // number of tokens with position < max_pos
     size_t size_up_to_pos(llama_pos max_pos) const;
 
     const mtmd::input_chunk_ptr & find_chunk(size_t idx) const;
+
+    // media chunks, keyed by their start token index
+    const std::map<size_t, mtmd::input_chunk_ptr> & media_map() const;
+
 
     // find next media chunk after idx
     // returns a pair of pointer to the chunk (nullptr if not found) and its start index in tokens
@@ -209,6 +216,9 @@ public:
 
     // for compatibility with speculative decoding, ctx shift
     const llama_tokens & get_tokens() const;
+
+    // raw token list, media placeholders included; only for consumers that understand media
+    const llama_tokens & get_tokens_raw() const { return tokens; }
 
     llama_tokens get_text_tokens() const;
 
