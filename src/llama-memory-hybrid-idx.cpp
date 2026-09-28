@@ -218,6 +218,25 @@ void llama_memory_hybrid_idx::state_write(llama_io_write_i & io, llama_seq_id se
 
 }
 
+void llama_memory_hybrid_idx::state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
+    GGML_UNUSED(io);
+    GGML_UNUSED(seq_id);
+    GGML_UNUSED(p0);
+    GGML_UNUSED(p1);
+    GGML_UNUSED(flags);
+
+    throw std::runtime_error("state_write_range is not supported for the indexed hybrid memory");
+}
+
+void llama_memory_hybrid_idx::state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
+    GGML_UNUSED(io);
+    GGML_UNUSED(seq_id);
+    GGML_UNUSED(append);
+    GGML_UNUSED(flags);
+
+    throw std::runtime_error("state_read_range is not supported for the indexed hybrid memory");
+}
+
 void llama_memory_hybrid_idx::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) {
     // note: repeats llama_memory_hybrid::state_read
     // the indexer needs the attention cache's cells, and a half-failed restore must leave all three caches alike

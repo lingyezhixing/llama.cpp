@@ -386,6 +386,17 @@ public:
         return seq_pos[seq_id].rbegin()->first;
     }
 
+    // true if sequence seq_id has a cell at position p
+    bool seq_pos_has(llama_seq_id seq_id, llama_pos p) const {
+        assert(seq_id >= 0);
+        assert(seq_id < LLAMA_MAX_SEQ);
+
+        const auto & sp = seq_pos[seq_id];
+
+        auto it = sp.lower_bound({ p, 0 });
+        return it != sp.end() && it->first == p;
+    }
+
     // note: call only if the cell is not empty
     llama_pos pos_get(uint32_t i) const {
         assert(i < pos.size());

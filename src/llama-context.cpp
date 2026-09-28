@@ -2591,8 +2591,6 @@ ggml_status llama_context::graph_compute(
         LLAMA_LOG_ERROR("%s: ggml_backend_sched_graph_compute_async failed with error %d\n", __func__, status);
     }
 
-    // fprintf(stderr, "splits: %d\n", ggml_backend_sched_get_n_splits(sched));
-
     return status;
 }
 
@@ -3220,6 +3218,64 @@ size_t llama_context::state_seq_set_data(llama_seq_id seq_id, const uint8_t * sr
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("%s: error loading state: %s\n", __func__, err.what());
         io->discard();
+        return 0;
+    }
+}
+
+size_t llama_context::state_seq_get_size_range(llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
+    llama_io_write_dummy io(false);
+    try {
+        io.write(&io_magic, sizeof(io_magic));
+        io.write(&seq_id, sizeof(seq_id));
+
+        if (memory) {
+            memory->state_write_range(io, seq_id, p0, p1, flags);
+        }
+
+        return io.n_bytes();
+    } catch (const std::exception & err) {
+        LLAMA_LOG_ERROR("%s: error getting range state size: %s\n", __func__, err.what());
+        return 0;
+    }
+}
+
+size_t llama_context::state_seq_get_data_range(llama_seq_id seq_id, uint8_t * dst, size_t size, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
+    llama_io_write_host io(dst, size);
+    try {
+        io.write(&io_magic, sizeof(io_magic));
+        io.write(&seq_id, sizeof(seq_id));
+
+        if (memory) {
+            memory->state_write_range(io, seq_id, p0, p1, flags);
+        }
+
+        return io.n_bytes();
+    } catch (const std::exception & err) {
+        LLAMA_LOG_ERROR("%s: error saving range state: %s\n", __func__, err.what());
+        return 0;
+    }
+}
+
+size_t llama_context::state_seq_set_data_range(llama_seq_id seq_id, const uint8_t * src, size_t size, bool append, llama_state_seq_flags flags) {
+    llama_io_read_host io(src, size);
+    try {
+        uint32_t magic_read;
+        io.read(&magic_read, sizeof(magic_read));
+        if (io_magic != magic_read) {
+            throw std::runtime_error("wrong sequence state magic");
+        }
+
+        llama_seq_id seq_id_read;
+        io.read(&seq_id_read, sizeof(seq_id_read));
+
+        if (memory) {
+            memory->state_read_range(io, seq_id, append, flags);
+        }
+
+        return io.n_bytes();
+    } catch (const std::exception & err) {
+        LLAMA_LOG_ERROR("%s: error loading range state: %s\n", __func__, err.what());
+        io.discard();
         return 0;
     }
 }
@@ -4306,6 +4362,22 @@ size_t llama_state_seq_set_data_ext(llama_context * ctx, const uint8_t * src, si
     ctx->synchronize();
 
     return ctx->state_seq_set_data(seq_id, src, size, flags);
+}
+
+size_t llama_state_seq_get_size_range_ext(llama_context * ctx, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
+    return ctx->state_seq_get_size_range(seq_id, p0, p1, flags);
+}
+
+size_t llama_state_seq_get_data_range_ext(llama_context * ctx, uint8_t * dst, size_t size, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) {
+    ctx->synchronize();
+
+    return ctx->state_seq_get_data_range(seq_id, dst, size, p0, p1, flags);
+}
+
+size_t llama_state_seq_set_data_range_ext(llama_context * ctx, const uint8_t * src, size_t size, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
+    ctx->synchronize();
+
+    return ctx->state_seq_set_data_range(seq_id, src, size, append, flags);
 }
 
 size_t llama_state_seq_save_file(llama_context * ctx, const char * filepath, llama_seq_id seq_id, const llama_token * tokens, size_t n_token_count) {

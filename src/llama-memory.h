@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 struct llama_ubatch;
 
@@ -124,6 +125,28 @@ struct llama_memory_i {
 
     virtual void state_write(llama_io_write_i & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) const = 0;
     virtual void state_read (llama_io_read_i  & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) = 0;
+
+    // serialize a position range [p0, p1) of the attention KV of one sequence
+    virtual void state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags = 0) const {
+        GGML_UNUSED(io);
+        GGML_UNUSED(seq_id);
+        GGML_UNUSED(p0);
+        GGML_UNUSED(p1);
+        GGML_UNUSED(flags);
+
+        throw std::runtime_error("state_write_range is not supported by this memory type");
+    }
+
+    // restore a position range of the attention KV of one sequence
+    // append == true keeps the cells that the sequence already has and fails on position overlap
+    virtual void state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags = 0) {
+        GGML_UNUSED(io);
+        GGML_UNUSED(seq_id);
+        GGML_UNUSED(append);
+        GGML_UNUSED(flags);
+
+        throw std::runtime_error("state_read_range is not supported by this memory type");
+    }
 };
 
 using llama_memory_ptr = std::unique_ptr<llama_memory_i>;

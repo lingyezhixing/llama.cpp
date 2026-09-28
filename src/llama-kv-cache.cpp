@@ -2053,6 +2053,27 @@ ggml_cgraph * llama_kv_cache::build_graph_shift(llm_graph_result * res, llama_co
 }
 
 void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) const {
+    state_write_impl(io, seq_id, -1, -1, flags);
+}
+
+void llama_kv_cache::state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
+    // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
+    if (other) {
+        throw std::runtime_error("range state write is not supported on a mirrored kv cache");
+    }
+
+    if (seq_id < 0 || p0 < 0 || p1 <= p0) {
+        throw std::runtime_error("invalid sequence id or position range");
+    }
+
+    if (flags != 0) {
+        throw std::runtime_error("range state write supports flags == 0 only");
+    }
+
+    state_write_impl(io, seq_id, p0, p1, flags);
+}
+
+void llama_kv_cache::state_write_impl(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return;
@@ -2078,6 +2099,11 @@ void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, lla
 
             add_cell = add_cell && !cells.is_empty(i);
             add_cell = add_cell && (seq_id == -1 || cells.seq_has(i, seq_id));
+
+            // keep only the cells in [p0, p1), when a range is given
+            if (add_cell && (p0 >= 0 || p1 >= 0)) {
+                add_cell = (p0 < 0 || cells.pos_get(i) >= p0) && (p1 < 0 || cells.pos_get(i) < p1);
+            }
 
             // check the cell is not SWA-masked
             if (add_cell && seq_id != -1) {
@@ -2126,12 +2152,30 @@ void llama_kv_cache::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama
     state_read_sinfo(io, seq_id, flags, nullptr, nullptr);
 }
 
+void llama_kv_cache::state_read_range(llama_io_read_i & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags) {
+    // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
+    if (other) {
+        throw std::runtime_error("range state read is not supported on a mirrored kv cache");
+    }
+
+    if (seq_id < 0) {
+        throw std::runtime_error("range state read requires a sequence id");
+    }
+
+    if (flags != 0) {
+        throw std::runtime_error("range state read supports flags == 0 only");
+    }
+
+    state_read_sinfo(io, seq_id, flags, nullptr, nullptr, append);
+}
+
 void llama_kv_cache::state_read_sinfo(
         llama_io_read_i & io,
            llama_seq_id   seq_id,
   llama_state_seq_flags   flags,
       slot_info_vec_t *   sinfos_out,
-const slot_info_vec_t *   sinfos_in) {
+const slot_info_vec_t *   sinfos_in,
+                 bool   append) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
         return;
@@ -2179,7 +2223,7 @@ const slot_info_vec_t *   sinfos_in) {
         slot_info sinfo;
 
         bool res = true;
-        res = res && state_read_meta(io, strm, cell_count, sinfo, seq_id, sinfos_in ? &(*sinfos_in)[s] : nullptr);
+        res = res && state_read_meta(io, strm, cell_count, sinfo, seq_id, sinfos_in ? &(*sinfos_in)[s] : nullptr, append);
 
         try {
             res = res && state_read_data(io, strm, cell_count, sinfo);
@@ -2188,7 +2232,11 @@ const slot_info_vec_t *   sinfos_in) {
         }
 
         if (!res) {
-            state_clear(seq_id, strm, sinfo);
+            if (append) {
+                state_clear_append(seq_id, strm, sinfo);
+            } else {
+                state_clear(seq_id, strm, sinfo);
+            }
             throw std::runtime_error("failed to restore kv cache");
         }
 
@@ -2330,7 +2378,7 @@ void llama_kv_cache::state_write_data(llama_io_write_i & io, const cell_ranges_t
     }
 }
 
-bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, slot_info & sinfo, llama_seq_id dest_seq_id, const slot_info * sinfo_in) {
+bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, slot_info & sinfo, llama_seq_id dest_seq_id, const slot_info * sinfo_in, bool append) {
     auto & cells = v_cells[strm];
     auto & head  = v_heads[strm];
 
@@ -2341,7 +2389,14 @@ bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32
             return false;
         }
 
-        seq_rm(dest_seq_id, -1, -1);
+        if (append && sinfo_in) {
+            LLAMA_LOG_ERROR("%s: append restore does not support mirrored slot layouts\n", __func__);
+            return false;
+        }
+
+        if (!append) {
+            seq_rm(dest_seq_id, -1, -1);
+        }
 
         llama_batch_allocr balloc(hparams.n_pos_per_embd());
 
@@ -2364,6 +2419,12 @@ bool llama_kv_cache::state_read_meta(llama_io_read_i & io, uint32_t strm, uint32
 
             if (n_seq_id != 1) {
                 LLAMA_LOG_ERROR("%s: invalid seq_id-agnostic kv cell\n", __func__);
+                return false;
+            }
+
+            // append must not overwrite the cells that the sequence already has
+            if (append && cells.seq_pos_has(dest_seq_id, pos)) {
+                LLAMA_LOG_ERROR("%s: position %d is already present in seq %d\n", __func__, pos, dest_seq_id);
                 return false;
             }
 
@@ -2701,7 +2762,37 @@ void llama_kv_cache::state_clear(llama_seq_id seq_id, uint32_t strm, const slot_
 
     seq_rm(seq_id, -1, -1);
 
-    // zero the K/V data of the failed restore attempt - the attention can still read the data of free cells
+    state_zero_data(strm, sinfo);
+}
+
+// detach only the cells that a failed append restore has allocated
+void llama_kv_cache::state_clear_append(llama_seq_id seq_id, uint32_t strm, const slot_info & sinfo) {
+    if (sinfo.empty() || sinfo.size() == 0) {
+        return;
+    }
+
+    auto & cells = v_cells[strm];
+    auto & head  = v_heads[strm];
+
+    // apply_ubatch() moved the head past these cells - move it back so that the next
+    // append reuses them instead of leaving a hole in front of the head
+    uint32_t new_head = cells.size();
+
+    for (uint32_t idx : sinfo.idxs[0]) {
+        if (cells.seq_rm(idx, seq_id)) {
+            new_head = std::min(new_head, idx);
+        }
+    }
+
+    if (new_head != cells.size() && new_head < head) {
+        head = new_head;
+    }
+
+    state_zero_data(strm, sinfo);
+}
+
+// zero the K/V data of the failed restore attempt - the attention can still read the data of free cells
+void llama_kv_cache::state_zero_data(uint32_t strm, const slot_info & sinfo) {
     if (sinfo.empty() || sinfo.size() == 0) {
         return;
     }

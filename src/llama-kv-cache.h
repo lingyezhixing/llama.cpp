@@ -151,6 +151,10 @@ public:
     void state_write(llama_io_write_i & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) const override;
     void state_read (llama_io_read_i  & io, llama_seq_id seq_id = -1, llama_state_seq_flags flags = 0) override;
 
+    void state_write_range(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags = 0) const override;
+
+    void state_read_range (llama_io_read_i  & io, llama_seq_id seq_id, bool append, llama_state_seq_flags flags = 0) override;
+
     //
     // llama_kv_cache specific API
     //
@@ -172,12 +176,14 @@ public:
     // a cache that mirrors another one (the qwen4exp indexer) must not search for its own cells: two searches agree only by luck
     //   sinfos_out: if set, filled with the layout used; a stream with no cells leaves an empty entry
     //   sinfos_in : if set, the layout to use instead of searching. one entry per stream, cell count must match the blob
+    //   append    : if set, keep the cells that dest seq already has; fail on position overlap
     void state_read_sinfo(
             llama_io_read_i & io,
                llama_seq_id   seq_id,
       llama_state_seq_flags   flags,
           slot_info_vec_t *   sinfos_out,
-    const slot_info_vec_t *   sinfos_in);
+    const slot_info_vec_t *   sinfos_in,
+                     bool   append = false);
 
     // undo a state_read() of seq_id (-1 for the whole cache) that another memory module failed to complete
     void state_clear(llama_seq_id seq_id);
@@ -345,11 +351,17 @@ private:
     void state_write_meta(llama_io_write_i & io, const cell_ranges_t & cr, llama_seq_id seq_id = -1) const;
     void state_write_data(llama_io_write_i & io, const cell_ranges_t & cr) const;
 
+    // p0 < 0 means no lower bound, p1 < 0 means no upper bound
+    void state_write_impl(llama_io_write_i & io, llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_state_seq_flags flags) const;
+
     // sinfo_in, when set, replaces the find_slot call: the cells are given by the caller
-    bool state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,       slot_info & sinfo, llama_seq_id dest_seq_id = -1, const slot_info * sinfo_in = nullptr);
+    // append, when set, keeps the cells of dest_seq_id and fails on position overlap
+    bool state_read_meta(llama_io_read_i & io, uint32_t strm, uint32_t cell_count,       slot_info & sinfo, llama_seq_id dest_seq_id = -1, const slot_info * sinfo_in = nullptr, bool append = false);
     bool state_read_data(llama_io_read_i & io, uint32_t strm, uint32_t cell_count, const slot_info & sinfo);
 
     void state_clear(llama_seq_id seq_id, uint32_t strm, const slot_info & sinfo);
+    void state_clear_append(llama_seq_id seq_id, uint32_t strm, const slot_info & sinfo);
+    void state_zero_data(uint32_t strm, const slot_info & sinfo);
 };
 
 class llama_kv_cache_context : public llama_memory_context_i {

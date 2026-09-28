@@ -949,6 +949,38 @@ extern "C" {
                     llama_seq_id   dest_seq_id,
            llama_state_seq_flags   flags);
 
+    // Save a position range [p0, p1) of the attention KV of a single sequence.
+    // Recurrent state is not included - use the PARTIAL_ONLY flags for that.
+    // Returns 0 on failure (unsupported memory, invalid range).
+    LLAMA_API size_t llama_state_seq_get_size_range_ext(
+            struct llama_context * ctx,
+                    llama_seq_id   seq_id,
+                      llama_pos    p0,
+                      llama_pos    p1,
+           llama_state_seq_flags   flags);
+
+    // Returns 0 on failure (unsupported memory, invalid range).
+    LLAMA_API size_t llama_state_seq_get_data_range_ext(
+            struct llama_context * ctx,
+                         uint8_t * dst,
+                          size_t   size,
+                    llama_seq_id   seq_id,
+                      llama_pos    p0,
+                      llama_pos    p1,
+           llama_state_seq_flags   flags);
+
+    // Restore a blob saved by llama_state_seq_get_data_range_ext.
+    // append == false replaces the destination sequence, append == true requires
+    // that none of the positions in the blob are already present in it.
+    // Returns 0 on failure (unsupported memory, invalid blob, position overlap).
+    LLAMA_API size_t llama_state_seq_set_data_range_ext(
+            struct llama_context * ctx,
+                   const uint8_t * src,
+                          size_t   size,
+                    llama_seq_id   seq_id,
+                            bool   append,
+           llama_state_seq_flags   flags);
+
     //
     // Decoding
     //
