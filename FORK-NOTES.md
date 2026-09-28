@@ -74,7 +74,8 @@ The BLOCKS/PB overrides are only consulted when stream-K is used.
   family has been tested.
 - The tree file I/O uses std::filesystem and stdio with forward-slash paths, no platform-specific
   code, but it has only been built and tested on Windows/MSVC. Build on Linux before shipping.
-- On Windows, `--tree-disk` with a non-ASCII path may fail (narrow fopen).
+- On Windows, `--tree-disk` paths cross from UTF-8 strings to the filesystem via `u8path` and
+  `ggml_fopen`, so non-ASCII paths work.
 - Multi-GPU is untested (the fork was developed on a single V100). Layer split should work for the
   tree (the range state path is the same as the full state save) and for ReplaySSM (records are
   allocated per layer on the layer device). Row split breaks ReplaySSM: the kernel derives the

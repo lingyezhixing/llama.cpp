@@ -1670,7 +1670,7 @@ private:
 
             if (!cfg.disk_dir.empty()) {
                 std::error_code ec;
-                std::filesystem::create_directories(cfg.disk_dir, ec);
+                std::filesystem::create_directories(std::filesystem::u8path(cfg.disk_dir), ec);
                 if (ec) {
                     SRV_WRN("failed to create kv tree disk directory '%s': %s, disabling the SSD tier\n",
                             cfg.disk_dir.c_str(), ec.message().c_str());
