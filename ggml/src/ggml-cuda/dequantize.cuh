@@ -341,6 +341,38 @@ static __device__ __forceinline__ void dequantize_q5_K_f16_vec(const void * vx, 
     *(uint4 *)(yy + ib*QK_K + e0) = out;
 }
 
+static __device__ __forceinline__ void dequantize_q4_K_f16_vec(const void * vx, const int64_t ib, half * __restrict__ yy, const int lane) {
+    const block_q4_K * x = (const block_q4_K *) vx + ib;
+
+    const int64_t e0 = 8*lane;
+    const int h = (int)(e0 >> 5);
+
+    uint8_t sc, m;
+    get_scale_min_k4(h, x->scales, sc, m);
+    const float dall = __low2half(x->dm);
+    const float dmin = __high2half(x->dm);
+    const float d1 = dall * sc;
+    const float m1 = dmin * m;
+
+    const uint8_t * ql = x->qs + 32*(h >> 1) + (e0 & 31);
+    const bool hi = (h & 1) != 0;
+
+    uint32_t v[8];
+#pragma unroll
+    for (int i = 0; i < 8; ++i) {
+        const uint32_t qb  = ql[i];
+        const uint32_t nib = hi ? ((qb >> 4) & 0xF) : (qb & 0xF);
+        v[i] = __half_as_ushort(__float2half(d1 * (float)nib - m1));
+    }
+
+    uint4 out;
+    out.x = v[0] | (v[1] << 16);
+    out.y = v[2] | (v[3] << 16);
+    out.z = v[4] | (v[5] << 16);
+    out.w = v[6] | (v[7] << 16);
+    *(uint4 *)(yy + ib*QK_K + e0) = out;
+}
+
 //================================== i-quants
 
 // Each call dequantizes one super-block of QK_K values into y with 32
