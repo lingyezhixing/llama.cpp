@@ -2,6 +2,8 @@
 #include <atomic>
 #include <thread>
 #include "base64.hpp"
+#include "server-asr-api.h"
+#include "server-asr-engine.h"
 #include "server-chat.h"
 #include "server-common.h"
 #include "server-decision.h"
@@ -1027,6 +1029,11 @@ public:
 
     mtmd_context * mctx = nullptr;
     mtmd_helper_cap mtmd_cap = {};
+
+    // /v1/asr/*, rebuilt by load_model() and released by destroy()
+    std::unique_ptr<server_asr_engine> asr;
+    server_asr_capabilities asr_caps; // cached so /props survives sleep
+    bool has_asr_cap = false;
     // note: video_params.ffmpeg_bin_dir points into params_base, which outlives this struct
     mtmd_helper_init_opt init_opt = mtmd_helper_init_opt_default();
     const llama_vocab * vocab = nullptr;
@@ -1136,6 +1143,9 @@ private:
     int64_t t_last_load_progress_ms = 0;
 
     void destroy() {
+        // the ASR engine borrows model_tgt and mctx, drop it first
+        asr.reset();
+
         spec.reset();
         spec_init.reset();
 
@@ -1418,6 +1428,34 @@ private:
         mtmd_cap = mtmd_helper_get_capabilities(model_tgt, mctx);
         // the helper only knows about the built-in video decoder
         mtmd_cap.video = mtmd_cap.video || (mtmd_cap.vision && init_opt.video_params.decoder != nullptr);
+
+        {
+            server_asr_config asr_config;
+
+            asr_config.model     = model_tgt;
+            asr_config.mctx      = mctx;
+            asr_config.vocab     = vocab;
+            asr_config.n_ctx     = n_ctx_slot();
+            asr_config.n_batch   = params_base.n_batch;
+            asr_config.n_threads = params_base.cpuparams.n_threads;
+            asr_config.device        = params_base.devices.empty() ? nullptr : params_base.devices[0];
+            asr_config.mmproj_device = params_base.mmproj_device;
+
+            asr_config.aligner_model_path  = params_base.asr_aligner_model;
+            asr_config.aligner_mmproj_path = params_base.asr_aligner_mmproj;
+            asr_config.aligner_ctx         = params_base.asr_aligner_ctx;
+
+            asr = std::make_unique<server_asr_engine>();
+
+            server_asr_error asr_err;
+            if (!asr->init(asr_config, asr_err)) {
+                SRV_ERR("failed to initialize ASR support: %s\n", asr_err.message.c_str());
+                return false;
+            }
+
+            has_asr_cap = asr->supported();
+            asr_caps    = asr->capabilities();
+        }
 
         if (!llama_memory_can_shift(llama_get_memory(ctx_tgt))) {
             if (params_base.ctx_shift) {
@@ -5272,6 +5310,8 @@ server_context_meta server_context::get_meta() const {
         /* has_cap_chat            */ impl->has_cap_chat(),
         /* has_cap_tts             */ impl->has_cap_tts(),
         /* has_audio_stream        */ impl->mtmd_cap.audio_stream,
+        /* has_asr                 */ impl->has_asr_cap,
+        /* asr                     */ impl->asr_caps,
         /* tts_voices              */ std::move(tts_voices),
         /* json_ui_settings        */ impl->json_ui_settings,
         /* slot_n_ctx              */ impl->n_ctx_slot(),
@@ -5745,6 +5785,9 @@ static json get_res_props(const server_context_meta & meta, const common_params 
     if (!meta.tts_voices.empty()) {
         props["voices"] = meta.tts_voices;
     }
+    if (meta.has_asr) {
+        props["asr"] = server_asr_capabilities_json(meta.asr);
+    }
     if (params.use_jinja) {
         if (!tmpl_tools.empty()) {
             props["chat_template_tool_use"] = tmpl_tools;
@@ -5929,6 +5972,19 @@ void server_routes::init_routes() {
 
         res->error(format_error_response("Invalid action", ERROR_TYPE_INVALID_REQUEST));
         return res;
+    };
+
+    this->post_asr_transcriptions = [this](const server_http_stream_req & req) {
+        return server_asr_post_transcription(req, meta->has_asr ? meta->asr : server_asr_capabilities{});
+    };
+    this->get_asr_transcription = [this](const server_http_req & req) {
+        return server_asr_get_transcription(req, meta->has_asr ? meta->asr : server_asr_capabilities{});
+    };
+    this->delete_asr_transcription = [this](const server_http_req & req) {
+        return server_asr_delete_transcription(req, meta->has_asr ? meta->asr : server_asr_capabilities{});
+    };
+    this->ws_asr_realtime = [this](const server_http_req & req, server_http_context::ws_conn & conn) {
+        server_asr_ws_realtime(req, conn, meta->has_asr ? meta->asr : server_asr_capabilities{});
     };
 
     this->get_props = [this](const server_http_req &) {

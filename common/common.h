@@ -631,6 +631,11 @@ struct common_params {
     int image_max_tokens = -1;
     int mtmd_batch_max_tokens = 1024;
 
+    // Qwen3-ASR forced aligner, see docs/superpowers/specs/2026-11-13-qwen3-asr-design.md
+    std::string asr_aligner_model;   // aligner text model GGUF
+    std::string asr_aligner_mmproj;  // aligner audio encoder GGUF
+    int32_t     asr_aligner_ctx = 0; // aligner context size, 0 = unset (8192 when the aligner loads)
+
     // for video input
     float       video_fps                   = 4.0f;
     int64_t     video_timestamp_interval_ms = 5000;

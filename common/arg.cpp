@@ -2546,6 +2546,28 @@ common_params_context common_params_parser_init(common_params & params, llama_ex
         }
     ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_CONT_BATCHING"));
     add_opt(common_arg(
+        {"--asr-aligner-model"}, "FILE",
+        "path to a Qwen3-ForcedAligner text model; enables timestamps for /v1/asr\n"
+        "note: requires --asr-aligner-mmproj as well",
+        [](common_params & params, const std::string & value) {
+            params.asr_aligner_model = value;
+        }
+    ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_ASR_ALIGNER_MODEL"));
+    add_opt(common_arg(
+        {"--asr-aligner-mmproj"}, "FILE",
+        "path to the audio encoder of the Qwen3-ForcedAligner",
+        [](common_params & params, const std::string & value) {
+            params.asr_aligner_mmproj = value;
+        }
+    ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_ASR_ALIGNER_MMPROJ"));
+    add_opt(common_arg(
+        {"--asr-aligner-ctx"}, "N",
+        "context size of the Qwen3-ForcedAligner (default: 8192, only with an aligner model)",
+        [](common_params & params, int value) {
+            params.asr_aligner_ctx = value;
+        }
+    ).set_examples({LLAMA_EXAMPLE_SERVER}).set_env("LLAMA_ARG_ASR_ALIGNER_CTX"));
+    add_opt(common_arg(
         {"-mm", "--mmproj"}, "FILE",
         "path to a multimodal projector file. see tools/mtmd/README.md\n"
         "note: if -hf is used, this argument can be omitted",

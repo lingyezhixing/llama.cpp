@@ -73,6 +73,15 @@ struct server_asr_result {
     std::vector<server_asr_item> items;
 };
 
+// what the loaded model can do, reported by /props as the "asr" object
+struct server_asr_capabilities {
+    bool offline    = false;
+    bool realtime   = false;
+    bool timestamps = false;
+    std::vector<std::string> audio_formats;
+    std::vector<std::string> languages;
+};
+
 struct server_asr_job_view {
     std::string           id;
     server_asr_job_status status = server_asr_job_status::QUEUED;
@@ -117,7 +126,11 @@ int32_t server_asr_count_context_tokens(const llama_vocab * vocab, const std::st
 // wall clock, e.g. 2026-11-13T16:00:00Z
 std::string server_asr_now_rfc3339();
 
+// the 30 languages Qwen3-ASR supports, in the order /props reports them
+std::vector<std::string> server_asr_supported_languages();
+
 json server_asr_error_json(const server_asr_error & err);
+json server_asr_capabilities_json(const server_asr_capabilities & caps);
 json server_asr_usage_json(const server_asr_usage & usage);
 json server_asr_result_json(const server_asr_result & result, bool include_items);
 json server_asr_job_json(const server_asr_job_view & view);

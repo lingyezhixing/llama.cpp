@@ -216,6 +216,26 @@ std::string server_asr_now_rfc3339() {
     return buf;
 }
 
+std::vector<std::string> server_asr_supported_languages() {
+    std::vector<std::string> out;
+    for (const auto & lang : SERVER_ASR_LANGUAGES) {
+        out.emplace_back(lang.name);
+    }
+    return out;
+}
+
+json server_asr_capabilities_json(const server_asr_capabilities & caps) {
+    json out = json::object();
+
+    out["offline"]       = caps.offline;
+    out["realtime"]      = caps.realtime;
+    out["timestamps"]    = caps.timestamps;
+    out["audio_formats"] = caps.audio_formats;
+    out["languages"]     = caps.languages;
+
+    return out;
+}
+
 json server_asr_error_json(const server_asr_error & err) {
     json out = json::object();
 

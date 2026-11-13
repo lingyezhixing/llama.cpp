@@ -1,3 +1,4 @@
+#include "server-asr-api.h"
 #include "server-connect.h"
 #include "server-context.h"
 #include "server-http.h"
@@ -192,6 +193,12 @@ static void server_register_routes(server_http_context & ctx_http, server_routes
     ctx_http.post("/v1/audio/speech",          ex_wrapper(routes.post_speech_oai));
     ctx_http.post("/audio/speech",             ex_wrapper(routes.post_speech_oai));
     ctx_http.ws  ("/v1/realtime",              routes.ws_realtime);
+    // Qwen3-ASR: separate from /v1/realtime, the upload route reads its body itself
+    ctx_http.post_stream("/v1/asr/transcriptions",     routes.post_asr_transcriptions);
+    // a regex route: the router path-param matcher does not reach these handlers
+    ctx_http.get ("/v1/asr/transcriptions/[A-Za-z0-9_]+", ex_wrapper(routes.get_asr_transcription));
+    ctx_http.del ("/v1/asr/transcriptions/[A-Za-z0-9_]+", ex_wrapper(routes.delete_asr_transcription));
+    ctx_http.ws  ("/v1/asr/realtime",                  routes.ws_asr_realtime);
     ctx_http.post("/v1/messages",              ex_wrapper(routes.post_anthropic_messages)); // anthropic messages API
     ctx_http.post("/infill",                   ex_wrapper(routes.post_infill));
     ctx_http.post("/embedding",                ex_wrapper(routes.post_embeddings)); // legacy
@@ -547,6 +554,22 @@ static int server_run_router(common_params & params, int argc, char ** argv, con
     routes.post_lora_adapters          = models_routes->proxy_post;
     routes.get_slots                   = models_routes->proxy_get;
     routes.post_slots                  = models_routes->proxy_post;
+
+    // /v1/asr does not go through the router: an upload cannot be proxied as a JSON body
+    routes.post_asr_transcriptions  = server_asr_router_unsupported;
+    routes.get_asr_transcription    = [](const server_http_req &) {
+        auto res = std::make_unique<server_http_res>();
+        res->status = 501;
+        res->data   = safe_json_to_str(json { {"error", server_asr_error_json({ "asr_not_supported", "the router does not support /v1/asr", "" })} });
+        return res;
+    };
+    routes.delete_asr_transcription = [](const server_http_req &) {
+        auto res = std::make_unique<server_http_res>();
+        res->status = 501;
+        res->data   = safe_json_to_str(json { {"error", server_asr_error_json({ "asr_not_supported", "the router does not support /v1/asr", "" })} });
+        return res;
+    };
+    routes.ws_asr_realtime          = server_asr_router_unsupported_ws;
 
     // custom routes for router
     routes.get_props                   = models_routes->get_router_props;

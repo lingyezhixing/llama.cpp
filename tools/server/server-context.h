@@ -1,5 +1,6 @@
 #pragma once
 
+#include "server-asr-common.h"
 #include "server-http.h"
 #include "server-task.h"
 #include "server-queue.h"
@@ -28,6 +29,8 @@ struct server_context_meta {
     bool has_cap_chat;
     bool has_cap_tts;
     bool has_audio_stream; // realtime transcription, see mtmd_support_audio_stream()
+    bool has_asr;                     // the model is Qwen3-ASR, /v1/asr/* is available
+    server_asr_capabilities asr;      // reported by /props, cached across sleep
     std::vector<std::string> tts_voices; // predefined voices of the audio generation model
     json json_ui_settings;
     int slot_n_ctx;
@@ -143,6 +146,12 @@ struct server_routes {
     server_http_context::handler_t post_systemone;
     server_http_context::handler_t get_lora_adapters;
     server_http_context::handler_t post_lora_adapters;
+
+    // /v1/asr/*, the upload route reads the body itself
+    server_http_context::stream_handler_t post_asr_transcriptions;
+    server_http_context::handler_t get_asr_transcription;
+    server_http_context::handler_t delete_asr_transcription;
+    server_http_context::ws_handler_t ws_asr_realtime;
 
     // to be used in router mode
     json get_model_info() const;
