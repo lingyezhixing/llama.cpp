@@ -13,6 +13,8 @@ add_library(${TARGET} STATIC
     server-queue.h
     server-common.cpp
     server-common.h
+    server-asr-common.cpp
+    server-asr-common.h
     server-decision.cpp
     server-decision.h
     server-context.cpp
