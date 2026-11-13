@@ -1488,6 +1488,16 @@ class GGUFWriter:
     def add_classifier_activation(self, value: str) -> None:
         self.add_string(Keys.Classifier.ACTIVATION.format(arch=self.arch), value)
 
+    def add_classifier_out_count(self, value: int) -> None:
+        """Add the number of classes of a non-vocabulary classifier head"""
+        self.add_uint32(Keys.Classifier.OUT_COUNT.format(arch=self.arch), value)
+
+    def add_asr_timestamp_token_id(self, value: int) -> None:
+        self.add_uint32(Keys.ASR.TIMESTAMP_TOKEN_ID.format(arch=self.arch), value)
+
+    def add_asr_timestamp_segment_time_ms(self, value: float) -> None:
+        self.add_float32(Keys.ASR.TIMESTAMP_SEGMENT_TIME_MS.format(arch=self.arch), value)
+
     def add_decision_type(self, value: str) -> None:
         self.add_string(Keys.Decision.TYPE.format(arch=self.arch), value)
 

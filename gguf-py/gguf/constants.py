@@ -370,6 +370,12 @@ class Keys:
         OUTPUT_LABELS = "{arch}.classifier.output_labels"
         POOLING_TYPE  = "{arch}.classifier.pooling_type"
         ACTIVATION    = "{arch}.classifier.activation"
+        OUT_COUNT     = "{arch}.classifier.out_count"
+
+    class ASR:
+        # a non-autoregressive forced aligner predicts one timestamp class per token
+        TIMESTAMP_TOKEN_ID        = "{arch}.asr.timestamp_token_id"
+        TIMESTAMP_SEGMENT_TIME_MS = "{arch}.asr.timestamp_segment_time_ms"
 
     class ShortConv:
         L_CACHE = "{arch}.shortconv.l_cache"
@@ -3408,6 +3414,7 @@ MODEL_TENSORS: dict[MODEL_ARCH, list[MODEL_TENSOR]] = {
         MODEL_TENSOR.TOKEN_EMBD,
         MODEL_TENSOR.OUTPUT_NORM,
         MODEL_TENSOR.OUTPUT,
+        MODEL_TENSOR.CLS_OUT,
         MODEL_TENSOR.ROPE_FREQS,
         MODEL_TENSOR.ATTN_NORM,
         MODEL_TENSOR.ATTN_QKV,

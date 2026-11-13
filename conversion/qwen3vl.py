@@ -387,9 +387,41 @@ class Qwen3OmniMoeTextModel(Qwen3VLMoeTextModel):
 class Qwen3ASRTextModel(Qwen3VLTextModel):
     model_arch = gguf.MODEL_ARCH.QWEN3VL
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # the forced aligner shares this architecture and adds a head over timestamp
+        # classes; its text_config id2label is the generic 2-label one, so it says nothing
+        thinker = self.hparams.get("thinker_config", {})
+        classify_num = int(thinker.get("classify_num", 0) or 0)
+
+        self.is_aligner = classify_num > 1
+        self.classify_num = classify_num if self.is_aligner else 0
+        self.timestamp_token_id = int(self.hparams.get("timestamp_token_id", 0) or 0)
+        self.timestamp_segment_time_ms = float(self.hparams.get("timestamp_segment_time", 80.0) or 80.0)
+
+        if self.is_aligner:
+            if self.timestamp_token_id == 0:
+                raise ValueError("a Qwen3 forced aligner checkpoint must define timestamp_token_id")
+            logger.info(f"gguf: Qwen3 forced aligner with {self.classify_num} timestamp classes")
+
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
         self.gguf_writer.add_num_deepstack_layers(0)
+
+        if self.is_aligner:
+            self.gguf_writer.add_classifier_out_count(self.classify_num)
+            self.gguf_writer.add_asr_timestamp_token_id(self.timestamp_token_id)
+            self.gguf_writer.add_asr_timestamp_segment_time_ms(self.timestamp_segment_time_ms)
+
+    def modify_tensors(self, data_torch: Tensor, name: str, bid: int | None) -> Iterable[tuple[str, Tensor]]:
+        # the aligner head replaces the vocabulary head, so it becomes cls.output and
+        # the file carries no output.weight at all
+        if self.is_aligner and name in ("lm_head.weight", "score.weight"):
+            yield (gguf.TENSOR_NAMES[gguf.MODEL_TENSOR.CLS_OUT] + ".weight", data_torch)
+            return
+
+        yield from super().modify_tensors(data_torch, name, bid)
 
     def set_vocab(self):
         super().set_vocab()
