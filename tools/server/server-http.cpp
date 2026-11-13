@@ -860,6 +860,52 @@ void server_http_context::post(const std::string & path, const server_http_conte
     }
 }
 
+void server_http_context::post_stream(const std::string & path, const server_http_context::stream_handler_t & handler) const {
+    auto callback = [handler](const httplib::Request & req, httplib::Response & res, const httplib::ContentReader & reader) {
+        server_http_req_ptr request = std::make_unique<server_http_req>(server_http_req{
+            get_params(req),
+            get_headers(req),
+            req.path,
+            build_query_string(req),
+            std::string(), // the body is read through the stream request
+            {},
+            req.is_connection_closed
+        });
+
+        server_http_stream_req stream_req{
+            *request,
+            [&reader](const std::function<bool(const char *, size_t)> & on_data) {
+                return reader([&on_data](const char * data, size_t len) {
+                    return on_data(data, len);
+                });
+            },
+            [&reader](const std::function<bool(const server_http_multipart_part &)> & on_part,
+                      const std::function<bool(const char *, size_t)> & on_data) {
+                return reader(
+                    [&on_part](const httplib::FormData & part) {
+                        const server_http_multipart_part out{ part.name, part.filename, part.content_type };
+                        return on_part(out);
+                    },
+                    [&on_data](const char * data, size_t len) {
+                        return on_data(data, len);
+                    });
+            },
+        };
+
+        server_http_res_ptr response = handler(stream_req);
+        process_handler_response(std::move(request), response, res);
+    };
+
+    const std::string full_path = path_prefix + path;
+    // uploads are limited by disk space, not by the default 100 MiB payload cap
+    // note: the cap is per listener, so it applies to every route
+    static constexpr size_t payload_max_length = (size_t) 1 << 40;
+    for (const auto & srv : pimpl->servers) {
+        srv->set_payload_max_length(payload_max_length);
+        srv->Post(full_path, callback);
+    }
+}
+
 void server_http_context::ws(const std::string & path, const server_http_context::ws_handler_t & handler) const {
     const std::string full_path = path_prefix + path;
 

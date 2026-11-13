@@ -64,6 +64,27 @@ struct server_http_req {
     }
 };
 
+// one part of a multipart body, announced before its data arrives
+struct server_http_multipart_part {
+    std::string field;
+    std::string filename;
+    std::string content_type;
+};
+
+// reads the next chunk of the body, gives back false to stop early
+using server_http_content_reader = std::function<bool(const std::function<bool(const char *, size_t)> & on_data)>;
+// on_part runs once per part, on_data receives that part's bytes in order
+using server_http_multipart_reader = std::function<bool(
+    const std::function<bool(const server_http_multipart_part &)> & on_part,
+    const std::function<bool(const char *, size_t)> & on_data)>;
+
+// a request whose body is still unread, for uploads too large to buffer
+struct server_http_stream_req {
+    server_http_req              req;
+    server_http_content_reader   read_content;
+    server_http_multipart_reader read_multipart;
+};
+
 struct server_http_context {
     class Impl;
     std::unique_ptr<Impl> pimpl;
@@ -102,6 +123,11 @@ struct server_http_context {
 
     void get(const std::string & path, const handler_t & handler) const;
     void post(const std::string & path, const handler_t & handler) const;
+
+    // like post(), but the handler reads the body through the stream_req
+    // raises the listener payload cap, which applies to every route on this server
+    using stream_handler_t = std::function<server_http_res_ptr(const server_http_stream_req &)>;
+    void post_stream(const std::string & path, const stream_handler_t & handler) const;
     void del(const std::string & path, const handler_t & handler) const;
     void ws(const std::string & path, const ws_handler_t & handler) const;
 

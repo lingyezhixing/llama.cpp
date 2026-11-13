@@ -2,10 +2,14 @@
 // clamping, and the JSON shapes of the /v1/asr responses. No model required.
 
 #include "server-asr-common.h"
+#include "server-asr-upload.h"
 
 #include "testing.h"
 
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <regex>
 #include <string>
 #include <vector>
@@ -276,6 +280,201 @@ static void test_count_context_tokens(testing & t) {
     t.assert_equal("empty", 0, server_asr_count_context_tokens(nullptr, ""));
 }
 
+
+//
+// upload parsing
+//
+
+struct fake_part {
+    std::string field;
+    std::string filename;
+    std::string content_type;
+    std::string data;
+};
+
+static server_http_multipart_reader make_test_reader(const std::vector<fake_part> & parts) {
+    return [parts](
+            const std::function<bool(const server_http_multipart_part &)> & on_part,
+            const std::function<bool(const char *, size_t)> & on_data) {
+        for (const auto & p : parts) {
+            const server_http_multipart_part part{ p.field, p.filename, p.content_type };
+            if (!on_part(part)) {
+                return false;
+            }
+            if (!p.data.empty() && !on_data(p.data.data(), p.data.size())) {
+                return false;
+            }
+        }
+        return true;
+    };
+}
+
+static server_http_stream_req make_test_req(const std::vector<fake_part> & parts) {
+    static const std::function<bool()> never_stop = [] { return false; };
+
+    server_http_req req{
+        {},
+        { { "Content-Type", "multipart/form-data; boundary=test" } },
+        "/v1/asr/transcriptions",
+        "",
+        "",
+        {},
+        never_stop,
+    };
+
+    return server_http_stream_req{
+        req,
+        nullptr,
+        make_test_reader(parts),
+    };
+}
+
+static std::filesystem::path make_test_dir(const std::string & name) {
+    std::error_code ec;
+    const auto dir = std::filesystem::temp_directory_path(ec) / "llama-test-asr" / name;
+    std::filesystem::remove_all(dir, ec);
+    std::filesystem::create_directories(dir, ec);
+    return dir;
+}
+
+static size_t count_files(const std::filesystem::path & dir) {
+    std::error_code ec;
+    size_t n = 0;
+    for (const auto & entry : std::filesystem::directory_iterator(dir, ec)) {
+        if (entry.is_regular_file()) {
+            n++;
+        }
+    }
+    return n;
+}
+
+static std::string read_test_file(const std::string & path) {
+    std::ifstream in(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+static void test_upload_parse(testing & t) {
+    const auto dir = make_test_dir("parse");
+
+    const std::vector<fake_part> parts = {
+        {"timestamps", "", "", "true"},
+        {"language",   "", "", "Chinese"},
+        {"context",    "", "", "meeting notes"},
+        {"file", "test.wav", "audio/wav", "RIFFtestdata"},
+    };
+
+    server_asr_error err;
+    auto upload = server_asr_parse_upload(make_test_req(parts), dir.string(), err);
+
+    t.assert_true("parsed", upload != nullptr);
+    t.assert_true("no error", err.empty());
+    if (!upload) {
+        return;
+    }
+
+    t.assert_true ("timestamps",   upload->timestamps);
+    t.assert_equal("language",     std::string("Chinese"),       upload->language);
+    t.assert_equal("context",      std::string("meeting notes"), upload->context);
+    t.assert_equal("filename",     std::string("test.wav"),      upload->filename);
+    t.assert_equal("size",         (size_t) 12,                  (size_t) upload->size);
+    t.assert_equal("bytes on disk",std::string("RIFFtestdata"),  read_test_file(upload->temp_path));
+    t.assert_true ("temp path ignores the client name", upload->temp_path.find("test.wav") == std::string::npos);
+    t.assert_equal("one temp file",(size_t) 1, count_files(dir));
+
+    const std::string temp_path = upload->temp_path;
+    upload.reset();
+    t.assert_true("destructor removes the temp file", !std::filesystem::exists(temp_path));
+    t.assert_equal("no files left", (size_t) 0, count_files(dir));
+
+    // release hands the file to the caller
+    upload = server_asr_parse_upload(make_test_req(parts), dir.string(), err);
+    t.assert_true("parsed again", upload != nullptr);
+    if (upload) {
+        const std::string released = upload->release_temp_path();
+        upload.reset();
+        t.assert_true("released file survives", std::filesystem::exists(released));
+        std::filesystem::remove(released);
+    }
+}
+
+static void test_upload_errors(testing & t) {
+    const auto dir = make_test_dir("errors");
+    server_asr_error err;
+
+    // file last, then file first
+    const std::vector<fake_part> reversed = {
+        {"file", "a.wav", "audio/wav", "abcd"},
+        {"timestamps", "", "", "true"},
+    };
+    auto upload = server_asr_parse_upload(make_test_req(reversed), dir.string(), err);
+    t.assert_true("file first works", upload != nullptr);
+    if (upload) {
+        t.assert_true("file first timestamps", upload->timestamps);
+        t.assert_equal("file first size", (size_t) 4, (size_t) upload->size);
+    }
+    upload.reset();
+
+    // no file part
+    err = {};
+    upload = server_asr_parse_upload(make_test_req({{"timestamps", "", "", "true"}}), dir.string(), err);
+    t.assert_true ("missing file rejected", upload == nullptr);
+    t.assert_equal("missing file code",     std::string("file_required"), err.code);
+    t.assert_equal("missing file param",    std::string("file"),          err.param);
+    t.assert_equal("missing file leaves nothing", (size_t) 0, count_files(dir));
+
+    // two file parts
+    err = {};
+    upload = server_asr_parse_upload(make_test_req({
+        {"file", "a.wav", "audio/wav", "aaaa"},
+        {"file", "b.wav", "audio/wav", "bbbb"},
+    }), dir.string(), err);
+    t.assert_true ("two files rejected", upload == nullptr);
+    t.assert_equal("two files code",     std::string("multiple_files"), err.code);
+    t.assert_equal("two files leave nothing", (size_t) 0, count_files(dir));
+
+    // oversized text field
+    err = {};
+    upload = server_asr_parse_upload(make_test_req({
+        {"file",    "a.wav", "audio/wav", "aaaa"},
+        {"context", "", "", std::string(1024 * 1024 + 1, 'x')},
+    }), dir.string(), err);
+    t.assert_true ("large field rejected", upload == nullptr);
+    t.assert_equal("large field code",     std::string("field_too_large"), err.code);
+    t.assert_equal("large field param",    std::string("context"),         err.param);
+    t.assert_equal("large field leaves nothing", (size_t) 0, count_files(dir));
+
+    // bad boolean
+    err = {};
+    upload = server_asr_parse_upload(make_test_req({
+        {"file",       "a.wav", "audio/wav", "aaaa"},
+        {"timestamps", "", "", "yes"},
+    }), dir.string(), err);
+    t.assert_true ("bad timestamps rejected", upload == nullptr);
+    t.assert_equal("bad timestamps code",     std::string("invalid_timestamps"), err.code);
+
+    // a reader that fails midway
+    err = {};
+    server_http_stream_req broken = make_test_req({{"file", "a.wav", "audio/wav", "aaaa"}});
+    broken.read_multipart = [](const std::function<bool(const server_http_multipart_part &)> & on_part,
+                               const std::function<bool(const char *, size_t)> & on_data) {
+        on_part({"file", "a.wav", "audio/wav"});
+        on_data("aa", 2);
+        return false;
+    };
+    upload = server_asr_parse_upload(broken, dir.string(), err);
+    t.assert_true ("broken stream rejected", upload == nullptr);
+    t.assert_equal("broken stream code",     std::string("invalid_multipart"), err.code);
+    t.assert_equal("broken stream leaves nothing", (size_t) 0, count_files(dir));
+
+    // a non multipart request
+    err = {};
+    server_http_stream_req raw = make_test_req({});
+    raw.req.headers = { { "Content-Type", "application/octet-stream" } };
+    upload = server_asr_parse_upload(raw, dir.string(), err);
+    t.assert_true ("raw body rejected", upload == nullptr);
+    t.assert_equal("raw body code",     std::string("invalid_multipart"), err.code);
+}
+
 int main(int argc, char ** argv) {
     testing t;
 
@@ -297,6 +496,8 @@ int main(int argc, char ** argv) {
     t.test("result_json",           test_result_json);
     t.test("now_rfc3339",           test_now_rfc3339);
     t.test("count_context_tokens",  test_count_context_tokens);
+    t.test("upload_parse",          test_upload_parse);
+    t.test("upload_errors",         test_upload_errors);
 
     return t.summary();
 }

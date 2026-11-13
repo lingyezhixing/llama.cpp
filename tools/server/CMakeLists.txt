@@ -15,6 +15,8 @@ add_library(${TARGET} STATIC
     server-common.h
     server-asr-common.cpp
     server-asr-common.h
+    server-asr-upload.cpp
+    server-asr-upload.h
     server-decision.cpp
     server-decision.h
     server-context.cpp

@@ -581,6 +581,8 @@ For `POST /v1/asr/transcriptions`, add a streaming multipart path using cpp-http
 - Enforce a configurable maximum field size, not a maximum audio size. Audio is limited only by disk space.
 - Do not trust the client filename. Use a generated temp name.
 
+Raising cpp-httplib's payload cap is per listener, not per route, so the ASR upload route raises it for the whole server. For this self-use server that is accepted and documented in the code.
+
 If implementing a streaming multipart parser is too invasive, the fallback is a raw-body upload mode:
 
 ```text
@@ -970,6 +972,10 @@ HTTP:
 | `unsupported_audio_format` | 400 | Audio container or codec is not supported by this build. |
 | `invalid_audio` | 400 | File cannot be decoded. |
 | `invalid_timestamps` | 400 | `timestamps` is not a boolean. |
+| `invalid_multipart` | 400 | The upload body is not a valid multipart/form-data body. |
+| `file_required` | 400 | No `file` part was sent. |
+| `multiple_files` | 400 | More than one `file` part was sent. |
+| `field_too_large` | 400 | A text field is larger than 1 MiB. |
 | `context_too_long` | 400 | `context` exceeds the 1024 token cap. |
 | `queue_full` | 429 | Offline queue is full. |
 | `storage_full` | 507 | Temp storage cannot hold the upload. |
