@@ -13,6 +13,8 @@ add_library(${TARGET} STATIC
     server-queue.h
     server-common.cpp
     server-common.h
+    server-asr-align.cpp
+    server-asr-align.h
     server-asr-common.cpp
     server-asr-common.h
     server-asr-upload.cpp

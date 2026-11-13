@@ -884,14 +884,15 @@ Graph:
 
 Align input construction:
 
-- Build the token sequence directly, not through the chat template:
+- Build the token sequence directly, not through the chat template. This mirrors the official `Qwen3ForceAlignProcessor.encode_timestamp`:
 
 ```text
-<|audio_start|><|audio_pad|>...<|audio_end|>
-<timestamp><timestamp>word1<timestamp><timestamp>word2...<timestamp><timestamp>
+<|audio_start|><|audio_pad|>...<|audio_end|>word1<timestamp><timestamp>word2<timestamp><timestamp>...wordN<timestamp><timestamp>
 ```
 
 - The audio pad count must equal the number of audio embeddings produced by the aligner mmproj.
+- Each item is followed by its own pair of timestamps, so item k uses timestamps 2k and 2k+1. There is no leading pair and no separator between the audio and the first item.
+- The forward pass is an ordinary causal decode, as in the official `thinker(...)` call. Do not disable causal attention.
 - Tokenize with the aligner tokenizer, keeping `<timestamp>` as a single special token.
 - Text segmentation:
   - CJK characters: one item per character.
