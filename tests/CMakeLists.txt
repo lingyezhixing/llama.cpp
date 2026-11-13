@@ -294,6 +294,11 @@ llama_build_and_test(test-asr.cpp  LABEL behavior  WORKING_DIRECTORY ${PROJECT_S
 target_include_directories(test-asr PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
 target_link_libraries(test-asr PRIVATE server-context)
 
+# Qwen3-ASR forced aligner loader checks, gated on QWEN3_ASR_ALIGNER_MODEL
+llama_build_and_test(test-asr-aligner.cpp  LABEL "model behavior"  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+target_include_directories(test-asr-aligner PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
+target_link_libraries(test-asr-aligner PRIVATE llama-common mtmd)
+
 llama_build(test-fusion.cpp)
 
 llama_build_and_test(test-chat-peg-parser.cpp peg-parser/simple-tokenize.cpp  LABEL behavior)

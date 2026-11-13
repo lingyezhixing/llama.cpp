@@ -606,6 +606,12 @@ extern "C" {
     // Returns label of classifier output by index (<n_cls_out). Returns nullptr if no label provided
     LLAMA_API const char * llama_model_cls_label(const struct llama_model * model, uint32_t i);
 
+    // For Qwen3-ASR forced aligners only: the token whose classifier output is a
+    // timestamp, and the duration in milliseconds of one timestamp class step.
+    // Both are zero for every other model.
+    LLAMA_API uint32_t llama_model_timestamp_token_id(const struct llama_model * model);
+    LLAMA_API float    llama_model_timestamp_segment_time_ms(const struct llama_model * model);
+
     LLAMA_API enum llama_vocab_type llama_vocab_type(const struct llama_vocab * vocab);
 
     LLAMA_API int32_t llama_vocab_n_tokens(const struct llama_vocab * vocab);

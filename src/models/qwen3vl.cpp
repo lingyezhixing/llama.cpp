@@ -5,6 +5,15 @@ void llama_model_qwen3vl::load_arch_hparams(llama_model_loader & ml) {
     ml.get_key_or_arr(LLM_KV_ROPE_DIMENSION_SECTIONS, hparams.rope_sections, 4, true);
     ml.get_key(LLM_KV_ATTENTION_LAYERNORM_RMS_EPS, hparams.f_norm_rms_eps);
 
+    // the Qwen3-ASR forced aligner is this architecture with a timestamp
+    // classifier in place of the vocabulary head
+    ml.get_key(LLM_KV_ASR_TIMESTAMP_TOKEN_ID,        hparams.timestamp_token_id,        false);
+    ml.get_key(LLM_KV_ASR_TIMESTAMP_SEGMENT_TIME_MS, hparams.timestamp_segment_time_ms, false);
+    if (hparams.n_cls_out > 1 && hparams.timestamp_token_id != 0) {
+        hparams.is_asr_aligner  = true;
+        hparams.n_embd_out_impl = hparams.n_cls_out;
+    }
+
     switch (hparams.n_layer()) {
         case 28: type = LLM_TYPE_1_7B; break;
         case 36: type = hparams.n_embd == 2560 ? LLM_TYPE_4B : LLM_TYPE_8B; break;
@@ -26,14 +35,20 @@ void llama_model_qwen3vl::load_arch_tensors(llama_model_loader &) {
 
     // output
     output_norm = create_tensor(tn(LLM_TENSOR_OUTPUT_NORM, "weight"), {n_embd}, 0);
-    output      = create_tensor(tn(LLM_TENSOR_OUTPUT,      "weight"), {n_embd, n_vocab_out}, TENSOR_NOT_REQUIRED);
-    // if output is NULL, init from the input tok embed
-    if (output == NULL) {
-        output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, TENSOR_DUPLICATED);
-    }
 
-    // output rerank head
-    cls_out = create_tensor(tn(LLM_TENSOR_CLS_OUT, "weight"), {n_embd, hparams.n_cls_out}, TENSOR_NOT_REQUIRED);
+    if (hparams.is_asr_aligner) {
+        // an aligner has no vocabulary head, only the timestamp classifier
+        cls_out = create_tensor(tn(LLM_TENSOR_CLS_OUT, "weight"), {n_embd, hparams.n_cls_out}, 0);
+    } else {
+        output = create_tensor(tn(LLM_TENSOR_OUTPUT, "weight"), {n_embd, n_vocab_out}, TENSOR_NOT_REQUIRED);
+        // if output is NULL, init from the input tok embed
+        if (output == NULL) {
+            output = create_tensor(tn(LLM_TENSOR_TOKEN_EMBD, "weight"), {n_embd, n_vocab}, TENSOR_DUPLICATED);
+        }
+
+        // output rerank head
+        cls_out = create_tensor(tn(LLM_TENSOR_CLS_OUT, "weight"), {n_embd, hparams.n_cls_out}, TENSOR_NOT_REQUIRED);
+    }
 
     for (int i = 0; i < n_layer; ++i) {
         auto & layer = layers[i];
@@ -157,6 +172,17 @@ llama_model_qwen3vl::graph::graph(const llm_graph_params & params) : llm_graph_c
 
     cb(cur, "result_norm", -1);
     res->t_embd = cur;
+
+    if (hparams.is_asr_aligner) {
+        // the classifier replaces the LM head, one class row per token; a graph
+        // without logits still computes t_embd, see llama-graph.cpp
+        GGML_ASSERT(model.cls_out != nullptr);
+        cur = build_lora_mm(model.cls_out, cur);
+        cb(cur, "result_embd_proj", -1);
+        res->t_embd   = cur;
+        res->t_logits = nullptr;
+        return;
+    }
 
     // lm_head
     cur = build_lora_mm(model.output, cur, model.output_s);

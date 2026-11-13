@@ -1658,6 +1658,8 @@ void llama_model_base::load_hparams(llama_model_loader & ml) {
     if (!classifier_labels.empty()) {
         hparams.n_cls_out = classifier_labels.size();
     }
+    // a head over classes instead of a vocabulary keeps its own count
+    ml.get_key(LLM_KV_CLASSIFIER_OUT_COUNT, hparams.n_cls_out, false);
 
     // for decision models
     ml.get_arr(LLM_KV_DECISION_LABELS, decision_labels, false);
@@ -2681,6 +2683,9 @@ void llama_model::print_info() const {
         if (hparams.rope_section_order != LLAMA_ROPE_SECTION_ORDER_TYXZ) {
             LLAMA_LOG_INFO("%s: rope section order    = %s\n", __func__, llama_rope_section_order_name(hparams.rope_section_order).c_str());
         }
+        if (hparams.n_cls_out > 1 && classifier_labels.empty()) {
+            LLAMA_LOG_INFO("%s: n_cls_out             = %u\n", __func__, hparams.n_cls_out);
+        }
         if (!classifier_labels.empty()) {
             LLAMA_LOG_INFO("%s: n_cls_out             = %u\n", __func__, hparams.n_cls_out);
 
@@ -3648,6 +3653,14 @@ int32_t llama_model_n_swa(const llama_model * model) {
 
 uint32_t llama_model_n_cls_out(const struct llama_model * model) {
     return model->hparams.n_cls_out;
+}
+
+uint32_t llama_model_timestamp_token_id(const struct llama_model * model) {
+    return model->hparams.timestamp_token_id;
+}
+
+float llama_model_timestamp_segment_time_ms(const struct llama_model * model) {
+    return model->hparams.timestamp_segment_time_ms;
 }
 
 const char * llama_model_cls_label(const struct llama_model * model, uint32_t i) {

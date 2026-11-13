@@ -283,6 +283,12 @@ struct llama_hparams {
     // for Classifiers
     uint32_t n_cls_out = 1;
 
+    // Qwen3-ASR forced aligner: a non-autoregressive classifier over timestamp bins
+    // that replaces the vocabulary head
+    bool     is_asr_aligner          = false;
+    uint32_t timestamp_token_id      = 0;
+    float    timestamp_segment_time_ms = 0.0f;
+
     // input embedding dimension (0 = use n_embd)
     uint32_t n_embd_inp_impl = 0;
 
