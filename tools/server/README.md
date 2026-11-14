@@ -1661,7 +1661,7 @@ Tools go into the system prompt with the chat template, and the tool calls are p
 
 A Qwen3-ASR model (a `qwen3vl` text model without a vision tower, loaded with `--mmproj`) gets its own endpoints. `/v1/audio/transcriptions`, `/v1/realtime` and the chat endpoints behave as before, and the server router answers `501` for `/v1/asr`.
 
-The ASR work runs on a dedicated context that is created on first use: one sequence, the size of a slot (`-c` with `-np`). The model weights and the audio encoder are shared with the chat slots, so `-ngl`, `--device` and `--mmproj-device` apply. One offline job or realtime session uses that context at a time.
+The ASR work runs on a dedicated context that is created on first use: one sequence, the size of a slot (`-c` with `-np`). The model weights and the audio encoder are shared with the chat slots, so `-ngl`, `--device` and `--mmproj-device` apply. One offline job or realtime session uses that context at a time. `-c 8192` is a good default: the chunk planner adapts to the slot size, and a smaller context only means shorter chunks.
 
 Supported input is WAV, MP3 and FLAC at any sample rate and channel count, determined from the file header; another container is rejected with `unsupported_audio_format`. The audio is decoded and resampled to 16 kHz mono. No repetition cleanup is done in v1.
 
@@ -1706,6 +1706,8 @@ Then binary frames of PCM16 mono at `sample_rate`, and `session.finish` to flush
 Server events are `session.started`, `transcript.delta` (append only, never retracted), `transcript.language` (the language announced by the model, also reported in `session.finished`), `session.finished` and `session.cancelled` (both with `audio_ms`, `processing_ms` and `usage`), and `error`.
 
 The audio is decoded every 1000 ms. The stable prefix of a decode is the common prefix with the previous decode, minus the holdback, so text is emitted once and never rewritten. A segment restarts at a silence, or at its lowest energy point when it reaches its maximum length, and keeps one second of audio overlap; the repeated text at that boundary is dropped.
+
+A decode that stops making progress is recovered by restarting the segment at a recent low-energy point; after a few failed restarts the segment prefix is dropped as well, so the audio is decoded again instead of being lost. If the session still cannot advance, it ends with a fatal `decode_stalled` error rather than discarding audio silently.
 
 A realtime session pauses a running offline job at its next safe point and resumes it when the session ends. It is not preempted by offline work, and it does not preempt chat or vision work that is already using the audio encoder.
 

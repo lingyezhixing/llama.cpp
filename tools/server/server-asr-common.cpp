@@ -36,7 +36,7 @@ static const server_asr_language SERVER_ASR_LANGUAGES[] = {
     { "Finnish",    "fi"  },
     { "Polish",     "pl"  },
     { "Czech",      "cs"  },
-    { "Filipino",   "tl"  },
+    { "Filipino",   "fil" },
     { "Persian",    "fa"  },
     { "Greek",      "el"  },
     { "Romanian",   "ro"  },
@@ -109,8 +109,11 @@ std::string server_asr_normalize_language(const std::string & input, std::string
         return "";
     }
 
+    // the official ISO code of Filipino is "fil", "tl" is the common alternative
+    const std::string lookup = key == "tl" ? "fil" : key;
+
     for (const auto & lang : SERVER_ASR_LANGUAGES) {
-        if (key == lang.code || key == lower_ascii(lang.name)) {
+        if (lookup == lang.code || lookup == lower_ascii(lang.name)) {
             if (code) {
                 *code = lang.code;
             }
@@ -141,10 +144,8 @@ server_asr_parse_result server_asr_parse_output(const std::string & raw, const s
     const size_t pos = head.find(marker);
 
     if (pos == std::string::npos) {
-        if (head.size() >= prefix.size() && lower_ascii(head.substr(0, prefix.size())) == prefix) {
-            // still printing the metadata, nothing is safe to commit
-            return out;
-        }
+        // no metadata boundary: the whole output is text, even when it starts
+        // with "language " (a truncated model output must not be dropped)
         out.text = raw;
         return out;
     }

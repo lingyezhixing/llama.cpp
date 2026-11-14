@@ -27,6 +27,11 @@ static void test_normalize_language(testing & t) {
     t.assert_equal("three letter", std::string("Cantonese"), server_asr_normalize_language("yue"));
     t.assert_equal("padded",       std::string("Japanese"), server_asr_normalize_language("  ja  "));
 
+    code = "sentinel";
+    t.assert_equal("filipino fil",     std::string("Filipino"), server_asr_normalize_language("fil", &code));
+    t.assert_equal("filipino fil out", std::string("fil"),      code);
+    t.assert_equal("filipino tl alias", std::string("Filipino"), server_asr_normalize_language("tl"));
+
     t.assert_equal("unknown",      std::string(""), server_asr_normalize_language("klingon", &code));
     t.assert_equal("unknown code", std::string(""), code);
     t.assert_equal("empty",        std::string(""), server_asr_normalize_language(""));
@@ -51,10 +56,10 @@ static void test_parse_output(testing & t) {
     t.assert_equal("forced code",     std::string("zh"),          parsed.language_code);
     t.assert_equal("forced text",     std::string("Hello there"), parsed.text);
 
-    // metadata only, no marker yet: nothing is safe to commit
+    // no marker: the whole output is text, even when it starts with "language "
     parsed = server_asr_parse_output("language Eng");
-    t.assert_equal("partial language", std::string(""), parsed.language);
-    t.assert_equal("partial text",     std::string(""), parsed.text);
+    t.assert_equal("partial language", std::string(""),             parsed.language);
+    t.assert_equal("partial text",     std::string("language Eng"), parsed.text);
 
     // an unknown language still leaves the text
     parsed = server_asr_parse_output("language Klingon<asr_text>hi");
@@ -833,6 +838,24 @@ static void test_chunk_ranges(testing & t) {
     }
     t.assert_true("contiguous", contiguous);
     t.assert_true("no empty chunk", non_empty);
+
+    // a quiet window past the target must not push the chunk over the limit,
+    // the aligner rejects anything above 180 s
+    {
+        std::vector<float> energy_far(total_ms / 100, 1.0f);
+        for (size_t i = 1820; i < 1830; i++) {
+            energy_far[i] = 0.01f;
+        }
+
+        std::vector<server_asr_chunk_range> ranges_far;
+        server_asr_error err_far;
+        server_asr_compute_chunk_ranges(total_ms, 8192, 0, true, 8192, energy_far, ranges_far, err_far);
+
+        const int64_t max_ts = server_asr_max_chunk_ms(8192, 0, true, 8192);
+        t.assert_equal("timestamp chunk cap", (int) 180000, (int) max_ts);
+        t.assert_true("timestamp chunks fit the aligner",
+                !ranges_far.empty() && ranges_far.front().end_ms <= max_ts);
+    }
 
     // an impossible context is rejected
     std::vector<server_asr_chunk_range> bad;

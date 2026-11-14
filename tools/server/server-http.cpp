@@ -899,9 +899,11 @@ void server_http_context::post_stream(const std::string & path, const server_htt
     };
 
     const std::string full_path = path_prefix + path;
-    // uploads are limited by disk space, not by the default 100 MiB payload cap
+    // uploads are limited by disk space, not by the default 100 MiB payload cap;
+    // keep the listener cap high enough for multi-hour audio but low enough that
+    // the other routes cannot buffer unbounded bodies
     // note: the cap is per listener, so it applies to every route
-    static constexpr size_t payload_max_length = (size_t) 1 << 40;
+    static constexpr size_t payload_max_length = (size_t) 8 << 30;
     for (const auto & srv : pimpl->servers) {
         srv->set_payload_max_length(payload_max_length);
         srv->Post(full_path, callback);

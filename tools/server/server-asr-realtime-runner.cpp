@@ -14,8 +14,10 @@
 
 namespace {
 
-constexpr int64_t REALTIME_DECODE_INTERVAL_MS = 1000;
-constexpr int32_t REALTIME_MAX_NEW_TOKENS     = 32;
+constexpr int64_t REALTIME_DECODE_INTERVAL_MS    = 1000;
+constexpr int32_t REALTIME_MAX_NEW_TOKENS        = 32;
+constexpr int64_t REALTIME_RESET_OVERLAP_MS      = 1000;
+constexpr int64_t REALTIME_HARD_RESET_OVERLAP_MS = 5000;
 
 // context budget, same rates as the offline planner (design section 8.7)
 constexpr int64_t ASR_AUDIO_TOKENS_PER_SEC = 13;
@@ -93,6 +95,11 @@ public:
         need_dedupe       = false;
         committed_ids.clear();
 
+        stalled_steps = 0;
+        stall_resets  = 0;
+        last_emitted  = false;
+        last_had_text = false;
+
         usage = {};
 
         language.clear();
@@ -159,8 +166,28 @@ public:
             return false;
         }
 
+        if (last_emitted) {
+            stalled_steps = 0;
+            stall_resets  = 0;
+        } else if (last_had_text) {
+            stalled_steps++;
+        } else {
+            // silence: no text is expected, a reset would only drop audio
+            stalled_steps = 0;
+        }
+
+        if (stalled_steps >= 3) {
+            if (++stall_resets > 4) {
+                err = { "decode_stalled", "the realtime decode made no progress", "" };
+                return false;
+            }
+            // the first reset keeps the carried text, later ones drop it: a long
+            // prefix can be what keeps the decode at a fixed point
+            return reset_segment(update, err, stall_resets >= 2);
+        }
+
         if (segment_ms() >= segment_max_ms) {
-            return reset_segment(update, err);
+            return reset_segment(update, err, false);
         }
 
         return true;
@@ -171,10 +198,19 @@ public:
         err = {};
         update = {};
 
+        const std::vector<llama_token> prev_raw = commit.segment_raw_tokens;
+
         if (audio_ms > processed_audio_ms || !segment_audio.empty()) {
             if (!decode(update, err, true)) {
                 return false;
             }
+        }
+
+        // the final decode can be shorter than the previous one; keep the longer
+        // prefix-compatible raw so the held tail is not lost at the end
+        if (prev_raw.size() > commit.segment_raw_tokens.size() &&
+                std::equal(commit.segment_raw_tokens.begin(), commit.segment_raw_tokens.end(), prev_raw.begin())) {
+            commit.segment_raw_tokens = prev_raw;
         }
 
         // commit everything that is left: the stream ends here
@@ -208,6 +244,13 @@ private:
     std::string language;      // detected, or the forced hint
     std::string language_code;
     int32_t     holdback = 8;
+
+    // no-progress detection: a decode that keeps returning the same non-empty
+    // text while the audio grows is a fixed point, not a transcript
+    int32_t stalled_steps = 0;
+    int32_t stall_resets  = 0;
+    bool    last_emitted  = false; // the last decode advanced the commit pointer
+    bool    last_had_text = false; // the last decode produced any text tokens
 
     std::vector<float> segment_audio;
     server_asr_commit_state commit;
@@ -278,6 +321,16 @@ private:
         return (int64_t) (segment_audio.size() * 1000 / 16000);
     }
 
+    // drops the carried text: a last resort when the prefix itself is the fixed
+    // point, the new segment is re-decoded from scratch
+    void clear_segment_text() {
+        commit.segment_base_tokens.clear();
+        commit.prompt_prefix_tokens.clear();
+        commit.prev_segment_raw_tokens.clear();
+        commit.segment_raw_tokens.clear();
+        commit.emitted_in_segment = 0;
+    }
+
     // carries the last tokens of the segment into the next one
     void carry_base_tokens() {
         constexpr size_t CARRY_TEXT_TOKENS = 64;
@@ -292,8 +345,11 @@ private:
     }
 
     // cuts the segment at a silence when possible, otherwise at the quietest
-    // window with a one second audio overlap
-    bool reset_segment(server_asr_realtime_update & update, server_asr_error & err) {
+    // window with a one second audio overlap (five seconds for the hard recovery)
+    bool reset_segment(server_asr_realtime_update & update, server_asr_error & err, bool hard) {
+        // a new segment is a fresh start for the stall counter as well
+        stalled_steps = 0;
+
         const int64_t seg_ms = segment_ms();
         const int64_t search_from = std::max<int64_t>(0, seg_ms - 5000);
 
@@ -302,25 +358,36 @@ private:
         if (server_asr_find_silence(segment_audio.data(), segment_audio.size(), 16000,
                                     search_from, seg_ms, 300, cut)) {
             // the last decode already included the silence: commit its whole tail
-            commit.holdback_tokens = 0;
-            flush_remaining(update);
+            // (unless this is the hard recovery, where that tail is suspect)
+            if (!hard) {
+                commit.holdback_tokens = 0;
+                flush_remaining(update);
+            }
 
-            const int64_t drop_ms = std::min(cut, seg_ms);
+            // a hard recovery keeps five seconds before the anchor so the audio
+            // that stalled is decoded again instead of being dropped
+            int64_t drop_ms = hard ? std::max<int64_t>(0, cut - REALTIME_HARD_RESET_OVERLAP_MS) : std::min(cut, seg_ms);
+            drop_ms = std::min(drop_ms, seg_ms);
             const size_t  drop    = (size_t) (drop_ms * 16000 / 1000);
             segment_audio.erase(segment_audio.begin(), segment_audio.begin() + (ptrdiff_t) std::min(drop, segment_audio.size()));
             segment_start_ms += drop_ms;
 
-            carry_base_tokens();
+            if (hard) {
+                clear_segment_text();
+            } else {
+                carry_base_tokens();
+            }
             commit.holdback_tokens = holdback;
-            need_dedupe = false;
+            need_dedupe = hard;
 
             return true;
         }
 
-        // no silence: cut at the quietest 100 ms window and keep one second of overlap
+        // no silence: cut at the quietest 100 ms window and keep an audio overlap
         const int64_t quiet = server_asr_lowest_energy_window(segment_audio.data(), segment_audio.size(), 16000,
                                                               search_from, seg_ms);
-        const int64_t carry_audio_ms = 1000;
+        // a hard recovery re-decodes more of the stalled tail
+        const int64_t carry_audio_ms = hard ? REALTIME_HARD_RESET_OVERLAP_MS : REALTIME_RESET_OVERLAP_MS;
         const int64_t new_start = std::max<int64_t>(0, quiet - carry_audio_ms);
 
         const size_t drop = (size_t) (new_start * 16000 / 1000);
@@ -328,7 +395,11 @@ private:
         segment_start_ms += new_start;
 
         // uncommitted text is discarded: its audio is inside the overlap
-        carry_base_tokens();
+        if (hard) {
+            clear_segment_text();
+        } else {
+            carry_base_tokens();
+        }
         need_dedupe = true;
 
         return true;
@@ -549,6 +620,9 @@ private:
         if (emitted) {
             emit_span(end, update);
         }
+
+        last_emitted  = emitted;
+        last_had_text = !text_tokens.empty();
 
         if (std::getenv("LLAMA_SERVER_ASR_DEBUG_RT") != nullptr) {
             size_t lcp = 0;

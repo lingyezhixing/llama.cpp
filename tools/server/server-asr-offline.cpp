@@ -174,9 +174,10 @@ void server_asr_compute_chunk_ranges(
 
         const int64_t target = start + max_chunk_ms;
 
-        // search around the target, never touching the current start or the end
+        // search around the target, never touching the current start or the end;
+        // never past the target either, the aligner limit is exact (180 s)
         int64_t lo = std::max(start + 1000, target - ASR_SEARCH_MS);
-        int64_t hi = std::min(audio_total_ms - 1000, target + ASR_SEARCH_MS);
+        int64_t hi = std::min({ audio_total_ms - 1000, target + ASR_SEARCH_MS, target });
 
         lo = (lo / ASR_ENERGY_WINDOW_MS) * ASR_ENERGY_WINDOW_MS;
         hi = (hi / ASR_ENERGY_WINDOW_MS) * ASR_ENERGY_WINDOW_MS;
@@ -196,6 +197,7 @@ void server_asr_compute_chunk_ranges(
             cut = best_ms;
         }
 
+        cut = std::min(cut, target);
         if (cut <= start) {
             cut = target;
         }
@@ -234,12 +236,18 @@ struct chunk_result {
     bool    capped        = false;
 };
 
-// gluing two Latin words needs a space, as documented in the design
+// gluing two words needs a space; a chunk that ends on punctuation needs it too,
+// otherwise "this one." + "The New York" becomes "this one.The New York"
 bool needs_space(char prev, char next) {
     auto is_latin = [](char c) {
         return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
     };
-    return is_latin(prev) && is_latin(next);
+    auto is_digit = [](char c) {
+        return c >= '0' && c <= '9';
+    };
+    const bool prev_punct = (prev >= '!' && prev <= '/') || (prev >= ':' && prev <= '@') ||
+                            (prev >= '[' && prev <= '`') || (prev >= '{' && prev <= '~');
+    return (is_latin(prev) && is_latin(next)) || (prev_punct && (is_latin(next) || is_digit(next)));
 }
 
 int32_t max_new_tokens_for(int32_t n_ctx, int64_t n_prompt_tokens) {
@@ -389,7 +397,10 @@ public:
             }
 
             if (input.timestamps) {
-                if (!align_chunk(input, chunk.text, samples, ranges[i].start_ms, state, cancel, err)) {
+                // align with the language this chunk was transcribed in, not the
+                // user hint: an auto-detected Japanese or Korean chunk needs it
+                const std::string align_language = !chunk.language.empty() ? chunk.language : input.language;
+                if (!align_chunk(chunk.text, align_language, samples, ranges[i].start_ms, state, cancel, err)) {
                     if (cancel.load()) {
                         return server_asr_run_status::CANCELLED;
                     }
@@ -418,8 +429,8 @@ private:
 
     // maps one chunk's text to absolute item spans and adds the aligner usage
     bool align_chunk(
-            const server_asr_job_input & input,
             const std::string & text,
+            const std::string & language,
             const std::vector<float> & samples,
             int64_t audio_offset_ms,
             server_asr_run_state & state,
@@ -439,7 +450,7 @@ private:
         request.samples   = samples.data();
         request.n_samples = samples.size();
         request.text      = text;
-        request.language  = server_asr_normalize_language(input.language);
+        request.language  = server_asr_normalize_language(language);
 
         server_asr_align_result result;
         if (!aligner->align(request, result, cancel, err)) {
