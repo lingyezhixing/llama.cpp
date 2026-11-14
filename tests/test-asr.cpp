@@ -481,6 +481,7 @@ static void test_upload_errors(testing & t) {
 //
 
 #include "server-asr-job.h"
+#include "server-asr-offline.h"
 
 #include <chrono>
 #include <fstream>
@@ -744,6 +745,78 @@ static void test_job_queue_full(testing & t) {
     std::filesystem::remove(make_test_audio("full_b.wav"), ec);
 }
 
+
+//
+// offline chunk planning
+//
+
+static void test_chunk_limits(testing & t) {
+    // 4096 tokens, no timestamps: (4096 * 0.85 - 64) / 20 seconds
+    const int64_t c4096 = server_asr_max_chunk_ms(4096, 0, false, 0);
+    t.assert_true("4096 is about 170 s", c4096 >= 170000 && c4096 <= 171000);
+
+    const int64_t c8192 = server_asr_max_chunk_ms(8192, 0, false, 0);
+    t.assert_true("8192 is about 345 s", c8192 >= 344000 && c8192 <= 345000);
+    t.assert_true("larger context is larger", c8192 > c4096);
+
+    // the official aligner limit wins at 8192
+    t.assert_equal("timestamps cap at 180 s", (int) 180000,
+                   (int) server_asr_max_chunk_ms(8192, 0, true, 8192));
+
+    // a 4096 aligner context limits the chunk before the 180 s cap does
+    const int64_t ts4096 = server_asr_max_chunk_ms(8192, 0, true, 4096);
+    t.assert_true("aligner 4096 is about 110 s", ts4096 >= 110000 && ts4096 <= 111000);
+
+    // context tokens come out of the budget
+    const int64_t with_ctx = server_asr_max_chunk_ms(4096, 1024, false, 0);
+    t.assert_true("context shrinks the chunk", with_ctx < c4096 && with_ctx > 100000);
+
+    t.assert_equal("budget below the overhead", (int) 0, (int) server_asr_max_chunk_ms(64, 0, false, 0));
+    // 128 tokens still allow a couple of seconds, the caller rejects under one
+    t.assert_true("tiny budget stays small", server_asr_max_chunk_ms(128, 0, false, 0) < 3000);
+}
+
+static void test_chunk_ranges(testing & t) {
+    const int64_t total_ms = 400000;
+
+    std::vector<float> energy(total_ms / 100, 1.0f);
+    // a quiet window at 170 s, where the first cut should land
+    for (size_t i = 1700; i < 1710; i++) {
+        energy[i] = 0.01f;
+    }
+
+    std::vector<server_asr_chunk_range> ranges;
+    server_asr_error err;
+
+    server_asr_compute_chunk_ranges(total_ms, 4096, 0, false, 0, energy, ranges, err);
+
+    t.assert_true("no error", err.empty());
+    t.assert_true("several chunks", ranges.size() >= 2);
+    t.assert_equal("first cut at the quiet window", (int) 170000, (int) ranges.front().end_ms);
+
+    // ranges are contiguous and cover the whole audio
+    t.assert_equal("starts at zero", (int) 0, (int) ranges.front().start_ms);
+    t.assert_equal("ends at the duration", (int) total_ms, (int) ranges.back().end_ms);
+
+    bool contiguous = true;
+    bool non_empty  = true;
+    for (size_t i = 0; i < ranges.size(); i++) {
+        non_empty = non_empty && ranges[i].end_ms > ranges[i].start_ms;
+        if (i > 0) {
+            contiguous = contiguous && ranges[i].start_ms == ranges[i - 1].end_ms;
+        }
+    }
+    t.assert_true("contiguous", contiguous);
+    t.assert_true("no empty chunk", non_empty);
+
+    // an impossible context is rejected
+    std::vector<server_asr_chunk_range> bad;
+    err = {};
+    server_asr_compute_chunk_ranges(total_ms, 64, 0, false, 0, energy, bad, err);
+    t.assert_equal("too small", std::string("context_too_small"), err.code);
+    t.assert_true("no ranges on error", bad.empty());
+}
+
 int main(int argc, char ** argv) {
     testing t;
 
@@ -772,6 +845,8 @@ int main(int argc, char ** argv) {
     t.test("job_cancel",            test_job_cancel);
     t.test("job_errors",            test_job_errors);
     t.test("job_queue_full",        test_job_queue_full);
+    t.test("chunk_limits",          test_chunk_limits);
+    t.test("chunk_ranges",          test_chunk_ranges);
 
     return t.summary();
 }

@@ -17,6 +17,8 @@ add_library(${TARGET} STATIC
     server-asr-align.h
     server-asr-api.cpp
     server-asr-api.h
+    server-asr-audio.cpp
+    server-asr-audio.h
     server-asr-engine.cpp
     server-asr-engine.h
     server-asr-job.cpp
@@ -50,6 +52,7 @@ endif()
 target_include_directories(${TARGET} PRIVATE ../mtmd)
 target_include_directories(${TARGET} PRIVATE ${PROJECT_SOURCE_DIR})
 target_link_libraries(${TARGET} PUBLIC llama-common mtmd ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(${TARGET} PRIVATE vendor::miniaudio)
 
 # llama-server-impl: server logic, reusable by app
 

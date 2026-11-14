@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <mutex>
 
 static bool detect_qwen3_asr(llama_model * model, mtmd_context * mctx) {
     if (model == nullptr || mctx == nullptr) {
@@ -34,9 +35,16 @@ struct server_asr_engine::impl {
 
     const llama_vocab * vocab = nullptr;
 
+    // dedicated context, isolated from the chat slots; created on first use
+    std::unique_ptr<llama_context, void (*)(llama_context *)> ctx{nullptr, llama_free};
+    std::mutex ctx_mutex;
+
     std::unique_ptr<server_asr_aligner>    aligner;
-    std::unique_ptr<server_asr_fake_runner> fake_runner; // test mode only
+    std::unique_ptr<server_asr_fake_runner> fake_runner;    // test mode only
+    std::unique_ptr<server_asr_offline_runner> runner;      // the real pipeline
     std::unique_ptr<server_asr_job_manager> jobs;
+
+    int32_t aligner_ctx = 0; // chunk cap when timestamps are requested
 };
 
 server_asr_engine::server_asr_engine() : pimpl(std::make_unique<impl>()) {}
@@ -88,6 +96,8 @@ bool server_asr_engine::init(const server_asr_config & config, server_asr_error 
             pimpl->aligner.reset();
             return false;
         }
+
+        pimpl->aligner_ctx = aligner_config.n_ctx;
     }
 
     pimpl->caps.timestamps = pimpl->aligner != nullptr;
@@ -98,6 +108,9 @@ bool server_asr_engine::init(const server_asr_config & config, server_asr_error 
     if (fake != nullptr && std::strcmp(fake, "1") == 0) {
         pimpl->fake_runner = std::make_unique<server_asr_fake_runner>();
         pimpl->jobs        = std::make_unique<server_asr_job_manager>(pimpl->fake_runner.get());
+    } else {
+        pimpl->runner = server_asr_make_offline_runner(this, pimpl->aligner_ctx);
+        pimpl->jobs   = std::make_unique<server_asr_job_manager>(pimpl->runner.get());
     }
 
     return true;
@@ -123,12 +136,59 @@ const llama_vocab * server_asr_engine::vocab() const {
     return pimpl->vocab;
 }
 
+llama_model * server_asr_engine::model() const {
+    return pimpl->config.model;
+}
+
+mtmd_context * server_asr_engine::mctx() const {
+    return pimpl->config.mctx;
+}
+
+llama_context * server_asr_engine::ensure_context(server_asr_error & err) {
+    std::lock_guard<std::mutex> lock(pimpl->ctx_mutex);
+
+    if (pimpl->ctx) {
+        return pimpl->ctx.get();
+    }
+
+    if (pimpl->config.model == nullptr) {
+        err = { "internal_error", "the ASR model is not loaded", "" };
+        return nullptr;
+    }
+
+    llama_context_params cparams = llama_context_default_params();
+    cparams.n_ctx           = (uint32_t) pimpl->config.n_ctx;
+    cparams.n_batch         = (uint32_t) std::max(pimpl->config.n_batch, 2048);
+    cparams.n_seq_max       = 1;
+    cparams.n_threads       = pimpl->config.n_threads;
+    cparams.n_threads_batch = pimpl->config.n_threads;
+    cparams.embeddings      = false;
+    cparams.no_perf         = true;
+
+    llama_context * ctx = llama_init_from_model(pimpl->config.model, cparams);
+    if (ctx == nullptr) {
+        err = { "internal_error", "failed to create the ASR context", "" };
+        return nullptr;
+    }
+
+    pimpl->ctx.reset(ctx);
+
+    return pimpl->ctx.get();
+}
+
 void server_asr_engine::terminate() {
-    // the job manager joins its worker; the aligner and model pointers must
-    // outlive it
+    // the job manager joins its worker; the aligner, context and model pointers
+    // must outlive it
     pimpl->jobs.reset();
+    pimpl->runner.reset();
     pimpl->fake_runner.reset();
     pimpl->aligner.reset();
+
+    {
+        std::lock_guard<std::mutex> lock(pimpl->ctx_mutex);
+        pimpl->ctx.reset();
+    }
+
     pimpl->supported = false;
     pimpl->caps = {};
 }

@@ -154,15 +154,16 @@ def test_props_reports_asr():
         assert asr["timestamps"] is False  # no aligner flags
 
 
-def test_routes_are_stubs_without_a_job_manager():
+def test_routes_are_wired():
     with run_server([]) as port:
+        # a request without a file part is rejected before a job is created
         status, body = request(
             port, "POST", "/v1/asr/transcriptions",
-            body=b"--x\r\nContent-Disposition: form-data; name=\"file\"; filename=\"a.wav\"\r\n\r\nRIFF\r\n--x--\r\n",
+            body=b"--x\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\nChinese\r\n--x--\r\n",
             headers={"Content-Type": "multipart/form-data; boundary=x"},
         )
-        assert status == 501
-        assert body["error"]["code"] == "asr_not_implemented"
+        assert status == 400
+        assert body["error"]["code"] == "file_required"
 
         status, body = request(port, "GET", "/v1/asr/transcriptions/asr_missing")
         assert status == 404

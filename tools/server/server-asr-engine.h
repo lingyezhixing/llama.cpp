@@ -44,6 +44,12 @@ public:
 
     const llama_vocab * vocab() const;
 
+    llama_model *  model() const;
+    mtmd_context * mctx()  const;
+
+    // creates the dedicated ASR context on first use, null on failure
+    llama_context * ensure_context(server_asr_error & err);
+
     void terminate();
 
 private:
