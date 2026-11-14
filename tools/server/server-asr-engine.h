@@ -8,6 +8,7 @@
 #include "server-asr-realtime.h"
 
 #include <memory>
+#include <mutex>
 #include <string>
 
 struct server_asr_config {
@@ -50,6 +51,10 @@ public:
 
     // creates the dedicated ASR context on first use, null on failure
     llama_context * ensure_context(server_asr_error & err);
+
+    // serializes use of the dedicated context between offline and realtime;
+    // realtime priority comes from the realtime flag, not from this mutex
+    std::mutex & context_mutex();
 
     // null until the realtime pipeline exists
     server_asr_realtime_runner * realtime_runner() const;

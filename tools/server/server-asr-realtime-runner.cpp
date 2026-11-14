@@ -317,6 +317,9 @@ private:
             return false;
         }
 
+        // the context is shared with the offline worker
+        std::lock_guard<std::mutex> ctx_lock(engine->context_mutex());
+
         mtmd_context * mctx = engine->mctx();
         const llama_vocab * vocab = engine->vocab();
 

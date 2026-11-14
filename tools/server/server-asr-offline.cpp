@@ -330,6 +330,9 @@ public:
                 return server_asr_run_status::FAILED;
             }
 
+            // the context is shared with a realtime session
+            std::lock_guard<std::mutex> ctx_lock(engine->context_mutex());
+
             chunk_result chunk;
             chunk_status status = transcribe_chunk(ctx, mctx, vocab, input, samples, n_ctx, n_batch, 0, chunk,
                     cancel, pause_requested, err);

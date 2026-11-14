@@ -38,6 +38,7 @@ struct server_asr_engine::impl {
     // dedicated context, isolated from the chat slots; created on first use
     std::unique_ptr<llama_context, void (*)(llama_context *)> ctx{nullptr, llama_free};
     std::mutex ctx_mutex;
+    std::mutex run_mutex; // one user of the context at a time
 
     std::unique_ptr<server_asr_aligner>    aligner;
     std::unique_ptr<server_asr_fake_runner> fake_runner;    // test mode only
@@ -172,6 +173,10 @@ const llama_vocab * server_asr_engine::vocab() const {
 
 llama_model * server_asr_engine::model() const {
     return pimpl->config.model;
+}
+
+std::mutex & server_asr_engine::context_mutex() {
+    return pimpl->run_mutex;
 }
 
 mtmd_context * server_asr_engine::mctx() const {
