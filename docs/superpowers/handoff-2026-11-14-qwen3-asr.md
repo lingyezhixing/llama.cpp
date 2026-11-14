@@ -5,7 +5,7 @@ Spec: docs/superpowers/specs/2026-11-13-qwen3-asr-design.md
 
 ## 状态
 
-Task 1-12 完成并提交；Task 13 仅完成上下文互斥；Task 14 未开始。工作区干净。
+Task 1-13 完成并提交；Task 14 未开始。工作区干净。
 
 | Task | 提交 | 内容 |
 |---|---|---|
@@ -22,6 +22,7 @@ Task 1-12 完成并提交；Task 13 仅完成上下文互斥；Task 14 未开始
 | 11 | 280c5f785 | 实时重解码与稳定提交 |
 | 12 | 8520935b0 | 长流段重置 |
 | 13a | e9ebda430 | 离线/实时上下文互斥 |
+| 13b | 待提交 | 实时抢占离线的门控测试 |
 
 ## 环境要点
 
@@ -70,11 +71,9 @@ server-asr-api（/v1/asr/* handler）、server-http 的 post_stream。
 
 ## 未完成
 
-1. Task 13 抢占测试：280 s 离线任务运行中建立实时会话，断言 paused + realtime_priority，
-   实时结束后离线回到 running 并 succeeded，processing_ms 不含暂停时间。
-2. Task 14：2 小时离线（上传 >100 MiB、无 413）、1 小时实时、现有音频与聊天回归、
+1. Task 14：2 小时离线（上传 >100 MiB、无 413）、1 小时实时、现有音频与聊天回归、
    更新 docs/multimodal.md 与 tools/server/README.md。
-3. 收尾：对照 spec 第 13 节成功标准后标记 complete。
+2. 收尾：对照 spec 第 13 节成功标准后标记 complete。
 
 ## 已知限制
 
