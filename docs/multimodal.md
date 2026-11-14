@@ -121,6 +121,14 @@ NOTE: some models may require large context window, for example: `-c 8192`
 (tool_name) -hf ggml-org/Qwen3-ASR-1.7B-GGUF
 ```
 
+**ASR models**:
+
+Qwen3-ASR has two endpoints of its own, a job based `/v1/asr/transcriptions` and a streaming `/v1/asr/realtime`, see the [server documentation](../tools/server/README.md#asr-v1astranscriptions-and-v1asrealtime). Timestamps need the Qwen3-ForcedAligner, passed as `--asr-aligner-model` and `--asr-aligner-mmproj`.
+
+```sh
+llama-server -hf ggml-org/Qwen3-ASR-0.6B-GGUF
+```
+
 **Mixed modalities**:
 
 ```sh

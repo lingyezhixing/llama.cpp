@@ -66,8 +66,14 @@ def test_realtime_preempts_offline(server):
         ws.send(json.dumps({"type": "session.start", "stability": "balanced"}))
         assert json.loads(ws.recv())["type"] == "session.started"
 
+        t_session = time.time()
         paused = wait_status(server, job_id, ("paused",))
         t_paused = time.time()
+
+        # the job stops at the first safe point after the flag: the rest of the
+        # audio encoder window and the prefill of the chunk in flight
+        print(f"pause latency {t_paused - t_session:.2f} s")
+        assert t_paused - t_session < 8.0, t_paused - t_session
 
         assert paused["paused_reason"] == "realtime_priority", paused
         assert paused["timing"]["paused_at"]

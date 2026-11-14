@@ -158,6 +158,80 @@ def wait_job(port: int, job_id: str, timeout: float = 600.0) -> dict:
     raise AssertionError(f"job {job_id} stuck in {job.get('status')!r}")
 
 
+def write_looped_wav(source: bytes, seconds: float, path: str) -> str:
+    """writes a looped copy to disk, so a long upload is not held in memory"""
+    import io
+    import wave
+
+    with wave.open(io.BytesIO(source), "rb") as src:
+        assert src.getnchannels() == 1, "the fixture must be mono"
+        assert src.getsampwidth() == 2, "the fixture must be PCM16"
+        assert src.getframerate() == 16000, "the fixture must be 16 kHz"
+        frames = src.readframes(src.getnframes())
+
+    target = int(seconds * 16000) * 2
+
+    with wave.open(path, "wb") as dst:
+        dst.setnchannels(1)
+        dst.setsampwidth(2)
+        dst.setframerate(16000)
+        written = 0
+        while written < target:
+            block = frames[:min(len(frames), target - written)]
+            dst.writeframes(block)
+            written += len(block)
+
+    return path
+
+
+def submit_file(port: int, path: str, timeout: float = 1800.0, **fields) -> tuple[int, dict]:
+    """streams a WAV from disk instead of building the whole body in memory"""
+    boundary = "----asrtestboundaryfile"
+
+    head = []
+    for name, value in fields.items():
+        head.append(
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="{name}"\r\n\r\n'
+            f"{value}\r\n".encode())
+    head.append(
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="file"; filename="audio.wav"\r\n'
+        f"Content-Type: audio/wav\r\n\r\n".encode())
+    head = b"".join(head)
+    tail = f"\r\n--{boundary}--\r\n".encode()
+
+    def body():
+        yield head
+        with open(path, "rb") as f:
+            while True:
+                block = f.read(1 << 20)
+                if not block:
+                    break
+                yield block
+        yield tail
+
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{port}/v1/asr/transcriptions",
+        data=body(),
+        method="POST",
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Content-Length": str(len(head) + os.path.getsize(path) + len(tail)),
+        },
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as res:
+            raw = res.read()
+            return res.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as err:
+        raw = err.read()
+        try:
+            return err.code, json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return err.code, {}
+
+
 def loop_wav(source: bytes, seconds: float) -> bytes:
     """repeats a PCM16 mono 16 kHz WAV until it reaches the requested duration"""
     import io

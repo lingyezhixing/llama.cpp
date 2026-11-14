@@ -120,3 +120,50 @@ def test_ten_minute_stream(server):
 
     # the whole stream went through several segment resets
     assert finished["usage"]["decode_steps"] >= 500
+
+
+@pytest.mark.slow
+@pytest.mark.heavy
+def test_one_hour_stream(server):
+    """one hour of audio: segment resets keep the context and the deltas bounded"""
+    from websockets.sync.client import connect
+
+    with open(AUDIO, "rb") as f:
+        wav = loop_wav(f.read(), 60)
+
+    pcm = wav[44:]
+    clip_frames = len(pcm) // 2
+    assert clip_frames % FRAME_SAMPLES == 0, clip_frames
+
+    total_frames = 3600 * 16000 // FRAME_SAMPLES
+
+    deltas = []
+    finished = None
+
+    with connect(f"ws://127.0.0.1:{server}/v1/asr/realtime", open_timeout=15, max_size=None) as ws:
+        ws.send(json.dumps({"type": "session.start", "stability": "balanced"}))
+        assert json.loads(ws.recv())["type"] == "session.started"
+
+        # the clip is looped in place, so the hour never sits in memory
+        for i in range(total_frames):
+            start = (i * FRAME_SAMPLES) % clip_frames
+            ws.send(pcm[start * 2:(start + FRAME_SAMPLES) * 2])
+
+        ws.send(json.dumps({"type": "session.finish"}))
+        while finished is None:
+            message = json.loads(ws.recv())
+            if message["type"] == "transcript.delta":
+                deltas.append(message["text"])
+            elif message["type"] == "session.finished":
+                finished = message
+            elif message["type"] == "error":
+                raise AssertionError(message)
+
+    joined = "".join(deltas)
+    assert joined.strip()
+    assert finished["audio_ms"] >= 3599000
+
+    # one decode per second of audio; no overflow and no lost frame
+    assert finished["usage"]["decode_steps"] >= 3000
+    assert "  " not in joined
+    assert len(joined) > 3000, len(joined)

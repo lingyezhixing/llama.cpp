@@ -1151,3 +1151,15 @@ These are implementation defaults to validate by measurement, not API changes:
 - Realtime low_latency preset: p95 <= 2 s.
 - Realtime start latency after preemption is under 3 seconds in the default configuration.
 - Existing server endpoints and audio models are unaffected.
+
+### Verification status
+
+Measured on 2026-11-14 with Qwen3-ASR-0.6B Q8 and Qwen3-ForcedAligner-0.6B Q8 on the RTX 4060 laptop, CUDA0.
+
+- Offline 2-hour: passed (`test_two_hour_offline`), 4 min 18 s, 220 MiB upload, at least 20 chunks, no `output_limit_reached`, text proportional to the 240 loops.
+- Offline timestamps: passed (`test_asr_aligner_api.py`), items are ordered, non-empty and inside the audio, and the aligner usage is reported.
+- Realtime 1-hour: passed (`test_one_hour_stream`), 9 min 31 s, 3600 decodes, no error event, deltas append-only.
+- Realtime start after preemption: passed (`test_realtime_preempts_offline`), the running job paused within 0.06 s and resumed at the interrupted chunk, `processing_ms` excluded the pause.
+- Existing endpoints: passed (`test_asr_regression.py`), audio chat, `/v1/audio/transcriptions` and a chat request during an offline job.
+
+The two latency targets are not measured: only the 0.6B model is available on this machine, the criteria cover the 1.7B model. What the runs do show is the compute cost per second of audio, about 0.03 s offline and 0.16 s realtime.

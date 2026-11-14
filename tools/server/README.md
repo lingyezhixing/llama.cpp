@@ -180,6 +180,9 @@ For the full list of features, please refer to [server's changelog](https://gith
 | `-mm, --mmproj FILE` | path to a multimodal projector file. see tools/mtmd/README.md<br/>note: if -hf is used, this argument can be omitted<br/>(env: LLAMA_ARG_MMPROJ) |
 | `-mmu, --mmproj-url URL` | URL to a multimodal projector file. see tools/mtmd/README.md<br/>(env: LLAMA_ARG_MMPROJ_URL) |
 | `--mmproj-auto, --no-mmproj, --no-mmproj-auto` | whether to use multimodal projector file (if available), useful when using -hf (default: enabled)<br/>(env: LLAMA_ARG_MMPROJ_AUTO) |
+| `--asr-aligner-model FILE` | path to a Qwen3-ForcedAligner text model; enables timestamps for /v1/asr<br/>note: requires --asr-aligner-mmproj as well<br/>(env: LLAMA_ARG_ASR_ALIGNER_MODEL) |
+| `--asr-aligner-mmproj FILE` | path to the audio encoder of the Qwen3-ForcedAligner<br/>(env: LLAMA_ARG_ASR_ALIGNER_MMPROJ) |
+| `--asr-aligner-ctx N` | context size of the Qwen3-ForcedAligner (default: 8192, only with an aligner model)<br/>(env: LLAMA_ARG_ASR_ALIGNER_CTX) |
 | `--mmproj-offload, --no-mmproj-offload` | whether to enable GPU offloading for multimodal projector (default: enabled)<br/>(env: LLAMA_ARG_MMPROJ_OFFLOAD) |
 | `-mmdev, --mmproj-device DEVICE` | device to use for multimodal projector (none = don't offload, default: follows --device)<br/>use --list-devices to see a list of available devices<br/>(env: MTMD_BACKEND_DEVICE) |
 | `--image-min-tokens N` | minimum number of tokens each image can take, only used by vision models with dynamic resolution (default: read from model)<br/>(env: LLAMA_ARG_IMAGE_MIN_TOKENS) |
@@ -1653,6 +1656,58 @@ LFM3-Omni is not trained to reason, run it with `--reasoning off` so that its tu
 - `error`: `error.message` describes the problem
 
 Tools go into the system prompt with the chat template, and the tool calls are parsed as in `/v1/chat/completions`. The client runs the calls of a response, sends their results as `function_call_output` items, then asks for the next response.
+
+### ASR: `/v1/asr/transcriptions` and `/v1/asr/realtime`
+
+A Qwen3-ASR model (a `qwen3vl` text model without a vision tower, loaded with `--mmproj`) gets its own endpoints. `/v1/audio/transcriptions`, `/v1/realtime` and the chat endpoints behave as before, and the server router answers `501` for `/v1/asr`.
+
+The ASR work runs on a dedicated context that is created on first use: one sequence, the size of a slot (`-c` with `-np`). The model weights and the audio encoder are shared with the chat slots, so `-ngl`, `--device` and `--mmproj-device` apply. One offline job or realtime session uses that context at a time.
+
+Supported input is WAV, MP3 and FLAC at any sample rate and channel count; the audio is decoded and resampled to 16 kHz mono. No repetition cleanup is done in v1.
+
+#### POST `/v1/asr/transcriptions`
+
+Takes a multipart form and returns `202` with the job object and a `Location` header:
+
+| field | |
+|---|---|
+| `file` | the audio file, required, exactly one |
+| `timestamps` | `true` adds `items` to the result, requires an aligner model |
+| `language` | a language name such as `English` or `zh`; an unknown one gives `unsupported_language` |
+| `context` | text prepended to the prompt, at most 1024 tokens |
+
+The upload is streamed to a temporary file (`LLAMA_SERVER_ASR_TMPDIR`, default `<temp>/llama-asr`) and removed when the job ends, so the request size is not limited by memory. Audio between two sentences is cut at its lowest energy point, and the chunks tile the whole file.
+
+Jobs run one at a time. States are `queued`, `running`, `paused`, `succeeded`, `failed` and `cancelled`. A paused job carries `paused_reason: "realtime_priority"`; it resumes, from the start of the interrupted chunk, as soon as the realtime session ends.
+
+`progress` holds `audio_processed_ms`, `audio_total_ms` and `percent`. `timing` holds `created_at`, `started_at`, `processing_ms` (queue and pause time excluded), `finished_at`, plus `paused_at` while paused and `eta_ms` with `estimated_end_at` while running.
+
+#### GET `/v1/asr/transcriptions/{id}`
+
+Returns the job. `result` holds `text`, `language` and `language_code`; with `timestamps` it also holds `items`, each with `text`, `start_ms` and `end_ms`. `usage` counts `input_tokens`, `output_tokens`, `total_tokens`, `audio_ms` and `chunks`, and adds an `aligner` object when timestamps were produced. An unknown id gives `404` with `job_not_found`.
+
+#### DELETE `/v1/asr/transcriptions/{id}`
+
+Stops or removes a job: `200` when it was queued or paused and is now cancelled, `202` while a running job stops at its next safe point, `204` when a finished job is dropped, `404` for an unknown id.
+
+#### WS `/v1/asr/realtime`
+
+A protocol of its own, separate from [`/v1/realtime`](#websocket-v1realtime-realtime-transcription): Qwen3-ASR is not a streaming audio model, so the server re-decodes the audio received so far and sends only the text it is confident about.
+
+The first frame is `session.start`:
+
+- `language`: as in the offline API
+- `context`: as in the offline API
+- `stability`: `low_latency`, `balanced` (default) or `high_accuracy`; they hold back 5, 8 or 12 tokens and restart a segment at 30, 45 or 60 s
+- `sample_rate`: 8000 to 48000, default 16000
+
+Then binary frames of PCM16 mono at `sample_rate`, and `session.finish` to flush the tail or `session.cancel` to drop it. Closing the socket cancels.
+
+Server events are `session.started`, `transcript.delta` (append only, never retracted), `transcript.language`, `session.finished` (with `audio_ms`, `processing_ms` and `usage`), `session.cancelled` and `error`.
+
+The audio is decoded every 1000 ms. The stable prefix of a decode is the common prefix with the previous decode, minus the holdback, so text is emitted once and never rewritten. A segment restarts at a silence, or at its lowest energy point when it reaches its maximum length, and keeps one second of audio overlap; the repeated text at that boundary is dropped.
+
+A realtime session pauses a running offline job at its next safe point and resumes it when the session ends. It is not preempted by offline work, and it does not preempt chat or vision work that is already using the audio encoder.
 
 ### POST `/v1/audio/speech`: OpenAI-compatible Speech API
 
