@@ -1663,7 +1663,7 @@ A Qwen3-ASR model (a `qwen3vl` text model without a vision tower, loaded with `-
 
 The ASR work runs on a dedicated context that is created on first use: one sequence, the size of a slot (`-c` with `-np`). The model weights and the audio encoder are shared with the chat slots, so `-ngl`, `--device` and `--mmproj-device` apply. One offline job or realtime session uses that context at a time.
 
-Supported input is WAV, MP3 and FLAC at any sample rate and channel count; the audio is decoded and resampled to 16 kHz mono. No repetition cleanup is done in v1.
+Supported input is WAV, MP3 and FLAC at any sample rate and channel count, determined from the file header; another container is rejected with `unsupported_audio_format`. The audio is decoded and resampled to 16 kHz mono. No repetition cleanup is done in v1.
 
 #### POST `/v1/asr/transcriptions`
 
@@ -1703,7 +1703,7 @@ The first frame is `session.start`:
 
 Then binary frames of PCM16 mono at `sample_rate`, and `session.finish` to flush the tail or `session.cancel` to drop it. Closing the socket cancels.
 
-Server events are `session.started`, `transcript.delta` (append only, never retracted), `transcript.language`, `session.finished` (with `audio_ms`, `processing_ms` and `usage`), `session.cancelled` and `error`.
+Server events are `session.started`, `transcript.delta` (append only, never retracted), `transcript.language` (the language announced by the model, also reported in `session.finished`), `session.finished` and `session.cancelled` (both with `audio_ms`, `processing_ms` and `usage`), and `error`.
 
 The audio is decoded every 1000 ms. The stable prefix of a decode is the common prefix with the previous decode, minus the holdback, so text is emitted once and never rewritten. A segment restarts at a silence, or at its lowest energy point when it reaches its maximum length, and keeps one second of audio overlap; the repeated text at that boundary is dropped.
 

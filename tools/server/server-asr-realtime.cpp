@@ -110,15 +110,26 @@ bool server_asr_fake_realtime_runner::finish(server_asr_realtime_update & update
     update = {};
     update.deltas = " world";
 
-    stats.processing_ms          = 1;
-    stats.usage.audio_ms         = audio_ms;
-    stats.usage.decode_steps     = steps;
-    stats.usage.output_tokens    = steps + 2;
-    stats.usage.input_tokens     = steps * 10;
-    stats.usage.total_tokens     = stats.usage.input_tokens + stats.usage.output_tokens;
-    stats.usage.committed_output_tokens = 2;
+    snapshot(stats);
 
     return true;
+}
+
+void server_asr_fake_realtime_runner::snapshot(server_asr_realtime_stats & out) const {
+    out = {};
+
+    out.processing_ms                    = 1;
+    out.usage.audio_ms                   = audio_ms;
+    out.usage.decode_steps               = steps;
+    out.usage.output_tokens              = steps + 2;
+    out.usage.input_tokens               = steps * 10;
+    out.usage.total_tokens               = out.usage.input_tokens + out.usage.output_tokens;
+    out.usage.committed_output_tokens    = 2;
+
+    std::string code;
+    const std::string name = server_asr_normalize_language(config.language, &code);
+    out.language      = name.empty() ? "English" : name;
+    out.language_code = name.empty() ? "en"      : code;
 }
 
 void server_asr_fake_realtime_runner::cancel() {
@@ -330,9 +341,16 @@ void server_asr_ws_protocol(server_http_context::ws_conn & conn,
             { "processing_ms", processing_ms      },
             { "usage",         server_asr_usage_json(stats.usage) },
         };
-        if (!server_asr_normalize_language(config.language).empty()) {
-            finished["language"]      = server_asr_normalize_language(config.language);
-            finished["language_code"] = server_asr_normalize_language(config.language, nullptr);
+
+        // the runner reports the detected language, the hint is the fallback
+        std::string language      = stats.language;
+        std::string language_code = stats.language_code;
+        if (language.empty()) {
+            language = server_asr_normalize_language(config.language, &language_code);
+        }
+        if (!language.empty()) {
+            finished["language"]      = language;
+            finished["language_code"] = language_code;
         }
 
         send_json(conn, finished);
@@ -342,11 +360,21 @@ void server_asr_ws_protocol(server_http_context::ws_conn & conn,
 
     runner->cancel();
 
-    send_json(conn, json {
+    server_asr_realtime_stats stats;
+    runner->snapshot(stats);
+
+    json cancelled_msg = json {
         { "type",          "session.cancelled" },
-        { "audio_ms",      audio_ms            },
+        { "audio_ms",      audio_ms > 0 ? audio_ms : stats.usage.audio_ms },
         { "processing_ms", processing_ms       },
-    });
+        { "usage",         server_asr_usage_json(stats.usage) },
+    };
+    if (!stats.language.empty()) {
+        cancelled_msg["language"]      = stats.language;
+        cancelled_msg["language_code"] = stats.language_code;
+    }
+
+    send_json(conn, cancelled_msg);
     conn.close();
 }
 //

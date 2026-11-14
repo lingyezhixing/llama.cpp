@@ -10,6 +10,10 @@
 #include <string>
 #include <vector>
 
+// true when the first bytes are WAV, MP3 or FLAC; the decoders reject anything
+// else with a generic error, so this keeps the two failures apart
+bool server_asr_audio_container_supported(const std::string & path);
+
 class server_asr_audio {
 public:
     server_asr_audio();

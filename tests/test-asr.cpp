@@ -1,6 +1,7 @@
 // Tests the Qwen3-ASR shared helpers: language handling, output parsing, item
 // clamping, and the JSON shapes of the /v1/asr responses. No model required.
 
+#include "server-asr-audio.h"
 #include "server-asr-common.h"
 #include "server-asr-upload.h"
 
@@ -747,6 +748,30 @@ static void test_job_queue_full(testing & t) {
 
 
 //
+// audio container detection
+//
+
+static void test_audio_container(testing & t) {
+    const auto dir = make_test_dir("container");
+
+    auto write = [&](const std::string & name, const std::string & head) {
+        const std::string path = (dir / name).string();
+        std::ofstream out(path, std::ios::binary);
+        out.write(head.data(), (std::streamsize) head.size());
+        return path;
+    };
+
+    t.assert_true ("RIFF/WAVE", server_asr_audio_container_supported(write("a.wav",  "RIFF____WAVEfmt ")));
+    t.assert_true ("flac",      server_asr_audio_container_supported(write("a.flac", "fLaC____")));
+    t.assert_true ("id3",       server_asr_audio_container_supported(write("a.mp3",  "ID3_____")));
+    t.assert_true ("mp3 sync",  server_asr_audio_container_supported(write("b.mp3",  std::string("\xFF\xFB", 2) + "____")));
+
+    t.assert_true ("m4a is rejected", !server_asr_audio_container_supported(write("a.m4a", "____ftypM4A ")));
+    t.assert_true ("empty is rejected", !server_asr_audio_container_supported(write("empty.bin", "")));
+    t.assert_true ("missing is rejected", !server_asr_audio_container_supported((dir / "nope.wav").string()));
+}
+
+//
 // offline chunk planning
 //
 
@@ -1128,6 +1153,7 @@ int main(int argc, char ** argv) {
     t.test("count_context_tokens",  test_count_context_tokens);
     t.test("upload_parse",          test_upload_parse);
     t.test("upload_errors",         test_upload_errors);
+    t.test("audio_container",       test_audio_container);
     t.test("job_happy_path",        test_job_happy_path);
     t.test("job_pause_and_resume",  test_job_pause_and_resume);
     t.test("job_cancel",            test_job_cancel);

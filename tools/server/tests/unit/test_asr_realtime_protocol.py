@@ -63,6 +63,8 @@ def test_session_is_append_only(server):
         assert "".join(["hello"] + deltas) == "hello world"
         assert finished["audio_ms"] == 200
         assert finished["usage"]["decode_steps"] >= 2
+        assert finished["language"] == "English"
+        assert finished["language_code"] == "en"
 
 
 def test_second_session_is_busy(server):
@@ -78,6 +80,9 @@ def test_second_session_is_busy(server):
         first.send(json.dumps({"type": "session.cancel"}))
         cancelled = json.loads(first.recv())
         assert cancelled["type"] == "session.cancelled"
+        # a cancelled session still reports what it did
+        assert cancelled["usage"]["audio_ms"] == 0
+        assert cancelled["language"] == "English"
 
 
 def test_invalid_sample_rate(server):

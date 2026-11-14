@@ -1,5 +1,7 @@
 #include "server-asr-offline.h"
 
+#include "server-asr-audio.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -28,6 +30,12 @@ bool server_asr_fake_runner::probe(const std::string & audio_path, int64_t & aud
     std::error_code ec;
     if (audio_path.empty() || !std::filesystem::exists(audio_path, ec)) {
         err = { "invalid_audio", "the audio file is missing", "file" };
+        return false;
+    }
+
+    // the fake audio body still has to look like a container
+    if (!server_asr_audio_container_supported(audio_path)) {
+        err = { "unsupported_audio_format", "the audio must be WAV, MP3 or FLAC", "file" };
         return false;
     }
 
@@ -199,7 +207,6 @@ void server_asr_compute_chunk_ranges(
         start = cut;
     }
 }
-#include "server-asr-audio.h"
 #include "server-asr-engine.h"
 
 #include "mtmd-helper.h"
@@ -252,6 +259,11 @@ public:
 
     bool probe(const std::string & audio_path, int64_t & audio_total_ms, server_asr_error & err) override {
         err = {};
+
+        if (!server_asr_audio_container_supported(audio_path)) {
+            err = { "unsupported_audio_format", "the audio must be WAV, MP3 or FLAC", "file" };
+            return false;
+        }
 
         server_asr_audio audio;
         if (!audio.open(audio_path, 16000, err)) {

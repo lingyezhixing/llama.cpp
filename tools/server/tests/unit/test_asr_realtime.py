@@ -81,6 +81,60 @@ def test_one_minute_stream(server):
         assert event["language"]
         assert event["language_code"]
 
+    # the hint is forced, so no detection event, but the session reports it
+    assert finished["language"] == "English"
+    assert finished["language_code"] == "en"
+
+
+def test_detected_language_is_reported(server):
+    """without a hint the model announces the language, and the server relays it"""
+    from websockets.sync.client import connect
+
+    with open(AUDIO, "rb") as f:
+        wav = loop_wav(f.read(), 10)
+
+    deltas = []
+    language_events = []
+    finished = None
+
+    with connect(f"ws://127.0.0.1:{server}/v1/asr/realtime", open_timeout=15, max_size=None) as ws:
+        ws.send(json.dumps({"type": "session.start", "stability": "low_latency"}))
+        assert json.loads(ws.recv())["type"] == "session.started"
+
+        for frame in frames(wav, 10):
+            ws.send(frame)
+
+        ws.send(json.dumps({"type": "session.finish"}))
+        while finished is None:
+            message = json.loads(ws.recv())
+            if message["type"] == "transcript.delta":
+                deltas.append(message["text"])
+            elif message["type"] == "transcript.language":
+                language_events.append(message)
+            elif message["type"] == "session.finished":
+                finished = message
+            elif message["type"] == "error":
+                raise AssertionError(message)
+
+    assert "".join(deltas).strip()
+    assert finished["language"], finished
+    assert finished["language_code"], finished
+
+    # the announcement comes before the first delta of the segment
+    assert language_events, finished
+    assert language_events[0]["language"] == finished["language"]
+
+
+def test_context_too_small_is_rejected():
+    with run_server(env_overrides={"QWEN3_ASR_CTX": "1024"}) as port:
+        from websockets.sync.client import connect
+
+        with connect(f"ws://127.0.0.1:{port}/v1/asr/realtime", open_timeout=30) as ws:
+            ws.send(json.dumps({"type": "session.start", "context": " x" * 700}))
+            message = json.loads(ws.recv())
+            assert message["type"] == "error"
+            assert message["code"] == "context_too_small", message
+
 @pytest.mark.slow
 @pytest.mark.heavy
 def test_ten_minute_stream(server):

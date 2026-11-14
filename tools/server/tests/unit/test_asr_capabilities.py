@@ -264,6 +264,11 @@ def test_offline_job_validation():
         assert status == 400
         assert body["error"]["code"] == "context_too_long"
 
+        # only wav, mp3 and flac are decoded, the container decides
+        status, body = post({"file": ("a.m4a", b"\x00\x00\x00\x20ftypM4A ")})
+        assert status == 400
+        assert body["error"]["code"] == "unsupported_audio_format"
+
 
 def test_offline_job_cancel_running():
     with run_server([], {**FAKE_ENV, "LLAMA_SERVER_ASR_FAKE_STEP_MS": "1500"}) as port:

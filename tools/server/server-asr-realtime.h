@@ -29,6 +29,8 @@ struct server_asr_realtime_update {
 struct server_asr_realtime_stats {
     int64_t          processing_ms = 0;
     server_asr_usage usage;
+    std::string      language;      // detected, or the forced hint
+    std::string      language_code;
 };
 
 class server_asr_realtime_runner {
@@ -43,6 +45,9 @@ public:
 
     virtual bool finish(server_asr_realtime_update & update, server_asr_realtime_stats & stats,
                         server_asr_error & err) = 0;
+
+    // snapshot, so a cancelled session can still report its usage
+    virtual void snapshot(server_asr_realtime_stats & out) const = 0;
 
     virtual void cancel() = 0;
 };
@@ -99,6 +104,7 @@ public:
               server_asr_error & err) override;
     bool finish(server_asr_realtime_update & update, server_asr_realtime_stats & stats,
                 server_asr_error & err) override;
+    void snapshot(server_asr_realtime_stats & out) const override;
     void cancel() override;
 
 private:

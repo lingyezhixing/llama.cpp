@@ -17,6 +17,12 @@ namespace {
 constexpr int64_t REALTIME_DECODE_INTERVAL_MS = 1000;
 constexpr int32_t REALTIME_MAX_NEW_TOKENS     = 32;
 
+// context budget, same rates as the offline planner (design section 8.7)
+constexpr int64_t ASR_AUDIO_TOKENS_PER_SEC = 13;
+constexpr int64_t ASR_TEXT_TOKENS_PER_SEC  = 7;
+constexpr int64_t ASR_PROMPT_OVERHEAD      = 64;
+constexpr int64_t ASR_CARRY_TEXT_TOKENS    = 64;
+
 struct gen_result {
     std::vector<llama_token> tokens;
     int64_t prompt_tokens = 0;
@@ -81,7 +87,6 @@ public:
 
         audio_ms          = 0;
         processed_audio_ms = 0;
-        processing_ms     = 0;
         pending_utf8.clear();
         segment_start_ms  = 0;
         segment_max_ms    = server_asr_realtime_segment_max_ms(config.stability);
@@ -89,7 +94,12 @@ public:
         committed_ids.clear();
 
         usage = {};
-        steps = 0;
+
+        language.clear();
+        language_code.clear();
+        if (!forced.empty()) {
+            language = server_asr_normalize_language(forced, &language_code);
+        }
 
         if (engine->ensure_context(err) == nullptr) {
             return false;
@@ -99,6 +109,23 @@ public:
         llama_memory_clear(llama_get_memory(ctx), true);
 
         const llama_vocab * vocab = engine->vocab();
+
+        // shorten the segment when the context cannot hold the preset length
+        const int32_t n_ctx = (int32_t) llama_n_ctx(ctx);
+        const int32_t context_tokens = server_asr_count_context_tokens(vocab, config.context);
+        const int64_t budget = (int64_t) (n_ctx * 0.85);
+
+        const int64_t min_audio_ms = 5000;
+        const int64_t min_needed = min_audio_ms / 1000 * (ASR_AUDIO_TOKENS_PER_SEC + ASR_TEXT_TOKENS_PER_SEC) +
+            ASR_PROMPT_OVERHEAD + ASR_CARRY_TEXT_TOKENS + context_tokens;
+        if (min_needed > budget) {
+            err = { "context_too_small", "the context size cannot hold a realtime segment", "context" };
+            return false;
+        }
+
+        const int64_t room_ms = (budget - ASR_PROMPT_OVERHEAD - ASR_CARRY_TEXT_TOKENS - context_tokens) * 1000 /
+            (ASR_AUDIO_TOKENS_PER_SEC + ASR_TEXT_TOKENS_PER_SEC);
+        segment_max_ms = std::min(segment_max_ms, std::max(room_ms, min_audio_ms));
 
         metadata_tokens = common_tokenize(vocab, "<asr_text>", false, true);
         if (metadata_tokens.size() != 1) {
@@ -153,12 +180,18 @@ public:
         // commit everything that is left: the stream ends here
         flush_remaining(update);
 
-        stats.processing_ms = (int64_t) std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::steady_clock::now() - started_at).count();
-        stats.usage = usage;
-        stats.usage.audio_ms = audio_ms;
+        snapshot(stats);
 
         return true;
+    }
+
+    void snapshot(server_asr_realtime_stats & out) const override {
+        out.processing_ms = (int64_t) std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - started_at).count();
+        out.usage = usage;
+        out.usage.audio_ms = audio_ms;
+        out.language       = language;
+        out.language_code  = language_code;
     }
 
     void cancel() override {
@@ -172,6 +205,8 @@ private:
 
     server_asr_realtime_config config;
     std::string forced;
+    std::string language;      // detected, or the forced hint
+    std::string language_code;
     int32_t     holdback = 8;
 
     std::vector<float> segment_audio;
@@ -192,8 +227,6 @@ private:
 
     int64_t audio_ms           = 0;
     int64_t processed_audio_ms = 0;
-    int64_t processing_ms      = 0;
-    int64_t steps              = 0;
 
     server_asr_usage usage;
 
@@ -478,6 +511,22 @@ private:
 
         gen.capped = gen.generated >= REALTIME_MAX_NEW_TOKENS;
 
+        // the model announces its language at the start of a segment, and a hint
+        // suppresses that metadata, so only auto-detection reaches this branch
+        if (forced.empty() && commit.prompt_prefix_tokens.empty()) {
+            const server_asr_parse_result parsed =
+                server_asr_parse_output(common_detokenize(vocab, gen.tokens, false), "");
+
+            if (!parsed.language.empty() && parsed.language != language) {
+                language      = parsed.language;
+                language_code = parsed.language_code;
+
+                update.language_changed = true;
+                update.language         = language;
+                update.language_code    = language_code;
+            }
+        }
+
         // stable commit: only the common prefix with the previous decode is safe
         std::vector<llama_token> text_tokens =
             strip_metadata(gen.tokens, metadata_id, !forced.empty(), commit.prompt_prefix_tokens.empty());
@@ -524,7 +573,6 @@ private:
         usage.total_tokens   = usage.input_tokens + usage.output_tokens;
         usage.decode_steps  += 1;
 
-        steps++;
         processed_audio_ms = audio_ms;
         (void) flush;
 

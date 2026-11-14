@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 
 // miniaudio pulls in windows.h, which would define min/max macros
@@ -44,6 +45,32 @@ struct server_asr_audio::impl {
         return true;
     }
 };
+
+bool server_asr_audio_container_supported(const std::string & path) {
+    FILE * f = fopen(path.c_str(), "rb");
+    if (f == nullptr) {
+        return false;
+    }
+
+    unsigned char head[12] = {0};
+    const size_t n = fread(head, 1, sizeof(head), f);
+    fclose(f);
+
+    if (n >= 12 && std::memcmp(head, "RIFF", 4) == 0 && std::memcmp(head + 8, "WAVE", 4) == 0) {
+        return true; // wav
+    }
+    if (n >= 4 && std::memcmp(head, "fLaC", 4) == 0) {
+        return true; // flac
+    }
+    if (n >= 3 && std::memcmp(head, "ID3", 3) == 0) {
+        return true; // mp3 with an ID3 tag
+    }
+    if (n >= 2 && head[0] == 0xFF && (head[1] & 0xE0) == 0xE0) {
+        return true; // mp3 frame sync
+    }
+
+    return false;
+}
 
 server_asr_audio::server_asr_audio() : pimpl(std::make_unique<impl>()) {}
 

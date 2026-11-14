@@ -70,6 +70,8 @@ server-asr-api（/v1/asr/* handler）、server-http 的 post_stream。
 - 抢占：280 s 任务运行中开实时，0.06 s 内 paused，结束后回到 running 并 succeeded，
   processing_ms 不含暂停。
 - 回归：/v1/chat/completions 带 input_audio、/v1/audio/transcriptions、离线任务运行中再发聊天，3 passed。
+- spec 审计补齐（Task 14 之后）：实时 transcript.language 与 session.finished.language、session.cancelled.usage、
+  实时 context_too_small 预算检查、unsupported_audio_format；非 heavy 全套 25 passed。
 - 环境变量：QWEN3_ASR_MODEL、QWEN3_ASR_MMPROJ、QWEN3_ASR_ALIGNER_MODEL、QWEN3_ASR_ALIGNER_MMPROJ、
   QWEN3_ASR_AUDIO、QWEN3_ASR_ALIGN_AUDIO、QWEN3_ASR_DEVICE=CUDA0。
 - 性能（0.6B q8，RTX 4060）：30 s 音频离线 0.9 s；离线约 0.03 s / 音频秒；实时约 0.16 s / 音频秒。

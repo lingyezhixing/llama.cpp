@@ -970,7 +970,7 @@ HTTP:
 | `asr_not_supported` | 501 | Loaded model is not Qwen3-ASR. |
 | `timestamps_not_available` | 400 | `timestamps=true` but no aligner loaded. |
 | `unsupported_language` | 400 | Language is not in the model's supported list. |
-| `unsupported_audio_format` | 400 | Audio container or codec is not supported by this build. |
+| `unsupported_audio_format` | 400 | The first bytes are not a WAV, MP3 or FLAC container. |
 | `invalid_audio` | 400 | File cannot be decoded. |
 | `invalid_timestamps` | 400 | `timestamps` is not a boolean. |
 | `invalid_multipart` | 400 | The upload body is not a valid multipart/form-data body. |
@@ -981,7 +981,7 @@ HTTP:
 | `queue_full` | 429 | Offline queue is full. |
 | `storage_full` | 507 | Temp storage cannot hold the upload. |
 | `job_not_found` | 404 | Unknown job id. |
-| `job_not_cancellable` | 409 | Job already terminal. |
+| `job_not_cancellable` | 409 | Unused: a terminal job is removed with `204` instead, see 7.2.5. |
 | `context_too_small` | 400 | `-c` is too small for the requested mode. |
 | `output_limit_reached` | 422 | A chunk hit the generation cap twice. |
 | `aligner_audio_too_long` | 500 | Internal chunking error: aligner input exceeded 180 s. |
@@ -997,7 +997,7 @@ WebSocket:
 | `unsupported_language` | yes | Language hint is invalid. |
 | `context_too_long` | yes | `context` exceeds the 1024 token cap. |
 | `context_too_small` | yes | `-c` cannot hold a realtime segment. |
-| `decode_stalled` | yes | Repeated decode steps hit the generation cap. |
+| `decode_stalled` | yes | Reserved: v1 lets the next decode continue the text instead of failing. |
 | `internal_error` | yes | Unexpected failure. |
 
 HTTP ASR endpoint errors use the `{"error":{...}}` shape. WebSocket errors use the `{"type":"error",...}` shape.
