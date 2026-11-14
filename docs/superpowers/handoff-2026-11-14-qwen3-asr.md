@@ -5,7 +5,7 @@ Spec: docs/superpowers/specs/2026-11-13-qwen3-asr-design.md
 
 ## 状态
 
-Task 1-13 完成并提交；Task 14 未开始。工作区干净。
+Task 1-14 全部完成并提交；spec 第 13 节的成功标准已逐条核对（两项 1.7B 延迟目标因本机只有 0.6B 未测）。工作区干净。
 
 | Task | 提交 | 内容 |
 |---|---|---|
@@ -22,7 +22,8 @@ Task 1-13 完成并提交；Task 14 未开始。工作区干净。
 | 11 | 280c5f785 | 实时重解码与稳定提交 |
 | 12 | 8520935b0 | 长流段重置 |
 | 13a | e9ebda430 | 离线/实时上下文互斥 |
-| 13b | 待提交 | 实时抢占离线的门控测试 |
+| 13b | 66bc7e453 | 实时抢占离线的门控测试 |
+| 14 | 7705a9447 | 2 小时离线 / 1 小时实时 / 既有端点回归 / README 与 spec 文档 |
 
 ## 环境要点
 
@@ -62,21 +63,25 @@ server-asr-api（/v1/asr/* handler）、server-http 的 post_stream。
 
 ## 验证（实测通过）
 
-- C++：ctest -R test-asr 3/3；test-asr 181+ 断言无需模型。
-- Python：capabilities 6 passed/1 skipped；offline 5 passed；aligner_api 2 passed；
-  realtime_protocol 4 passed；realtime 2 passed（含 10 分钟流，102 s）。
+- C++：ctest -L behavior -R "test-asr|test-asr-aligner" 3/3；test-asr 181+ 断言无需模型。
+- Python 非 heavy 全套（--confcutdir=tools/server/tests/unit -m "not heavy"）：23 passed，73 s。
+- Heavy：2 小时离线 258 s（220 MiB 上传、>=20 chunk）；1 小时实时 571 s（3600 次解码）；
+  10 分钟实时 102 s。
+- 抢占：280 s 任务运行中开实时，0.06 s 内 paused，结束后回到 running 并 succeeded，
+  processing_ms 不含暂停。
+- 回归：/v1/chat/completions 带 input_audio、/v1/audio/transcriptions、离线任务运行中再发聊天，3 passed。
 - 环境变量：QWEN3_ASR_MODEL、QWEN3_ASR_MMPROJ、QWEN3_ASR_ALIGNER_MODEL、QWEN3_ASR_ALIGNER_MMPROJ、
   QWEN3_ASR_AUDIO、QWEN3_ASR_ALIGN_AUDIO、QWEN3_ASR_DEVICE=CUDA0。
-- 性能：30 s 音频离线 0.9 s；实时 1 分钟流约 13 s。
+- 性能（0.6B q8，RTX 4060）：30 s 音频离线 0.9 s；离线约 0.03 s / 音频秒；实时约 0.16 s / 音频秒。
 
-## 未完成
+## 收尾建议
 
-1. Task 14：2 小时离线（上传 >100 MiB、无 413）、1 小时实时、现有音频与聊天回归、
-   更新 docs/multimodal.md 与 tools/server/README.md。
-2. 收尾：对照 spec 第 13 节成功标准后标记 complete。
+- 两项 1.7B 延迟目标未测（本机无 1.7B 权重）：可按 spec 13 节用 --hf 拉 1.7B Q8 复测。
+- 后续可选：日/韩分词细化、v1 之后的重复文本清理。
 
 ## 已知限制
 
 - 日/韩分词为逐字近似；v1 不做重复文本清理。
 - 对齐器单次 <=180 s；时间戳模式 chunk 上限由两个上下文共同决定。
 - ASR 不经过 router（统一 501）；仅 WAV/MP3/FLAC；CPU 可跑但慢。
+- 1.7B 模型的延迟目标未实测。
