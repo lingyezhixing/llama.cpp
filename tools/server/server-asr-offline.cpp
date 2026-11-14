@@ -373,6 +373,15 @@ public:
                 state.result.language_code = chunk.language_code;
             }
 
+            if (input.timestamps) {
+                if (!align_chunk(input, chunk.text, samples, ranges[i].start_ms, state, cancel, err)) {
+                    if (cancel.load()) {
+                        return server_asr_run_status::CANCELLED;
+                    }
+                    return server_asr_run_status::FAILED;
+                }
+            }
+
             state.usage.input_tokens  += chunk.usage.input_tokens;
             state.usage.output_tokens += chunk.usage.output_tokens;
             state.usage.total_tokens  += chunk.usage.total_tokens;
@@ -391,6 +400,47 @@ public:
 private:
     server_asr_engine * engine;
     int32_t             aligner_ctx = 0;
+
+    // maps one chunk's text to absolute item spans and adds the aligner usage
+    bool align_chunk(
+            const server_asr_job_input & input,
+            const std::string & text,
+            const std::vector<float> & samples,
+            int64_t audio_offset_ms,
+            server_asr_run_state & state,
+            const std::atomic<bool> & cancel,
+            server_asr_error & err) const {
+        server_asr_aligner * aligner = engine->aligner();
+        if (aligner == nullptr) {
+            err = { "timestamps_not_available", "timestamps requested but no aligner model is loaded", "timestamps" };
+            return false;
+        }
+
+        if (text.empty()) {
+            return true;
+        }
+
+        server_asr_align_request request;
+        request.samples   = samples.data();
+        request.n_samples = samples.size();
+        request.text      = text;
+        request.language  = server_asr_normalize_language(input.language);
+
+        server_asr_align_result result;
+        if (!aligner->align(request, result, cancel, err)) {
+            return false;
+        }
+
+        for (auto & item : result.items) {
+            item.start_ms += audio_offset_ms;
+            item.end_ms   += audio_offset_ms;
+            state.result.items.push_back(item);
+        }
+
+        state.usage.add(result.usage);
+
+        return true;
+    }
 
     chunk_status transcribe_chunk(
             llama_context * ctx,
