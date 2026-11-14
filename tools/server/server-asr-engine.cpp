@@ -1,5 +1,8 @@
 #include "server-asr-engine.h"
 
+#include "server-asr-offline.h"
+
+#include <cstdlib>
 #include <cstring>
 
 static bool detect_qwen3_asr(llama_model * model, mtmd_context * mctx) {
@@ -29,13 +32,17 @@ struct server_asr_engine::impl {
     server_asr_capabilities caps;
     bool supported = false;
 
-    std::unique_ptr<server_asr_aligner> aligner;
+    const llama_vocab * vocab = nullptr;
+
+    std::unique_ptr<server_asr_aligner>    aligner;
+    std::unique_ptr<server_asr_fake_runner> fake_runner; // test mode only
+    std::unique_ptr<server_asr_job_manager> jobs;
 };
 
 server_asr_engine::server_asr_engine() : pimpl(std::make_unique<impl>()) {}
 
 server_asr_engine::~server_asr_engine() {
-    pimpl->aligner.reset();
+    terminate();
 }
 
 bool server_asr_engine::init(const server_asr_config & config, server_asr_error & err) {
@@ -58,6 +65,7 @@ bool server_asr_engine::init(const server_asr_config & config, server_asr_error 
     }
 
     pimpl->supported = true;
+    pimpl->vocab     = config.vocab;
 
     pimpl->caps.offline       = true;
     pimpl->caps.realtime      = true;
@@ -84,6 +92,14 @@ bool server_asr_engine::init(const server_asr_config & config, server_asr_error 
 
     pimpl->caps.timestamps = pimpl->aligner != nullptr;
 
+    // the fake runner keeps the API testable without a model; it is never a
+    // documented flag, only this environment variable turns it on
+    const char * fake = std::getenv("LLAMA_SERVER_ASR_FAKE_RUNNER");
+    if (fake != nullptr && std::strcmp(fake, "1") == 0) {
+        pimpl->fake_runner = std::make_unique<server_asr_fake_runner>();
+        pimpl->jobs        = std::make_unique<server_asr_job_manager>(pimpl->fake_runner.get());
+    }
+
     return true;
 }
 
@@ -99,7 +115,19 @@ server_asr_aligner * server_asr_engine::aligner() const {
     return pimpl->aligner.get();
 }
 
+server_asr_job_manager * server_asr_engine::jobs() const {
+    return pimpl->jobs.get();
+}
+
+const llama_vocab * server_asr_engine::vocab() const {
+    return pimpl->vocab;
+}
+
 void server_asr_engine::terminate() {
+    // the job manager joins its worker; the aligner and model pointers must
+    // outlive it
+    pimpl->jobs.reset();
+    pimpl->fake_runner.reset();
     pimpl->aligner.reset();
     pimpl->supported = false;
     pimpl->caps = {};

@@ -126,6 +126,9 @@ int32_t server_asr_count_context_tokens(const llama_vocab * vocab, const std::st
 // wall clock, e.g. 2026-11-13T16:00:00Z
 std::string server_asr_now_rfc3339();
 
+// wall clock shifted by a duration, used for optimistic end estimates
+std::string server_asr_rfc3339_after_ms(int64_t offset_ms);
+
 // the 30 languages Qwen3-ASR supports, in the order /props reports them
 std::vector<std::string> server_asr_supported_languages();
 

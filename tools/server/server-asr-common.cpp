@@ -199,14 +199,12 @@ int32_t server_asr_count_context_tokens(const llama_vocab * vocab, const std::st
     return (int32_t) tokens.size();
 }
 
-std::string server_asr_now_rfc3339() {
-    const std::time_t now = std::time(nullptr);
-
+static std::string format_rfc3339(std::time_t t) {
     std::tm tm_utc = {};
 #if defined(_WIN32)
-    gmtime_s(&tm_utc, &now);
+    gmtime_s(&tm_utc, &t);
 #else
-    gmtime_r(&now, &tm_utc);
+    gmtime_r(&t, &tm_utc);
 #endif
 
     char buf[32];
@@ -214,6 +212,14 @@ std::string server_asr_now_rfc3339() {
             tm_utc.tm_year + 1900, tm_utc.tm_mon + 1, tm_utc.tm_mday,
             tm_utc.tm_hour, tm_utc.tm_min, tm_utc.tm_sec);
     return buf;
+}
+
+std::string server_asr_rfc3339_after_ms(int64_t offset_ms) {
+    return format_rfc3339(std::time(nullptr) + (std::time_t) (offset_ms / 1000));
+}
+
+std::string server_asr_now_rfc3339() {
+    return format_rfc3339(std::time(nullptr));
 }
 
 std::vector<std::string> server_asr_supported_languages() {

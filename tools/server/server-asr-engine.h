@@ -4,6 +4,7 @@
 
 #include "server-asr-align.h"
 #include "server-asr-common.h"
+#include "server-asr-job.h"
 
 #include <memory>
 #include <string>
@@ -37,6 +38,11 @@ public:
     const server_asr_capabilities & capabilities() const;
 
     server_asr_aligner * aligner() const;
+
+    // null when no offline pipeline is wired; the fake runner is used in tests
+    server_asr_job_manager * jobs() const;
+
+    const llama_vocab * vocab() const;
 
     void terminate();
 

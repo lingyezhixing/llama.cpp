@@ -19,6 +19,10 @@ add_library(${TARGET} STATIC
     server-asr-api.h
     server-asr-engine.cpp
     server-asr-engine.h
+    server-asr-job.cpp
+    server-asr-job.h
+    server-asr-offline.cpp
+    server-asr-offline.h
     server-asr-common.cpp
     server-asr-common.h
     server-asr-upload.cpp

@@ -475,6 +475,275 @@ static void test_upload_errors(testing & t) {
     t.assert_equal("raw body code",     std::string("invalid_multipart"), err.code);
 }
 
+
+//
+// offline job manager
+//
+
+#include "server-asr-job.h"
+
+#include <chrono>
+#include <fstream>
+#include <thread>
+
+// configurable runner so the manager can be tested without a model
+namespace {
+
+struct test_runner : server_asr_offline_runner {
+    int  chunks    = 3;
+    int  step_ms   = 5;
+    bool fail      = false;
+    bool probe_bad = false;
+
+    std::atomic<bool> gate{false};   // blocks the first chunk until opened
+    std::atomic<int>  runs{0};
+
+    bool probe(const std::string & audio_path, int64_t & audio_total_ms, server_asr_error & err) override {
+        if (probe_bad) {
+            err = { "invalid_audio", "the audio cannot be decoded", "file" };
+            return false;
+        }
+        if (audio_path.empty()) {
+            err = { "invalid_audio", "no audio path", "file" };
+            return false;
+        }
+        audio_total_ms = chunks * 100000;
+        return true;
+    }
+
+    server_asr_run_status run(
+            const server_asr_job_input & input,
+            server_asr_run_state & state,
+            const std::atomic<bool> & cancel,
+            const std::function<bool()> & pause_requested,
+            const std::function<void(int64_t, const server_asr_usage &)> & progress,
+            server_asr_error & err) override {
+        runs++;
+        if (!gate.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+        }
+
+        while (state.next_chunk < (size_t) chunks) {
+            if (cancel.load()) {
+                return server_asr_run_status::CANCELLED;
+            }
+            if (pause_requested()) {
+                return server_asr_run_status::PAUSED;
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(step_ms));
+
+            state.next_chunk++;
+            state.audio_processed_ms = (int64_t) state.next_chunk * 100000;
+            state.usage.audio_ms      = state.audio_processed_ms;
+            state.usage.chunks        = (int64_t) state.next_chunk;
+            state.usage.input_tokens += 10;
+            state.usage.output_tokens += 2;
+            state.usage.total_tokens  = state.usage.input_tokens + state.usage.output_tokens;
+            state.result.text          = "test " + input.language;
+            state.result.language      = input.language;
+            state.result.language_code = "en";
+
+            progress(state.audio_processed_ms, state.usage);
+
+            if (fail && state.next_chunk == (size_t) chunks) {
+                err = { "output_limit_reached", "the chunk hit the generation cap twice", "" };
+                return server_asr_run_status::FAILED;
+            }
+        }
+
+        return server_asr_run_status::DONE;
+    }
+};
+
+static std::string make_test_audio(const std::string & name) {
+    const auto dir = std::filesystem::temp_directory_path() / "llama-test-asr-jobs";
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    const auto path = dir / name;
+    std::ofstream(path, std::ios::binary) << "audio";
+    return path.string();
+}
+
+static bool wait_for_status(server_asr_job_manager & mgr, const std::string & id,
+                            server_asr_job_status want, int timeout_ms = 5000) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+    while (std::chrono::steady_clock::now() < deadline) {
+        server_asr_job_view view;
+        server_asr_error err;
+        if (mgr.get(id, view, err) && view.status == want) {
+            return true;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    return false;
+}
+
+} // namespace
+
+static void test_job_happy_path(testing & t) {
+    test_runner runner;
+    runner.gate.store(true);
+
+    server_asr_job_manager mgr(&runner);
+
+    server_asr_job_input input;
+    input.audio_path = make_test_audio("happy.wav");
+    input.language   = "Chinese";
+
+    server_asr_error err;
+    const std::string id = mgr.submit(std::move(input), err);
+    t.assert_true("submitted", !id.empty());
+    t.assert_true("id prefix", id.rfind("asr_", 0) == 0);
+
+    t.assert_true("reaches success", wait_for_status(mgr, id, server_asr_job_status::SUCCEEDED));
+
+    server_asr_job_view view;
+    t.assert_true("get works", mgr.get(id, view, err));
+
+    t.assert_equal("object",     std::string("asr.transcription"), server_asr_job_json(view).at("object").get<std::string>());
+    t.assert_equal("text",       std::string("test Chinese"), view.result.text);
+    t.assert_equal("audio done", (int) 300000, (int) view.audio_processed_ms);
+    t.assert_equal("total",      (int) 300000, (int) view.audio_total_ms);
+    t.assert_true ("usage",      view.has_usage && view.usage.chunks == 3);
+    t.assert_true ("started",    !view.timing.started_at.empty());
+    t.assert_true ("finished",   !view.timing.finished_at.empty());
+    t.assert_equal("no eta",     (int) 0, (int) view.timing.eta_ms);
+
+    // a finished job is retained until it is deleted
+    t.assert_equal("delete terminal", (int) server_asr_cancel_result::DELETED,
+                   (int) mgr.cancel(id, err));
+    t.assert_true("gone", !mgr.get(id, view, err));
+    t.assert_equal("not found code", std::string("job_not_found"), err.code);
+}
+
+static void test_job_pause_and_resume(testing & t) {
+    test_runner runner;
+    runner.step_ms = 30;
+
+    server_asr_job_manager mgr(&runner);
+
+    server_asr_job_input input;
+    input.audio_path = make_test_audio("pause.wav");
+
+    server_asr_error err;
+    const std::string id = mgr.submit(std::move(input), err);
+    t.assert_true("submitted", !id.empty());
+
+    t.assert_true("running", wait_for_status(mgr, id, server_asr_job_status::RUNNING));
+
+    // realtime takes the context: the job must pause at the next chunk boundary
+    mgr.set_realtime_active(true);
+    t.assert_true("paused", wait_for_status(mgr, id, server_asr_job_status::PAUSED));
+
+    server_asr_job_view view;
+    mgr.get(id, view, err);
+    t.assert_equal("paused reason", std::string("realtime_priority"), view.paused_reason);
+    t.assert_true ("paused at",     !view.timing.paused_at.empty());
+    t.assert_equal("no eta while paused", (int) 0, (int) view.timing.eta_ms);
+
+    // an ETA needs a running job and at least one completed chunk
+    mgr.set_realtime_active(false);
+    t.assert_true("running again", wait_for_status(mgr, id, server_asr_job_status::RUNNING));
+    t.assert_true("finishes",      wait_for_status(mgr, id, server_asr_job_status::SUCCEEDED));
+
+    mgr.get(id, view, err);
+    t.assert_equal("resumed audio", (int) 300000, (int) view.audio_processed_ms);
+    t.assert_true ("paused_at cleared", view.timing.paused_at.empty());
+}
+
+static void test_job_cancel(testing & t) {
+    test_runner runner;
+    runner.step_ms = 30;
+
+    server_asr_job_manager mgr(&runner);
+
+    // queued: realtime keeps the worker away from the queue
+    mgr.set_realtime_active(true);
+
+    server_asr_job_input a;
+    a.audio_path = make_test_audio("cancel_a.wav");
+
+    server_asr_error err;
+    const std::string id_a = mgr.submit(std::move(a), err);
+    t.assert_true("queued job", wait_for_status(mgr, id_a, server_asr_job_status::QUEUED));
+
+    t.assert_equal("cancel queued", (int) server_asr_cancel_result::CANCELLED,
+                   (int) mgr.cancel(id_a, err));
+
+    server_asr_job_view view;
+    t.assert_true("still recorded", mgr.get(id_a, view, err));
+    t.assert_equal("cancelled", std::string("cancelled"), server_asr_status_name(view.status));
+
+    // running: the worker stops at the next safe point
+    mgr.set_realtime_active(false);
+
+    server_asr_job_input b;
+    b.audio_path = make_test_audio("cancel_b.wav");
+    const std::string id_b = mgr.submit(std::move(b), err);
+    t.assert_true("running job", wait_for_status(mgr, id_b, server_asr_job_status::RUNNING));
+
+    t.assert_equal("cancel running", (int) server_asr_cancel_result::CANCELLING,
+                   (int) mgr.cancel(id_b, err));
+    t.assert_true("cancelled eventually", wait_for_status(mgr, id_b, server_asr_job_status::CANCELLED));
+}
+
+static void test_job_errors(testing & t) {
+    test_runner runner;
+    runner.step_ms = 5;
+
+    server_asr_job_manager mgr(&runner, 1); // one job at a time, capacity one
+
+    server_asr_error err;
+
+    // probe failure is reported before the job exists
+    runner.probe_bad = true;
+    server_asr_job_input bad;
+    bad.audio_path = make_test_audio("bad.wav");
+    t.assert_true("probe failure", mgr.submit(std::move(bad), err).empty());
+    t.assert_equal("probe code", std::string("invalid_audio"), err.code);
+
+    runner.probe_bad = false;
+
+    // the runner failing is stored on the job
+    runner.fail = true;
+    server_asr_job_input failing;
+    failing.audio_path = make_test_audio("fail.wav");
+    const std::string id = mgr.submit(std::move(failing), err);
+    t.assert_true("failed", wait_for_status(mgr, id, server_asr_job_status::FAILED));
+
+    server_asr_job_view view;
+    mgr.get(id, view, err);
+    t.assert_equal("failed code", std::string("output_limit_reached"), view.error.code);
+
+    runner.fail = false;
+}
+
+static void test_job_queue_full(testing & t) {
+    test_runner runner;
+    runner.step_ms = 200;
+
+    server_asr_job_manager mgr(&runner, 1);
+
+    server_asr_job_input a;
+    a.audio_path = make_test_audio("full_a.wav");
+
+    server_asr_error err;
+    const std::string id = mgr.submit(std::move(a), err);
+    t.assert_true("first job", !id.empty());
+    t.assert_true("running", wait_for_status(mgr, id, server_asr_job_status::RUNNING));
+
+    server_asr_job_input b;
+    b.audio_path = make_test_audio("full_b.wav");
+    t.assert_true("queue full", mgr.submit(std::move(b), err).empty());
+    t.assert_equal("queue code", std::string("queue_full"), err.code);
+
+    // stop the worker quickly, the second upload is the caller's to remove
+    mgr.terminate();
+    std::error_code ec;
+    std::filesystem::remove(make_test_audio("full_b.wav"), ec);
+}
+
 int main(int argc, char ** argv) {
     testing t;
 
@@ -498,6 +767,11 @@ int main(int argc, char ** argv) {
     t.test("count_context_tokens",  test_count_context_tokens);
     t.test("upload_parse",          test_upload_parse);
     t.test("upload_errors",         test_upload_errors);
+    t.test("job_happy_path",        test_job_happy_path);
+    t.test("job_pause_and_resume",  test_job_pause_and_resume);
+    t.test("job_cancel",            test_job_cancel);
+    t.test("job_errors",            test_job_errors);
+    t.test("job_queue_full",        test_job_queue_full);
 
     return t.summary();
 }

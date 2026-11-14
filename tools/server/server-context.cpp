@@ -5975,16 +5975,16 @@ void server_routes::init_routes() {
     };
 
     this->post_asr_transcriptions = [this](const server_http_stream_req & req) {
-        return server_asr_post_transcription(req, meta->has_asr ? meta->asr : server_asr_capabilities{});
+        return server_asr_post_transcription(req, ctx_server.asr.get());
     };
     this->get_asr_transcription = [this](const server_http_req & req) {
-        return server_asr_get_transcription(req, meta->has_asr ? meta->asr : server_asr_capabilities{});
+        return server_asr_get_transcription(req, ctx_server.asr.get());
     };
     this->delete_asr_transcription = [this](const server_http_req & req) {
-        return server_asr_delete_transcription(req, meta->has_asr ? meta->asr : server_asr_capabilities{});
+        return server_asr_delete_transcription(req, ctx_server.asr.get());
     };
     this->ws_asr_realtime = [this](const server_http_req & req, server_http_context::ws_conn & conn) {
-        server_asr_ws_realtime(req, conn, meta->has_asr ? meta->asr : server_asr_capabilities{});
+        server_asr_ws_realtime(req, conn, ctx_server.asr.get());
     };
 
     this->get_props = [this](const server_http_req &) {
