@@ -66,6 +66,24 @@ struct server_asr_commit_state {
 // false when nothing new is safe, which is the common case early in a segment
 bool server_asr_stable_commit(server_asr_commit_state & state, size_t & emit_begin, size_t & emit_end);
 
+// segment length before a context reset, by stability preset
+int64_t server_asr_realtime_segment_max_ms(const std::string & stability);
+
+// finds a quiet run at least min_silence_ms long inside the search range
+// cut_ms is the end of that run, i.e. where the next segment starts
+bool server_asr_find_silence(const float * samples, size_t n_samples, int sample_rate,
+                             int64_t search_start_ms, int64_t search_end_ms,
+                             int64_t min_silence_ms, int64_t & cut_ms);
+
+// the lowest-energy 100 ms window inside the range, used when no silence exists
+int64_t server_asr_lowest_energy_window(const float * samples, size_t n_samples, int sample_rate,
+                                        int64_t search_start_ms, int64_t search_end_ms);
+
+// drops the duplication at a forced cut: the longest suffix of committed that
+// the continuation repeats at its start
+void server_asr_boundary_dedupe(const std::vector<llama_token> & committed,
+                                std::vector<llama_token> & continuation);
+
 // splits off trailing bytes that do not form a complete UTF-8 code point
 // returns the number of held bytes; they must be sent with the next span
 size_t server_asr_utf8_holdback(const std::string & text, std::string & complete);

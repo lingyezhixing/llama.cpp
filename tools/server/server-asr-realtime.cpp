@@ -428,3 +428,131 @@ size_t server_asr_utf8_holdback(const std::string & text, std::string & complete
     complete = text.substr(0, end - 1);
     return text.size() - complete.size();
 }
+//
+// segment resets
+//
+
+int64_t server_asr_realtime_segment_max_ms(const std::string & stability) {
+    if (stability == "low_latency") {
+        return 30 * 1000;
+    }
+    if (stability == "high_accuracy") {
+        return 60 * 1000;
+    }
+    return 45 * 1000; // balanced
+}
+
+namespace {
+
+constexpr int64_t SILENCE_WINDOW_MS = 30;
+
+// RMS of every window in [start, end), and the peak used as the speech level
+std::vector<float> window_energies(const float * samples, size_t n_samples, int sample_rate,
+                                   int64_t start_ms, int64_t end_ms, float & peak) {
+    std::vector<float> out;
+    peak = 0.0f;
+
+    const int64_t window_frames = (int64_t) sample_rate * SILENCE_WINDOW_MS / 1000;
+    if (window_frames <= 0 || samples == nullptr) {
+        return out;
+    }
+
+    const int64_t total_frames = (int64_t) n_samples;
+    int64_t start = start_ms * sample_rate / 1000;
+    int64_t end   = end_ms   * sample_rate / 1000;
+
+    start = std::max<int64_t>(0, start);
+    end   = std::min<int64_t>(total_frames, end);
+
+    for (int64_t pos = start; pos < end; pos += window_frames) {
+        const int64_t n = std::min<int64_t>(window_frames, end - pos);
+
+        double sum = 0.0;
+        for (int64_t i = 0; i < n; i++) {
+            const double v = samples[pos + i];
+            sum += v * v;
+        }
+
+        const float rms = (float) std::sqrt(sum / (double) n);
+        out.push_back(rms);
+        peak = std::max(peak, rms);
+    }
+
+    return out;
+}
+
+} // namespace
+
+bool server_asr_find_silence(const float * samples, size_t n_samples, int sample_rate,
+                             int64_t search_start_ms, int64_t search_end_ms,
+                             int64_t min_silence_ms, int64_t & cut_ms) {
+    float peak = 0.0f;
+    const std::vector<float> energy = window_energies(samples, n_samples, sample_rate,
+                                                      search_start_ms, search_end_ms, peak);
+    if (energy.empty() || peak <= 0.0f) {
+        return false;
+    }
+
+    const float threshold = peak * 0.1f;
+    const size_t needed = (size_t) std::max<int64_t>(1, min_silence_ms / SILENCE_WINDOW_MS);
+
+    size_t run = 0;
+    for (size_t i = 0; i < energy.size(); i++) {
+        if (energy[i] <= threshold) {
+            run++;
+            if (run >= needed) {
+                const int64_t windows_end = (int64_t) (i + 1);
+                cut_ms = (search_start_ms / SILENCE_WINDOW_MS) * SILENCE_WINDOW_MS
+                       + windows_end * SILENCE_WINDOW_MS;
+                return true;
+            }
+        } else {
+            run = 0;
+        }
+    }
+
+    return false;
+}
+
+int64_t server_asr_lowest_energy_window(const float * samples, size_t n_samples, int sample_rate,
+                                        int64_t search_start_ms, int64_t search_end_ms) {
+    float peak = 0.0f;
+    const std::vector<float> energy = window_energies(samples, n_samples, sample_rate,
+                                                      search_start_ms, search_end_ms, peak);
+    if (energy.empty()) {
+        return search_end_ms;
+    }
+
+    size_t best = 0;
+    for (size_t i = 1; i < energy.size(); i++) {
+        if (energy[i] < energy[best]) {
+            best = i;
+        }
+    }
+
+    return (search_start_ms / SILENCE_WINDOW_MS) * SILENCE_WINDOW_MS + (int64_t) best * SILENCE_WINDOW_MS;
+}
+
+void server_asr_boundary_dedupe(const std::vector<llama_token> & committed,
+                                std::vector<llama_token> & continuation) {
+    const size_t max_overlap = std::min(committed.size(), continuation.size());
+
+    size_t overlap = 0;
+    for (size_t k = max_overlap; k > 0; k--) {
+        bool match = true;
+        for (size_t i = 0; i < k; i++) {
+            if (committed[committed.size() - k + i] != continuation[i]) {
+                match = false;
+                break;
+            }
+        }
+        if (match) {
+            overlap = k;
+            break;
+        }
+    }
+
+    if (overlap > 0) {
+        continuation.erase(continuation.begin(), continuation.begin() + (ptrdiff_t) overlap);
+    }
+}

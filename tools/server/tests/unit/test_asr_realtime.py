@@ -68,6 +68,8 @@ def test_one_minute_stream(server):
     assert finished is not None
     joined = "".join(deltas)
     assert joined.strip(), "no text was produced"
+    # a minute of speech is far more than the first sentence
+    assert len(joined) > 200, joined
 
     usage = finished["usage"]
     assert usage["decode_steps"] >= 30
@@ -78,3 +80,43 @@ def test_one_minute_stream(server):
     for event in language_events:
         assert event["language"]
         assert event["language_code"]
+
+@pytest.mark.slow
+@pytest.mark.heavy
+def test_ten_minute_stream(server):
+    """long stream: resets keep the context bounded and the deltas append-only"""
+    from websockets.sync.client import connect
+
+    with open(AUDIO, "rb") as f:
+        wav = loop_wav(f.read(), 600)
+
+    deltas = []
+    finished = None
+
+    with connect(f"ws://127.0.0.1:{server}/v1/asr/realtime", open_timeout=15, max_size=None) as ws:
+        ws.send(json.dumps({"type": "session.start", "stability": "balanced"}))
+        assert json.loads(ws.recv())["type"] == "session.started"
+
+        for frame in frames(wav, 600):
+            ws.send(frame)
+
+        ws.send(json.dumps({"type": "session.finish"}))
+        while finished is None:
+            message = json.loads(ws.recv())
+            if message["type"] == "transcript.delta":
+                deltas.append(message["text"])
+            elif message["type"] == "session.finished":
+                finished = message
+            elif message["type"] == "error":
+                raise AssertionError(message)
+
+    joined = "".join(deltas)
+    assert joined.strip()
+    assert finished["audio_ms"] >= 599000
+
+    # the same sentence repeated by the loop should not be glued twice at a cut
+    assert "  " not in joined
+    assert len(joined) > 500
+
+    # the whole stream went through several segment resets
+    assert finished["usage"]["decode_steps"] >= 500

@@ -1059,6 +1059,52 @@ static void test_utf8_holdback(testing & t) {
     t.assert_equal("mixed complete", std::string("\xE4\xBD\xA0"), complete);
 }
 
+
+//
+// segment resets
+//
+
+static void test_reset_helpers(testing & t) {
+    t.assert_equal("low latency",   30000, (int) server_asr_realtime_segment_max_ms("low_latency"));
+    t.assert_equal("balanced",      45000, (int) server_asr_realtime_segment_max_ms("balanced"));
+    t.assert_equal("high accuracy", 60000, (int) server_asr_realtime_segment_max_ms("high_accuracy"));
+
+    // 5 s of speech with a 500 ms silence in the middle
+    const int32_t rate = 16000;
+    std::vector<float> samples((size_t) rate * 5, 0.2f);
+    const size_t silence_from = (size_t) rate * 2;
+    const size_t silence_to   = (size_t) rate * 2 + (size_t) rate / 2;
+    for (size_t i = silence_from; i < silence_to; i++) {
+        samples[i] = 0.0f;
+    }
+
+    int64_t cut = 0;
+    const bool found = server_asr_find_silence(samples.data(), samples.size(), rate, 0, 5000, 300, cut);
+    t.assert_true("silence found", found);
+    t.assert_true("cut inside the silence", cut >= 2000 && cut <= 2510);
+
+    // no silence in pure speech
+    std::vector<float> tone((size_t) rate * 2, 0.3f);
+    int64_t unused = 0;
+    t.assert_true("no silence", !server_asr_find_silence(tone.data(), tone.size(), rate, 0, 2000, 300, unused));
+
+    // the quietest 100 ms window is the silence itself
+    const int64_t low = server_asr_lowest_energy_window(samples.data(), samples.size(), rate, 0, 5000);
+    t.assert_true("low energy inside the silence", low >= 1900 && low <= 2500);
+
+    // boundary dedupe drops a repeated suffix/prefix pair
+    std::vector<llama_token> committed  = toks({1, 2, 3, 4, 5});
+    std::vector<llama_token> continuation = toks({4, 5, 6, 7});
+    server_asr_boundary_dedupe(committed, continuation);
+    t.assert_equal("dedupe size", (size_t) 2, continuation.size());
+    t.assert_equal("dedupe first", 6, (int) continuation[0]);
+
+    // no overlap leaves the continuation alone
+    std::vector<llama_token> other = toks({7, 8});
+    server_asr_boundary_dedupe(committed, other);
+    t.assert_equal("no overlap size", (size_t) 2, other.size());
+}
+
 int main(int argc, char ** argv) {
     testing t;
 
@@ -1093,6 +1139,7 @@ int main(int argc, char ** argv) {
     t.test("realtime_errors",       test_realtime_errors);
     t.test("stable_commit",         test_stable_commit);
     t.test("utf8_holdback",         test_utf8_holdback);
+    t.test("reset_helpers",         test_reset_helpers);
 
     return t.summary();
 }
