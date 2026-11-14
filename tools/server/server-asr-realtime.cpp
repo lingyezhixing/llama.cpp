@@ -349,3 +349,82 @@ void server_asr_ws_protocol(server_http_context::ws_conn & conn,
     });
     conn.close();
 }
+//
+// stable commit
+//
+
+int32_t server_asr_realtime_holdback_tokens(const std::string & stability) {
+    if (stability == "low_latency") {
+        return 5;
+    }
+    if (stability == "high_accuracy") {
+        return 12;
+    }
+    return 8; // balanced
+}
+
+bool server_asr_stable_commit(server_asr_commit_state & state, size_t & emit_begin, size_t & emit_end) {
+    const std::vector<llama_token> & raw  = state.segment_raw_tokens;
+    const std::vector<llama_token> & prev = state.prev_segment_raw_tokens;
+
+    size_t lcp = 0;
+    const size_t n = std::min(raw.size(), prev.size());
+    while (lcp < n && raw[lcp] == prev[lcp]) {
+        lcp++;
+    }
+
+    const size_t holdback = (size_t) std::max(0, state.holdback_tokens);
+    const size_t safe = raw.size() > holdback ? std::min(lcp, raw.size() - holdback) : 0;
+
+    const size_t base = state.segment_base_tokens.size();
+    const size_t begin = base + (size_t) state.emitted_in_segment;
+
+    if (safe <= begin) {
+        return false;
+    }
+
+    emit_begin = begin;
+    emit_end   = safe;
+    return true;
+}
+
+size_t server_asr_utf8_holdback(const std::string & text, std::string & complete) {
+    size_t end = text.size();
+
+    // walk back over continuation bytes (10xxxxxx); at most three of them
+    size_t back = 0;
+    while (back < 3 && end > 0 && ((unsigned char) text[end - 1] & 0xC0) == 0x80) {
+        end--;
+        back++;
+    }
+
+    if (end == 0) {
+        complete = text;
+        return 0;
+    }
+
+    const unsigned char lead = (unsigned char) text[end - 1];
+    size_t expected = 1;
+    if ((lead & 0x80) == 0x00) {
+        expected = 1;
+    } else if ((lead & 0xE0) == 0xC0) {
+        expected = 2;
+    } else if ((lead & 0xF0) == 0xE0) {
+        expected = 3;
+    } else if ((lead & 0xF8) == 0xF0) {
+        expected = 4;
+    } else {
+        // invalid lead byte, pass it through rather than stalling forever
+        complete = text;
+        return 0;
+    }
+
+    const size_t have = back + 1; // lead plus the continuation bytes already seen
+    if (have >= expected) {
+        complete = text;
+        return 0;
+    }
+
+    complete = text.substr(0, end - 1);
+    return text.size() - complete.size();
+}

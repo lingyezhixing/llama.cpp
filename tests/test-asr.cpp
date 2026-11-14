@@ -973,6 +973,92 @@ static void test_realtime_errors(testing & t) {
     }
 }
 
+
+//
+// realtime stable commit
+//
+
+using T = llama_token;
+
+static std::vector<T> toks(std::initializer_list<int> ids) {
+    std::vector<T> out;
+    for (int id : ids) {
+        out.push_back((T) id);
+    }
+    return out;
+}
+
+static void test_stable_commit(testing & t) {
+    t.assert_equal("low latency",   5,  server_asr_realtime_holdback_tokens("low_latency"));
+    t.assert_equal("balanced",      8,  server_asr_realtime_holdback_tokens("balanced"));
+    t.assert_equal("high accuracy", 12, server_asr_realtime_holdback_tokens("high_accuracy"));
+    t.assert_equal("unknown",       8,  server_asr_realtime_holdback_tokens(""));
+
+    // prefix + ABC against the same previous decode, holdback 5: nothing new is safe
+    {
+        server_asr_commit_state st;
+        st.segment_base_tokens      = toks({1, 2});
+        st.segment_raw_tokens       = toks({1, 2, 10, 11, 12});
+        st.prev_segment_raw_tokens  = toks({1, 2, 10, 11, 12});
+        st.holdback_tokens          = 5;
+
+        size_t begin = 0, end = 0;
+        t.assert_true("no commit inside holdback", !server_asr_stable_commit(st, begin, end));
+    }
+
+    // a divergence stops the commit at the longest common prefix
+    {
+        server_asr_commit_state st;
+        st.segment_raw_tokens      = toks({1, 2, 10, 11, 12, 13});
+        st.prev_segment_raw_tokens = toks({1, 2, 10, 11, 90, 91});
+        st.holdback_tokens         = 2;
+
+        size_t begin = 0, end = 0;
+        t.assert_true("commit through the LCP", server_asr_stable_commit(st, begin, end));
+        t.assert_equal("begin", (size_t) 0, begin);
+        t.assert_equal("end",   (size_t) 4, end);
+
+        st.emitted_in_segment = 4;
+        t.assert_true("pointer does not move again", !server_asr_stable_commit(st, begin, end));
+    }
+
+    // emitted tokens stay inside the fixed prefix of the next decode
+    {
+        server_asr_commit_state st;
+        st.segment_raw_tokens      = toks({10, 11, 12, 13, 14, 15});
+        st.prev_segment_raw_tokens = toks({10, 11, 12, 13, 14, 15});
+        st.holdback_tokens         = 2;
+
+        size_t begin = 0, end = 0;
+        t.assert_true("safe", server_asr_stable_commit(st, begin, end));
+        t.assert_true("inside the prefix", end <= st.segment_raw_tokens.size() - (size_t) st.holdback_tokens);
+
+        // the next decode uses raw[0 : len - holdback] as its prefix
+        st.prompt_prefix_tokens.assign(st.segment_raw_tokens.begin(),
+                                       st.segment_raw_tokens.end() - st.holdback_tokens);
+        t.assert_equal("prefix size", (size_t) 4, st.prompt_prefix_tokens.size());
+    }
+}
+
+static void test_utf8_holdback(testing & t) {
+    std::string complete;
+
+    t.assert_equal("ascii", (size_t) 0, server_asr_utf8_holdback("hello", complete));
+    t.assert_equal("ascii text", std::string("hello"), complete);
+
+    // a single Chinese code point (3 bytes) is complete
+    t.assert_equal("cjk complete", (size_t) 0, server_asr_utf8_holdback("\xE4\xBD\xA0", complete));
+    t.assert_equal("cjk text", std::string("\xE4\xBD\xA0"), complete);
+
+    // two of the three bytes: nothing is safe to send yet
+    t.assert_equal("cjk partial", (size_t) 2, server_asr_utf8_holdback("\xE4\xBD", complete));
+    t.assert_true ("cjk partial empty", complete.empty());
+
+    // a complete code point followed by a partial one
+    t.assert_equal("mixed partial", (size_t) 2, server_asr_utf8_holdback("\xE4\xBD\xA0\xE4\xBD", complete));
+    t.assert_equal("mixed complete", std::string("\xE4\xBD\xA0"), complete);
+}
+
 int main(int argc, char ** argv) {
     testing t;
 
@@ -1005,6 +1091,8 @@ int main(int argc, char ** argv) {
     t.test("chunk_ranges",          test_chunk_ranges);
     t.test("realtime_happy_path",   test_realtime_happy_path);
     t.test("realtime_errors",       test_realtime_errors);
+    t.test("stable_commit",         test_stable_commit);
+    t.test("utf8_holdback",         test_utf8_holdback);
 
     return t.summary();
 }

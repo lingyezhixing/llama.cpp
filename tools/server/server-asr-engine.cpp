@@ -114,8 +114,9 @@ bool server_asr_engine::init(const server_asr_config & config, server_asr_error 
         pimpl->fake_realtime = std::make_unique<server_asr_fake_realtime_runner>();
         pimpl->jobs          = std::make_unique<server_asr_job_manager>(pimpl->fake_runner.get());
     } else {
-        pimpl->runner = server_asr_make_offline_runner(this, pimpl->aligner_ctx);
-        pimpl->jobs   = std::make_unique<server_asr_job_manager>(pimpl->runner.get());
+        pimpl->runner   = server_asr_make_offline_runner(this, pimpl->aligner_ctx);
+        pimpl->jobs     = std::make_unique<server_asr_job_manager>(pimpl->runner.get());
+        pimpl->realtime = server_asr_make_realtime_runner(this);
     }
 
     return true;

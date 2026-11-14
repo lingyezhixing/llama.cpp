@@ -47,6 +47,32 @@ public:
     virtual void cancel() = 0;
 };
 
+// stability preset to holdback tokens; unknown values fall back to balanced
+int32_t server_asr_realtime_holdback_tokens(const std::string & stability);
+
+// state of the append-only commit pointer for one segment
+struct server_asr_commit_state {
+    std::vector<llama_token> segment_base_tokens;      // carried into this segment
+    std::vector<llama_token> prompt_prefix_tokens;     // fixed prefix of the next decode
+    std::vector<llama_token> segment_raw_tokens;       // prefix + generated text
+    std::vector<llama_token> prev_segment_raw_tokens;  // raw tokens of the previous decode
+
+    int64_t committed_tokens   = 0; // global count already sent to the client
+    int64_t emitted_in_segment = 0;
+    int32_t holdback_tokens    = 8;
+};
+
+// token span of segment_raw_tokens that may be emitted now, [begin, end)
+// false when nothing new is safe, which is the common case early in a segment
+bool server_asr_stable_commit(server_asr_commit_state & state, size_t & emit_begin, size_t & emit_end);
+
+// splits off trailing bytes that do not form a complete UTF-8 code point
+// returns the number of held bytes; they must be sent with the next span
+size_t server_asr_utf8_holdback(const std::string & text, std::string & complete);
+
+// the re-decode runner: accumulated audio, stable commit, append-only deltas
+std::unique_ptr<server_asr_realtime_runner> server_asr_make_realtime_runner(server_asr_engine * engine);
+
 // deterministic runner for protocol tests: "hello" on the first push, " world" on finish
 class server_asr_fake_realtime_runner : public server_asr_realtime_runner {
 public:

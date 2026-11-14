@@ -27,6 +27,7 @@ add_library(${TARGET} STATIC
     server-asr-offline.h
     server-asr-realtime.cpp
     server-asr-realtime.h
+    server-asr-realtime-runner.cpp
     server-asr-common.cpp
     server-asr-common.h
     server-asr-upload.cpp
