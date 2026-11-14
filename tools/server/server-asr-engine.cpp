@@ -44,6 +44,10 @@ struct server_asr_engine::impl {
     std::unique_ptr<server_asr_offline_runner> runner;      // the real pipeline
     std::unique_ptr<server_asr_job_manager> jobs;
 
+    std::unique_ptr<server_asr_fake_realtime_runner> fake_realtime; // test mode only
+    std::unique_ptr<server_asr_realtime_runner>      realtime;      // Task 11
+    std::atomic<bool> realtime_active{false};
+
     int32_t aligner_ctx = 0; // chunk cap when timestamps are requested
 };
 
@@ -106,8 +110,9 @@ bool server_asr_engine::init(const server_asr_config & config, server_asr_error 
     // documented flag, only this environment variable turns it on
     const char * fake = std::getenv("LLAMA_SERVER_ASR_FAKE_RUNNER");
     if (fake != nullptr && std::strcmp(fake, "1") == 0) {
-        pimpl->fake_runner = std::make_unique<server_asr_fake_runner>();
-        pimpl->jobs        = std::make_unique<server_asr_job_manager>(pimpl->fake_runner.get());
+        pimpl->fake_runner   = std::make_unique<server_asr_fake_runner>();
+        pimpl->fake_realtime = std::make_unique<server_asr_fake_realtime_runner>();
+        pimpl->jobs          = std::make_unique<server_asr_job_manager>(pimpl->fake_runner.get());
     } else {
         pimpl->runner = server_asr_make_offline_runner(this, pimpl->aligner_ctx);
         pimpl->jobs   = std::make_unique<server_asr_job_manager>(pimpl->runner.get());
@@ -130,6 +135,34 @@ server_asr_aligner * server_asr_engine::aligner() const {
 
 server_asr_job_manager * server_asr_engine::jobs() const {
     return pimpl->jobs.get();
+}
+
+server_asr_realtime_runner * server_asr_engine::realtime_runner() const {
+    if (pimpl->realtime) {
+        return pimpl->realtime.get();
+    }
+    return pimpl->fake_realtime.get();
+}
+
+bool server_asr_engine::try_begin_realtime() {
+    bool expected = false;
+    if (!pimpl->realtime_active.compare_exchange_strong(expected, true)) {
+        return false;
+    }
+
+    if (pimpl->jobs) {
+        pimpl->jobs->set_realtime_active(true);
+    }
+
+    return true;
+}
+
+void server_asr_engine::end_realtime() {
+    pimpl->realtime_active.store(false);
+
+    if (pimpl->jobs) {
+        pimpl->jobs->set_realtime_active(false);
+    }
 }
 
 const llama_vocab * server_asr_engine::vocab() const {
@@ -182,6 +215,9 @@ void server_asr_engine::terminate() {
     pimpl->jobs.reset();
     pimpl->runner.reset();
     pimpl->fake_runner.reset();
+    pimpl->realtime.reset();
+    pimpl->fake_realtime.reset();
+    pimpl->realtime_active.store(false);
     pimpl->aligner.reset();
 
     {

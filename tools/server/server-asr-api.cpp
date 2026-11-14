@@ -1,6 +1,7 @@
 #include "server-asr-api.h"
 
 #include "server-asr-engine.h"
+#include "server-asr-realtime.h"
 #include "server-asr-upload.h"
 #include "server-common.h"
 
@@ -180,23 +181,7 @@ server_http_res_ptr server_asr_delete_transcription(const server_http_req & req,
 }
 
 void server_asr_ws_realtime(const server_http_req & req, server_http_context::ws_conn & conn, server_asr_engine * engine) {
-    GGML_UNUSED(req);
-
-    const bool supported = engine_ready(engine);
-    const bool realtime  = supported && engine->capabilities().realtime;
-
-    const std::string code = realtime ? "asr_not_implemented" : "asr_not_supported";
-    const std::string text = realtime
-        ? "the realtime ASR pipeline is not wired yet"
-        : "the loaded model is not Qwen3-ASR";
-
-    conn.send(safe_json_to_str(json {
-        { "type",  "error" },
-        { "code",  code   },
-        { "message", text },
-        { "fatal", true  },
-    }));
-    conn.close();
+    server_asr_ws_session(req, conn, engine);
 }
 
 server_http_res_ptr server_asr_router_unsupported(const server_http_stream_req & req) {

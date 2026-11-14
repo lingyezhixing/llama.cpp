@@ -292,7 +292,7 @@ set_tests_properties(test-llama-context PROPERTIES
 # Qwen3-ASR server helpers: language handling, JSON shapes, upload parsing
 llama_build_and_test(test-asr.cpp  LABEL behavior  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
 target_include_directories(test-asr PRIVATE ${PROJECT_SOURCE_DIR}/tools/server)
-target_link_libraries(test-asr PRIVATE server-context)
+target_link_libraries(test-asr PRIVATE server-context cpp-httplib)
 
 # Qwen3-ASR forced aligner helper: tokenization, timestamp repair, gated forward pass
 llama_build_and_test(test-asr-align.cpp  LABEL behavior  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})

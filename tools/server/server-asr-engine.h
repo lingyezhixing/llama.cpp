@@ -5,6 +5,7 @@
 #include "server-asr-align.h"
 #include "server-asr-common.h"
 #include "server-asr-job.h"
+#include "server-asr-realtime.h"
 
 #include <memory>
 #include <string>
@@ -49,6 +50,13 @@ public:
 
     // creates the dedicated ASR context on first use, null on failure
     llama_context * ensure_context(server_asr_error & err);
+
+    // null until the realtime pipeline exists
+    server_asr_realtime_runner * realtime_runner() const;
+
+    // one session at a time; also pauses the offline worker
+    bool try_begin_realtime();
+    void end_realtime();
 
     void terminate();
 

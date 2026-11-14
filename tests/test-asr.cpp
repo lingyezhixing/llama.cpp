@@ -817,6 +817,162 @@ static void test_chunk_ranges(testing & t) {
     t.assert_true("no ranges on error", bad.empty());
 }
 
+
+//
+// realtime protocol
+//
+
+#include "server-asr-realtime.h"
+
+#include <deque>
+
+namespace {
+
+struct mock_ws_conn : server_http_context::ws_conn {
+    std::deque<std::pair<int, std::string>> incoming;
+    std::vector<std::string> sent;
+    bool closed = false;
+
+    void push_text(const std::string & text) { incoming.emplace_back(1, text); }
+    void push_binary(const std::string & data) { incoming.emplace_back(2, data); }
+
+    int read(std::string & msg) override {
+        if (incoming.empty()) {
+            return 0;
+        }
+        msg = incoming.front().second;
+        const int kind = incoming.front().first;
+        incoming.pop_front();
+        return kind;
+    }
+    bool send(const std::string & msg) override { sent.push_back(msg); return true; }
+    bool send_binary(const std::string & msg) override { sent.push_back(msg); return true; }
+    bool is_open() const override { return !closed; }
+    void close() override { closed = true; }
+
+    std::string joined_deltas() const {
+        std::string out;
+        for (const auto & msg : sent) {
+            json j = json::parse(msg);
+            if (j.value("type", std::string("")) == "transcript.delta") {
+                out += j.value("text", std::string(""));
+            }
+        }
+        return out;
+    }
+
+    std::string type_at(size_t i) const {
+        if (i >= sent.size()) {
+            return "";
+        }
+        return json::parse(sent[i]).value("type", std::string(""));
+    }
+};
+
+struct pcm16_runner {
+    static std::string frame(int16_t value, size_t n) {
+        std::string out;
+        for (size_t i = 0; i < n; i++) {
+            out.push_back((char) (value & 0xFF));
+            out.push_back((char) ((value >> 8) & 0xFF));
+        }
+        return out;
+    }
+};
+
+void run_protocol(mock_ws_conn & conn) {
+    server_asr_fake_realtime_runner runner;
+    server_asr_capabilities caps;
+    caps.realtime = true;
+    server_asr_ws_protocol(conn, &runner, caps, nullptr);
+}
+
+} // namespace
+
+static void test_realtime_happy_path(testing & t) {
+    mock_ws_conn conn;
+    conn.push_text(R"({"type":"session.start","language":"English"})");
+    conn.push_binary(pcm16_runner::frame(1000, 1600));
+    conn.push_binary(pcm16_runner::frame(1000, 1600));
+    conn.push_text(R"({"type":"session.finish"})");
+
+    run_protocol(conn);
+
+    t.assert_equal("started",      std::string("session.started"),  conn.type_at(0));
+    t.assert_equal("delta first",  std::string("transcript.delta"), conn.type_at(1));
+    t.assert_equal("delta second", std::string("transcript.delta"), conn.type_at(2));
+    t.assert_equal("finished",     std::string("session.finished"), conn.type_at(3));
+
+    // append-only: the joined deltas are exactly the committed text
+    t.assert_equal("joined", std::string("hello world"), conn.joined_deltas());
+    t.assert_true ("closed", conn.closed);
+
+    const json finished = json::parse(conn.sent[3]);
+    t.assert_equal("audio_ms", 200, finished.at("audio_ms").get<int>());
+    t.assert_true("usage", finished.at("usage").at("decode_steps").get<int>() >= 2);
+}
+
+static void test_realtime_errors(testing & t) {
+    // audio before session.start
+    {
+        mock_ws_conn conn;
+        conn.push_binary(pcm16_runner::frame(0, 10));
+        run_protocol(conn);
+        t.assert_equal("audio first", std::string("error"), conn.type_at(0));
+        t.assert_equal("audio first code",
+                std::string("invalid_state"),
+                json::parse(conn.sent[0]).at("code").get<std::string>());
+    }
+
+    // a second session.start
+    {
+        mock_ws_conn conn;
+        conn.push_text(R"({"type":"session.start"})");
+        conn.push_text(R"({"type":"session.start"})");
+        run_protocol(conn);
+        t.assert_equal("started once", std::string("session.started"), conn.type_at(0));
+        t.assert_equal("second start", std::string("error"),           conn.type_at(1));
+    }
+
+    // a bad sample rate
+    {
+        mock_ws_conn conn;
+        conn.push_text(R"({"type":"session.start","sample_rate":4000})");
+        run_protocol(conn);
+        t.assert_equal("sample rate", std::string("invalid_audio_format"),
+                json::parse(conn.sent[0]).at("code").get<std::string>());
+    }
+
+    // an unknown language
+    {
+        mock_ws_conn conn;
+        conn.push_text(R"({"type":"session.start","language":"Klingon"})");
+        run_protocol(conn);
+        t.assert_equal("language", std::string("unsupported_language"),
+                json::parse(conn.sent[0]).at("code").get<std::string>());
+    }
+
+    // cancel
+    {
+        mock_ws_conn conn;
+        conn.push_text(R"({"type":"session.start"})");
+        conn.push_binary(pcm16_runner::frame(0, 160));
+        conn.push_text(R"({"type":"session.cancel"})");
+        run_protocol(conn);
+        t.assert_equal("cancelled", std::string("session.cancelled"), conn.type_at(conn.sent.size() - 1));
+    }
+
+    // an odd byte count is not PCM16
+    {
+        mock_ws_conn conn;
+        conn.push_text(R"({"type":"session.start"})");
+        conn.push_binary(std::string(3, 'x'));
+        run_protocol(conn);
+        t.assert_equal("odd bytes", std::string("invalid_audio_format"),
+                json::parse(conn.sent[1]).at("code").get<std::string>());
+    }
+}
+
 int main(int argc, char ** argv) {
     testing t;
 
@@ -847,6 +1003,8 @@ int main(int argc, char ** argv) {
     t.test("job_queue_full",        test_job_queue_full);
     t.test("chunk_limits",          test_chunk_limits);
     t.test("chunk_ranges",          test_chunk_ranges);
+    t.test("realtime_happy_path",   test_realtime_happy_path);
+    t.test("realtime_errors",       test_realtime_errors);
 
     return t.summary();
 }
