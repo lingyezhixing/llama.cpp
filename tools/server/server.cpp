@@ -195,9 +195,8 @@ static void server_register_routes(server_http_context & ctx_http, server_routes
     ctx_http.ws  ("/v1/realtime",              routes.ws_realtime);
     // Qwen3-ASR: separate from /v1/realtime, the upload route reads its body itself
     ctx_http.post_stream("/v1/asr/transcriptions",     routes.post_asr_transcriptions);
-    // a regex route: the router path-param matcher does not reach these handlers
-    ctx_http.get ("/v1/asr/transcriptions/[A-Za-z0-9_]+", ex_wrapper(routes.get_asr_transcription));
-    ctx_http.del ("/v1/asr/transcriptions/[A-Za-z0-9_]+", ex_wrapper(routes.delete_asr_transcription));
+    ctx_http.get ("/v1/asr/transcriptions/:id",        ex_wrapper(routes.get_asr_transcription));
+    ctx_http.del ("/v1/asr/transcriptions/:id",        ex_wrapper(routes.delete_asr_transcription));
     ctx_http.ws  ("/v1/asr/realtime",                  routes.ws_asr_realtime);
     ctx_http.post("/v1/messages",              ex_wrapper(routes.post_anthropic_messages)); // anthropic messages API
     ctx_http.post("/infill",                   ex_wrapper(routes.post_infill));

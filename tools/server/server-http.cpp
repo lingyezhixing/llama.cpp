@@ -284,7 +284,9 @@ bool server_http_context::init_listener(const common_params & params) {
     });
 
     srv->set_error_handler([](const httplib::Request &, httplib::Response & res) {
-        if (res.status == 404) {
+        // httplib runs the error handler for every 4xx/5xx response, so only an
+        // unrouted request (no body) gets the generic message
+        if (res.status == 404 && res.body.empty()) {
             res.set_content(
                 safe_json_to_str(json {
                     {"error", {

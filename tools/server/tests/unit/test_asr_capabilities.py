@@ -137,11 +137,7 @@ def test_routes_are_stubs_without_a_job_manager():
         assert body["error"]["code"] == "asr_not_implemented"
 
         status, body = request(port, "GET", "/v1/asr/transcriptions/asr_missing")
-        if status != 404 or not isinstance(body.get("error", {}).get("code"), str):
-            # TODO(task 6): GET/DELETE routes with a path pattern do not reach the
-            # handler, only literal GET routes and the streamed POST do. The POST
-            # stub below still proves the route table is wired.
-            pytest.xfail("the GET /v1/asr/transcriptions/{id} route does not match yet")
+        assert status == 404
         assert body["error"]["code"] == "job_not_found"
 
         status, body = request(port, "DELETE", "/v1/asr/transcriptions/asr_missing")
